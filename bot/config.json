@@ -1,0 +1,10 @@
+{
+    "admin_ids": [7746757675],
+    "office_location": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+    "website_url": "https://afaqalqary.pages.dev/",
+    "offers_file": "../offers-data/offers.json",
+    "auto_renew": true,
+    "max_images": 5,
+    "weekly_report": true,
+    "auto_prices_update": true
+}

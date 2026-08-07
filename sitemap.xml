@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:geo="http://www.google.com/geo/schemas/sitemap/1.0">
+  
+  <!-- الصفحة الرئيسية -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://afaqalqary.pages.dev/images/logo.jpg</image:loc>
+      <image:title>مكتب آفاق الإنجاز العقاري</image:title>
+      <image:caption>شعار مكتب آفاق الإنجاز العقاري في الخرج</image:caption>
+    </image:image>
+    <geo:geo>
+      <geo:point>
+        <geo:lat>24.1554</geo:lat>
+        <geo:lng>47.3068</geo:lng>
+      </geo:point>
+    </geo:geo>
+  </url>
+
+  <!-- صفحة المزارع -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/farms.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://afaqalqary.pages.dev/images/farms-bg.jpg</image:loc>
+      <image:title>مزارع الخرج للبيع</image:title>
+    </image:image>
+  </url>
+
+  <!-- صفحة الاستراحات -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/resthouses.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://afaqalqary.pages.dev/images/resthouse-bg.jpg</image:loc>
+      <image:title>استراحات الخرج للبيع</image:title>
+    </image:image>
+  </url>
+
+  <!-- صفحة الأراضي السكنية -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/lands.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://afaqalqary.pages.dev/images/land-bg.jpg</image:loc>
+      <image:title>أراضي سكنية في الخرج للبيع</image:title>
+    </image:image>
+  </url>
+
+  <!-- صفحة الخدمات -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/services.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://afaqalqary.pages.dev/images/services-bg.jpg</image:loc>
+      <image:title>خدمات ما بعد البيع العقاري</image:title>
+    </image:image>
+  </url>
+
+  <!-- صفحة عرض عقار -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/list-property.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- صفحة الاستفسارات -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/inquiry.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- صفحة التواصل -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/contact.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- صفحة الخدمات (مقاولات/حفر آبار/إدارة أملاك) -->
+  <url>
+    <loc>https://afaqalqary.pages.dev/services.html</loc>
+    <lastmod>2026-08-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+</urlset>

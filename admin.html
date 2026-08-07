@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>لوحة التحكم — مكتب آفاق الإنجاز العقاري</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2A5050;
+            --primary-dark: #1B3D3D;
+            --primary-light: #3D6B6B;
+            --gold: #C4A956;
+            --gold-light: #D4BD75;
+            --cream: #F5F1E8;
+            --cream-dark: #E8E0D0;
+            --white: #FFFFFF;
+            --dark-text: #1A1A1A;
+            --gray-text: #555555;
+            --light-gray: #F0F0F0;
+            --shadow: 0 4px 20px rgba(42, 80, 80, 0.15);
+            --shadow-hover: 0 8px 30px rgba(42, 80, 80, 0.25);
+            --transition: all 0.3s ease;
+            --danger: #E5484D;
+            --success: #30A46C;
+            --warning: #F5A623;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%);
+            color: var(--dark-text);
+            min-height: 100vh;
+        }
+
+        /* شاشة تسجيل الدخول */
+        .login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .login-box {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: var(--shadow-hover);
+            text-align: center;
+        }
+        .login-box .login-logo {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 4px solid var(--gold);
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: var(--primary);
+            background: var(--cream);
+        }
+        .login-box h1 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--primary-dark);
+            margin-bottom: 8px;
+        }
+        .login-box p {
+            color: var(--gray-text);
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--cream-dark);
+            border-radius: 12px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: var(--transition);
+            text-align: center;
+        }
+        .login-box input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(196, 169, 86, 0.15);
+        }
+        .login-box button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+            border: none;
+            border-radius: 12px;
+            font-family: 'Cairo', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .login-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+        }
+        .login-error {
+            color: var(--danger);
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        .login-hint {
+            margin-top: 20px;
+            padding: 12px;
+            background: var(--cream);
+            border-radius: 10px;
+            font-size: 13px;
+            color: var(--gray-text);
+        }
+        .login-hint code {
+            background: var(--primary-dark);
+            color: var(--gold-light);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+
+        /* لوحة التحكم */
+        .dashboard {
+            display: none;
+        }
+        .dashboard.active {
+            display: block;
+        }
+
+        /* الهيدر */
+        .admin-header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            color: var(--white);
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .admin-header .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .admin-header .header-logo {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            border: 3px solid var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: var(--cream);
+            color: var(--primary);
+        }
+        .admin-header h1 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+        }
+        .admin-header h1 span {
+            display: block;
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--gold-light);
+        }
+        .admin-header .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .admin-header .btn-logout {
+            background: rgba(255,255,255,0.15);
+            color: var(--white);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 14px;
+            transition: var(--transition);
+        }
+        .admin-header .btn-logout:hover {
+            background: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* الأقسام الجانبية */
+        .admin-body {
+            display: flex;
+            min-height: calc(100vh - 80px);
+        }
+        .sidebar {
+            width: 250px;
+            background: var(--white);
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .sidebar-item {
+            padding: 14px 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--gray-text);
+            font-size: 15px;
+            font-weight: 500;
+            border-right: 4px solid transparent;
+        }
+        .sidebar-item:hover {
+            background: var(--cream);
+            color: var(--primary-dark);
+        }
+        .sidebar-item.active {
+            background: linear-gradient(90deg, rgba(42,80,80,0.08) 0%, transparent 100%);
+            color: var(--primary-dark);
+            border-right-color: var(--gold);
+            font-weight: 700;
+        }
+        .sidebar-item i {
+            width: 24px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        /* المحتوى */
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            overflow-x: auto;
+        }
+        .section {
+            display: none;
+        }
+        .section.active {
+            display: block;
+        }
+        .section-title {
+            font-family: 'Cairo', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--primary-dark);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-title i {
+            color: var(--gold);
+        }
+
+        /* البطاقات الإحصائية */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            text-align: center;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+        .stat-card .stat-icon {
+            width: 55px;
+            height: 55px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin: 0 auto 12px;
+        }
+        .stat-card .stat-value {
+            font-family: 'Cairo', sans-serif;
+            font-size: 36px;
+            font-weight: 900;
+            color: var(--primary-dark);
+        }
+        .stat-card .stat-label {
+            color: var(--gray-text);
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .stat-farm .stat-icon { background: #E8F5E9; color: #2E7D32; }
+        .stat-resthouse .stat-icon { background: #FFF3E0; color: #E65100; }
+        .stat-land .stat-icon { background: #E3F2FD; color: #1565C0; }
+        .stat-total .stat-icon { background: var(--cream); color: var(--primary); }
+
+        /* جدول العروض */
+        .offers-table {
+            width: 100%;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        .offers-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .offers-table th {
+            background: var(--primary-dark);
+            color: var(--white);
+            padding: 15px;
+            text-align: right;
+            font-family: 'Cairo', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .offers-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--light-gray);
+            font-size: 14px;
+        }
+        .offers-table tr:hover {
+            background: var(--cream);
+        }
+        .offers-table tr:last-child td {
+            border-bottom: none;
+        }
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .badge-farm { background: #E8F5E9; color: #2E7D32; }
+        .badge-resthouse { background: #FFF3E0; color: #E65100; }
+        .badge-land { background: #E3F2FD; color: #1565C0; }
+
+        /* الأزرار */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+        .btn-danger { background: var(--danger); color: var(--white); }
+        .btn-danger:hover { opacity: 0.85; }
+        .btn-gold { background: var(--gold); color: var(--white); }
+        .btn-gold:hover { background: var(--gold-light); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        /* البوصلة */
+        .bousla-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .bousla-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+        .bousla-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+        .bousla-card h3 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 20px;
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bousla-card h3 i { color: var(--gold); }
+        .bousla-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--light-gray);
+        }
+        .bousla-item:last-child { border-bottom: none; }
+        .bousla-item .label { color: var(--gray-text); font-size: 14px; }
+        .bousla-item .value { font-weight: 700; color: var(--primary-dark); font-size: 15px; }
+
+        /* روابط سريعة */
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .quick-link {
+            background: var(--white);
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            text-decoration: none;
+            color: var(--dark-text);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .quick-link:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+        }
+        .quick-link .ql-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: var(--cream);
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .quick-link .ql-text { font-size: 14px; }
+        .quick-link .ql-text strong { display: block; font-size: 16px; color: var(--primary-dark); }
+        .quick-link .ql-text span { color: var(--gray-text); font-size: 13px; }
+
+        /* المعلومات */
+        .info-box {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .info-box h3 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 18px;
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--light-gray);
+            gap: 12px;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-row .info-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            background: var(--cream);
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .info-row .info-content { flex: 1; }
+        .info-row .info-label { font-size: 12px; color: var(--gray-text); }
+        .info-row .info-value { font-size: 15px; font-weight: 600; color: var(--dark-text); }
+
+        /* تنبيهات */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+        .alert-info { background: #E3F2FD; color: #1565C0; }
+        .alert-success { background: #E8F5E9; color: #2E7D32; }
+        .alert-warning { background: #FFF8E1; color: #F57F17; }
+
+        /* modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--white);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: var(--shadow-hover);
+        }
+        .modal h2 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 22px;
+            color: var(--primary-dark);
+            margin-bottom: 20px;
+        }
+        .modal .form-group {
+            margin-bottom: 15px;
+        }
+        .modal label {
+            display: block;
+            font-size: 14px;
+            color: var(--gray-text);
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .modal input, .modal select, .modal textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--cream-dark);
+            border-radius: 10px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 15px;
+            transition: var(--transition);
+        }
+        .modal input:focus, .modal select:focus, .modal textarea:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+        .modal .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal .modal-actions .btn { flex: 1; justify-content: center; }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray-text);
+        }
+        .empty-state i { font-size: 60px; color: var(--cream-dark); margin-bottom: 20px; }
+        .empty-state h3 { font-family: 'Cairo', sans-serif; font-size: 20px; margin-bottom: 10px; }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 60px; }
+            .sidebar-item span { display: none; }
+            .main-content { padding: 15px; }
+            .admin-header h1 span { display: none; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+
+    <!-- شاشة تسجيل الدخول -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <div class="login-logo">
+                <i class="fas fa-building"></i>
+            </div>
+            <h1>لوحة تحكم المكتب</h1>
+            <p>مكتب آفاق الإنجاز العقاري — للخدمات العقارية</p>
+            <input type="password" id="loginPassword" placeholder="أدخل كلمة المرور" onkeypress="if(event.key==='Enter')doLogin()">
+            <button onclick="doLogin()">
+                <i class="fas fa-sign-in-alt"></i> دخول
+            </button>
+            <div class="login-error" id="loginError">كلمة المرور غير صحيحة</div>
+            <div class="login-hint">
+                كلمة المرور الافتراضية: <code>afaq2026</code><br>
+                <small>يمكنك تغييرها لاحقاً من الإعدادات</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- لوحة التحكم -->
+    <div class="dashboard" id="dashboard">
+        <!-- الهيدر -->
+        <div class="admin-header">
+            <div class="header-right">
+                <div class="header-logo">
+                    <i class="fas fa-building"></i>
+                </div>
+                <h1>لوحة التحكم<span>مكتب آفاق الإنجاز العقاري</span></h1>
+            </div>
+            <div class="header-left">
+                <a href="index.html" class="btn-logout" style="text-decoration:none;">
+                    <i class="fas fa-home"></i> الموقع
+                </a>
+                <button class="btn-logout" onclick="doLogout()">
+                    <i class="fas fa-sign-out-alt"></i> خروج
+                </button>
+            </div>
+        </div>
+
+        <div class="admin-body">
+            <!-- القائمة الجانبية -->
+            <div class="sidebar">
+                <div class="sidebar-item active" onclick="showSection('overview', this)">
+                    <i class="fas fa-tachometer-alt"></i> <span>نظرة عامة</span>
+                </div>
+                <div class="sidebar-item" onclick="showSection('offers', this)">
+                    <i class="fas fa-list"></i> <span>العروض</span>
+                </div>
+                <div class="sidebar-item" onclick="showSection('bousla', this)">
+                    <i class="fas fa-compass"></i> <span>البوصلة</span>
+                </div>
+                <div class="sidebar-item" onclick="showSection('office', this)">
+                    <i class="fas fa-info-circle"></i> <span>بيانات المكتب</span>
+                </div>
+                <div class="sidebar-item" onclick="showSection('bot', this)">
+                    <i class="fas fa-robot"></i> <span>بوت التليجرام</span>
+                </div>
+                <div class="sidebar-item" onclick="showSection('seo', this)">
+                    <i class="fas fa-search"></i> <span>SEO وفهرسة</span>
+                </div>
+                <div class="sidebar-item" onclick="showSection('settings', this)">
+                    <i class="fas fa-cog"></i> <span>الإعدادات</span>
+                </div>
+            </div>
+
+            <!-- المحتوى -->
+            <div class="main-content">
+                <!-- نظرة عامة -->
+                <div class="section active" id="section-overview">
+                    <h2 class="section-title"><i class="fas fa-tachometer-alt"></i> نظرة عامة</h2>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>مرحباً بك في لوحة تحكم مكتب آفاق الإنجاز العقاري. يمكنك إدارة العروض والبوصلة وبيانات المكتب من هنا.</span>
+                    </div>
+
+                    <div class="stats-grid" id="statsGrid">
+                        <!-- يتم ملؤها بالجافاسكربت -->
+                    </div>
+
+                    <h3 style="font-family:'Cairo',sans-serif;color:var(--primary-dark);margin:25px 0 15px;font-size:20px;">
+                        <i class="fas fa-link" style="color:var(--gold)"></i> روابط سريعة
+                    </h3>
+                    <div class="quick-links">
+                        <a href="index.html" class="quick-link">
+                            <div class="ql-icon"><i class="fas fa-home"></i></div>
+                            <div class="ql-text"><strong>الصفحة الرئيسية</strong><span>عرض الموقع</span></div>
+                        </a>
+                        <a href="farms.html" class="quick-link">
+                            <div class="ql-icon"><i class="fas fa-seedling"></i></div>
+                            <div class="ql-text"><strong>المزارع</strong><span>عروض المزارع</span></div>
+                        </a>
+                        <a href="resthouses.html" class="quick-link">
+                            <div class="ql-icon"><i class="fas fa-home"></i></div>
+                            <div class="ql-text"><strong>الاستراحات</strong><span>عروض الاستراحات</span></div>
+                        </a>
+                        <a href="lands.html" class="quick-link">
+                            <div class="ql-icon"><i class="fas fa-map"></i></div>
+                            <div class="ql-text"><strong>الأراضي</strong><span>عروض الأراضي</span></div>
+                        </a>
+                        <a href="services.html" class="quick-link">
+                            <div class="ql-icon"><i class="fas fa-hard-hat"></i></div>
+                            <div class="ql-text"><strong>الخدمات</strong><span>مقاولات وحفر آبار</span></div>
+                        </a>
+                        <a href="contact.html" class="quick-link">
+                            <div class="ql-icon"><i class="fas fa-phone"></i></div>
+                            <div class="ql-text"><strong>التواصل</strong><span>أرقام المكتب</span></div>
+                        </a>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-robot" style="color:var(--gold)"></i> معلومات بوت التليجرام</h3>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-robot"></i></div>
+                            <div class="info-content">
+                                <div class="info-label">اسم البوت</div>
+                                <div class="info-value">افاق الانجاز (@tlastlastlasbot)</div>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-user-shield"></i></div>
+                            <div class="info-content">
+                                <div class="info-label">المدير</div>
+                                <div class="info-value">Telegram ID: 7746757675</div>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-link"></i></div>
+                            <div class="info-content">
+                                <div class="info-label">رابط البوت</div>
+                                <div class="info-value"><a href="https://t.me/tlastlastlasbot" target="_blank" style="color:var(--primary);text-decoration:none;">t.me/tlastlastlasbot ←</a></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- العروض -->
+                <div class="section" id="section-offers">
+                    <h2 class="section-title"><i class="fas fa-list"></i> العروض المنشورة</h2>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>لإضافة وتعديل وحذف العروض، استخدم بوت التليجرام — لديك تحكم كامل بالصور والنصوص التصنيف.</span>
+                    </div>
+                    <div class="offers-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>المعرف</th>
+                                    <th>العنوان</th>
+                                    <th>النوع</th>
+                                    <th>المنطقة</th>
+                                    <th>المساحة</th>
+                                    <th>السعر</th>
+                                </tr>
+                            </thead>
+                            <tbody id="offersTableBody">
+                                <!-- يتم ملؤها بالجافاسكربت -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- البوصلة -->
+                <div class="section" id="section-bousla">
+                    <h2 class="section-title"><i class="fas fa-compass"></i> بوصلة الأسعار العقارية</h2>
+                    <div class="alert alert-info">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>تتحدث البوصلة يومياً تلقائياً عبر البوت الساعة 6 صباحاً. يمكنك تحديثها يدوياً من البوت بزر «🧭 تحديث البوصلة».</span>
+                    </div>
+                    <div class="bousla-grid" id="bouslaGrid">
+                        <!-- يتم ملؤها بالجافاسكربت -->
+                    </div>
+                </div>
+
+                <!-- بيانات المكتب -->
+                <div class="section" id="section-office">
+                    <h2 class="section-title"><i class="fas fa-info-circle"></i> بيانات المكتب</h2>
+                    <div class="info-box" id="officeInfoBox">
+                        <!-- يتم ملؤها بالجافاسكربت -->
+                    </div>
+                </div>
+
+                <!-- بوت التليجرام -->
+                <div class="section" id="section-bot">
+                    <h2 class="section-title"><i class="fas fa-robot"></i> بوت التليجرام</h2>
+
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <span>البوت يعمل بكامل الصلاحيات! يمكنك التحكم بكل شيء عبر الأزرار في البوت.</span>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-keyboard" style="color:var(--gold)"></i> أزرار التحكم في البوت</h3>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-plus"></i></div>
+                            <div class="info-content"><div class="info-value">إضافة عرض جديد</div><div class="info-label">رفع صور + بيانات + توليد نص تسويقي تلقائي</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-list"></i></div>
+                            <div class="info-content"><div class="info-value">قائمة العروض</div><div class="info-label">عرض كل العروض المنشورة</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-trash"></i></div>
+                            <div class="info-content"><div class="info-value">حذف عرض</div><div class="info-label">حذف عرض بالمعرف</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-edit"></i></div>
+                            <div class="info-content"><div class="info-value">تعديل عرض</div><div class="info-label">تعديل بيانات عرض موجود</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-envelope"></i></div>
+                            <div class="info-content"><div class="info-value">طلبات الزوار</div><div class="info-label">استعراض طلبات العقارات والاستفسارات</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-search"></i></div>
+                            <div class="info-content"><div class="info-value">فلترة العروض</div><div class="info-label">حسب النوع أو المنطقة</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-chart-bar"></i></div>
+                            <div class="info-content"><div class="info-value">إحصائيات</div><div class="info-label">عدد العروض والطلبات</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-chart-line"></i></div>
+                            <div class="info-content"><div class="info-value">التقرير الأسبوعي</div><div class="info-label">تقرير زيارات الموقع وأقسامه — يرسل تلقائياً كل أحد 9 صباحاً</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-compass"></i></div>
+                            <div class="info-content"><div class="info-value">تحديث البوصلة</div><div class="info-label">تحديث أسعار العقارات — تلقائياً يومياً 6 صباحاً</div></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-brain"></i></div>
+                            <div class="info-content"><div class="info-value">المساعد الذكي</div><div class="info-label">مساعد عقاري محترف يجيب بلهجة سعودية</div></div>
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-terminal" style="color:var(--gold)"></i> أوامر سريعة</h3>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-code"></i></div><div class="info-content"><div class="info-value">/start</div><div class="info-label">بدء البوت</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-code"></i></div><div class="info-content"><div class="info-value">/add</div><div class="info-label">إضافة عرض</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-code"></i></div><div class="info-content"><div class="info-value">/list</div><div class="info-label">قائمة العروض</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-code"></i></div><div class="info-content"><div class="info-value">/weekly</div><div class="info-label">التقرير الأسبوعي</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-code"></i></div><div class="info-content"><div class="info-value">/bousla</div><div class="info-label">تحديث البوصلة</div></div></div>
+                    </div>
+                </div>
+
+                <!-- SEO -->
+                <div class="section" id="section-seo">
+                    <h2 class="section-title"><i class="fas fa-search"></i> تحسين محركات البحث (SEO)</h2>
+
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <span>الموقع مهيأ بالكامل لمحركات البحث: Google, Bing, Safari (Applebot), Yandex.</span>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-tags" style="color:var(--gold)"></i> الكلمات المفتاحية المفعلة</h3>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-key"></i></div><div class="info-content"><div class="info-value">مكتب عقاري في الخرج</div><div class="info-label">كلمة رئيسية</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-key"></i></div><div class="info-content"><div class="info-value">مزارع للبيع في الخرج والرياض</div><div class="info-label">كلمة رئيسية</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-key"></i></div><div class="info-content"><div class="info-value">استراحات للبيع في الخرج</div><div class="info-label">كلمة رئيسية</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-key"></i></div><div class="info-content"><div class="info-value">أراضي سكنية في الخرج والرياض</div><div class="info-label">كلمة رئيسية</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-key"></i></div><div class="info-content"><div class="info-value">مقاولات وحفر آبار في الرياض</div><div class="info-label">كلمة رئيسية</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-key"></i></div><div class="info-content"><div class="info-value">إدارة أملاك في السعودية</div><div class="info-label">كلمة رئيسية</div></div></div>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-tools" style="color:var(--gold)"></i> ملفات SEO الموجودة</h3>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-sitemap"></i></div><div class="info-content"><div class="info-value">sitemap.xml</div><div class="info-label">خريطة الموقع — محدثة بتاريخ اليوم</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-robot"></i></div><div class="info-content"><div class="info-value">robots.txt</div><div class="info-label">تعليمات لمحركات البحث — يسمح للكل</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-code"></i></div><div class="info-content"><div class="info-value">Schema.org Structured Data</div><div class="info-label">بيانات منظمة RealEstateAgent</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-globe"></i></div><div class="info-content"><div class="info-value">site.webmanifest</div><div class="info-label">مانيفست PWA</div></div></div>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-external-link-alt" style="color:var(--gold)"></i> روابط فهرسة محركات البحث</h3>
+                        <div class="info-row"><div class="info-icon"><i class="fab fa-google"></i></div><div class="info-content"><div class="info-value"><a href="https://search.google.com/search-console" target="_blank" style="color:var(--primary);text-decoration:none;">Google Search Console ←</a></div><div class="info-label">أضف موقعك واطلب الفهرسة</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fab fa-bing"></i></div><div class="info-content"><div class="info-value"><a href="https://www.bing.com/webmasters" target="_blank" style="color:var(--primary);text-decoration:none;">Bing Webmaster Tools ←</a></div><div class="info-label">فهرسة Bing</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-paper-plane"></i></div><div class="info-content"><div class="info-value"><a href="https://search.google.com/search-console/index" target="_blank" style="color:var(--primary);text-decoration:none;">طلب فهرسة Google ←</a></div><div class="info-label">URL Inspection → Request Indexing</div></div></div>
+                    </div>
+                </div>
+
+                <!-- الإعدادات -->
+                <div class="section" id="section-settings">
+                    <h2 class="section-title"><i class="fas fa-cog"></i> الإعدادات</h2>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-lock" style="color:var(--gold)"></i> تغيير كلمة المرور</h3>
+                        <div class="form-group" style="margin-bottom:15px;">
+                            <label>كلمة المرور الجديدة</label>
+                            <input type="password" id="newPassword" placeholder="كلمة المرور الجديدة" style="width:100%;padding:10px 14px;border:2px solid var(--cream-dark);border-radius:10px;font-family:'Tajawal',sans-serif;font-size:15px;">
+                        </div>
+                        <button class="btn btn-primary" onclick="changePassword()">
+                            <i class="fas fa-save"></i> حفظ كلمة المرور
+                        </button>
+                    </div>
+
+                    <div class="info-box">
+                        <h3><i class="fas fa-info" style="color:var(--gold)"></i> معلومات النظام</h3>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-globe"></i></div><div class="info-content"><div class="info-value">afaqalqary.pages.dev</div><div class="info-label">رابط الموقع</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-server"></i></div><div class="info-content"><div class="info-value">Cloudflare Pages</div><div class="info-label">منصة الاستضافة</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fab fa-github"></i></div><div class="info-content"><div class="info-value">GitHub Repository</div><div class="info-label">مستودع الكود</div></div></div>
+                        <div class="info-row"><div class="info-icon"><i class="fas fa-calendar"></i></div><div class="info-content"><div class="info-value">2026</div><div class="info-label">سنة الإصدار</div></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_PASSWORD = 'afaq2026';
+        const STORAGE_KEY = 'afaq_admin_auth';
+        const STORAGE_PASS_KEY = 'afaq_admin_pass';
+
+        // تسجيل الدخول
+        function doLogin() {
+            const input = document.getElementById('loginPassword');
+            const error = document.getElementById('loginError');
+            const savedPass = localStorage.getItem(STORAGE_PASS_KEY) || ADMIN_PASSWORD;
+            if (input.value === savedPass) {
+                sessionStorage.setItem(STORAGE_KEY, 'true');
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                loadAllData();
+            } else {
+                error.style.display = 'block';
+                input.value = '';
+            }
+        }
+
+        function doLogout() {
+            sessionStorage.removeItem(STORAGE_KEY);
+            location.reload();
+        }
+
+        // التحقق من الجلسة
+        (function() {
+            if (sessionStorage.getItem(STORAGE_KEY) === 'true') {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                loadAllData();
+            }
+        })();
+
+        // التنقل بين الأقسام
+        function showSection(name, el) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+            document.getElementById('section-' + name).classList.add('active');
+            el.classList.add('active');
+        }
+
+        // تحميل كل البيانات
+        async function loadAllData() {
+            await loadStats();
+            await loadOffers();
+            await loadBousla();
+            await loadOfficeInfo();
+        }
+
+        // تحميل الإحصائيات
+        async function loadStats() {
+            try {
+                const resp = await fetch('offers-data/offers.json');
+                const data = await resp.json();
+                const offers = data.offers || [];
+                const farms = offers.filter(o => o.type === 'farm').length;
+                const resthouses = offers.filter(o => o.type === 'resthouse').length;
+                const lands = offers.filter(o => o.type === 'land').length;
+                const total = offers.length;
+
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card stat-total">
+                        <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+                        <div class="stat-value">${total}</div>
+                        <div class="stat-label">إجمالي العروض</div>
+                    </div>
+                    <div class="stat-card stat-farm">
+                        <div class="stat-icon"><i class="fas fa-seedling"></i></div>
+                        <div class="stat-value">${farms}</div>
+                        <div class="stat-label">مزارع</div>
+                    </div>
+                    <div class="stat-card stat-resthouse">
+                        <div class="stat-icon"><i class="fas fa-home"></i></div>
+                        <div class="stat-value">${resthouses}</div>
+                        <div class="stat-label">استراحات</div>
+                    </div>
+                    <div class="stat-card stat-land">
+                        <div class="stat-icon"><i class="fas fa-map"></i></div>
+                        <div class="stat-value">${lands}</div>
+                        <div class="stat-label">أراضي سكنية</div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error('Error loading stats:', e);
+            }
+        }
+
+        // تحميل العروض
+        async function loadOffers() {
+            try {
+                const resp = await fetch('offers-data/offers.json');
+                const data = await resp.json();
+                const offers = data.offers || [];
+                const tbody = document.getElementById('offersTableBody');
+
+                if (offers.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fas fa-inbox"></i><h3>لا توجد عروض منشورة</h3><p>أضف عروضاً عبر بوت التليجرام</p></div></td></tr>`;
+                    return;
+                }
+
+                const typeLabels = {
+                    farm: { label: 'مزرعة', class: 'badge-farm' },
+                    resthouse: { label: 'استراحة', class: 'badge-resthouse' },
+                    land: { label: 'أرض سكنية', class: 'badge-land' }
+                };
+
+                tbody.innerHTML = offers.map(o => {
+                    const t = typeLabels[o.type] || { label: o.type, class: 'badge-land' };
+                    return `
+                        <tr>
+                            <td><strong>${o.id || '—'}</strong></td>
+                            <td>${o.title || '—'}</td>
+                            <td><span class="badge ${t.class}">${t.label}</span></td>
+                            <td>${o.area || '—'}</td>
+                            <td>${o.size_sqm || '—'} م²</td>
+                            <td>${o.price_text || o.price || '—'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading offers:', e);
+            }
+        }
+
+        // تحميل البوصلة
+        async function loadBousla() {
+            try {
+                const resp = await fetch('offers-data/office-data.json');
+                const data = await resp.json();
+                const areas = data.areas || {};
+                const grid = document.getElementById('bouslaGrid');
+
+                const cards = Object.entries(areas).map(([name, info]) => {
+                    return `
+                        <div class="bousla-card">
+                            <h3><i class="fas fa-map-marker-alt"></i> ${name}</h3>
+                            <div class="bousla-item">
+                                <span class="label"><i class="fas fa-hard-hat"></i> أرض سكنية</span>
+                                <span class="value">${info.land_avg_price_sqm || '—'} ريال/م²</span>
+                            </div>
+                            <div class="bousla-item">
+                                <span class="label"><i class="fas fa-seedling"></i> مزرعة</span>
+                                <span class="value">${info.farm_avg_price_sqm || '—'} ريال/م²</span>
+                            </div>
+                            <div class="bousla-item">
+                                <span class="label"><i class="fas fa-home"></i> استراحة</span>
+                                <span class="value">${info.resthouse_avg_price || '—'} ريال</span>
+                            </div>
+                            ${info.description ? `<div style="margin-top:12px;padding:10px;background:var(--cream);border-radius:8px;font-size:13px;color:var(--gray-text);">${info.description}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                const lastUpdate = data.bousla_last_update || 'غير محدد';
+                grid.innerHTML = `<div style="grid-column:1/-1;text-align:left;font-size:13px;color:var(--gray-text);margin-bottom:10px;"><i class="fas fa-clock"></i> آخر تحديث: ${lastUpdate}</div>` + cards;
+            } catch (e) {
+                console.error('Error loading bousla:', e);
+            }
+        }
+
+        // تحميل بيانات المكتب
+        async function loadOfficeInfo() {
+            try {
+                const resp = await fetch('offers-data/office-data.json');
+                const data = await resp.json();
+                const office = data.office || {};
+                const box = document.getElementById('officeInfoBox');
+
+                const phones = office.phones || [];
+                const services = data.services || [];
+
+                let phonesHtml = '';
+                if (Array.isArray(phones)) {
+                    phonesHtml = phones.map(p => `
+                        <div class="info-row">
+                            <div class="info-icon"><i class="fas fa-phone"></i></div>
+                            <div class="info-content">
+                                <div class="info-label">${p.type || 'هاتف'}</div>
+                                <div class="info-value">${p.number || p}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                let servicesHtml = services.map(s => `
+                    <div class="info-row">
+                        <div class="info-icon"><i class="fas fa-check"></i></div>
+                        <div class="info-content"><div class="info-value">${typeof s === 'string' ? s : (s.name || s.title || '')}</div></div>
+                    </div>
+                `).join('');
+
+                box.innerHTML = `
+                    <h3><i class="fas fa-building" style="color:var(--gold)"></i> ${office.name || 'مكتب آفاق الإنجاز العقاري'}</h3>
+                    ${office.description ? `<div class="alert alert-info" style="margin-bottom:15px;"><i class="fas fa-info-circle"></i><span>${office.description}</span></div>` : ''}
+                    ${phonesHtml}
+                    ${office.email ? `<div class="info-row"><div class="info-icon"><i class="fas fa-envelope"></i></div><div class="info-content"><div class="info-label">البريد الإلكتروني</div><div class="info-value">${office.email}</div></div></div>` : ''}
+                    ${office.snapchat ? `<div class="info-row"><div class="info-icon"><i class="fab fa-snapchat"></i></div><div class="info-content"><div class="info-label">سناب شات</div><div class="info-value">${office.snapchat}</div></div></div>` : ''}
+                    ${office.tiktok ? `<div class="info-row"><div class="info-icon"><i class="fab fa-tiktok"></i></div><div class="info-content"><div class="info-label">تيك توك</div><div class="info-value">${office.tiktok}</div></div></div>` : ''}
+                    ${office.location ? `<div class="info-row"><div class="info-icon"><i class="fas fa-map-marker-alt"></i></div><div class="info-content"><div class="info-label">الموقع</div><div class="info-value"><a href="${office.location}" target="_blank" style="color:var(--primary);text-decoration:none;">عرض على الخريطة ←</a></div></div></div>` : ''}
+                    ${services.length > 0 ? `<h3 style="margin-top:25px;"><i class="fas fa-tools" style="color:var(--gold)"></i> الخدمات</h3>${servicesHtml}` : ''}
+                `;
+            } catch (e) {
+                console.error('Error loading office info:', e);
+            }
+        }
+
+        // تغيير كلمة المرور
+        function changePassword() {
+            const newPass = document.getElementById('newPassword').value;
+            if (newPass.length < 4) {
+                alert('كلمة المرور يجب أن تكون 4 أحرف على الأقل');
+                return;
+            }
+            localStorage.setItem(STORAGE_PASS_KEY, newPass);
+            alert('تم تغيير كلمة المرور بنجاح ✅');
+            document.getElementById('newPassword').value = '';
+        }
+    </script>
+</body>
+</html>

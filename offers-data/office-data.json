@@ -1,0 +1,68 @@
+{
+  "office": {
+    "name": "مكتب آفاق الإنجاز العقاري",
+    "nameEn": "Afaq Al-Injaz Real Estate Office",
+    "experience": "20 سنة خبرة في المجال العقاري",
+    "established": "2005",
+    "city": "الرياض - الخرج",
+    "email": "afaqalqary@gmail.com",
+    "phones": {
+      "whatsapp_calls": "0545888931",
+      "calls_only": "0544699933",
+      "whatsapp_calls_2": "0561610748"
+    },
+    "social": {
+      "snapchat": "https://www.snapchat.com/add/mmnf2278?share_id=N54BP0E_h1k&locale=ar-SA",
+      "tiktok": "https://www.tiktok.com/@whatyouarelookingforisw3?_r=1&_t=ZS-98ddjIoDMEJ"
+    },
+    "google_maps": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+    "default_location": "مخطط الرحمانية - الخرج"
+  },
+  "areas": {
+    "الرحمانية": {
+      "land_avg_price_sqm": "850",
+      "farm_avg_price_sqm": "120",
+      "resthouse_avg_price": "350,000 - 1,200,000",
+      "description": "مخطط الرحمانية من أبرز المخططات في الخرج، يتميز بقربه من الهياثم والدلم"
+    },
+    "الهياثم": {
+      "land_avg_price_sqm": "1100",
+      "farm_avg_price_sqm": "150",
+      "resthouse_avg_price": "400,000 - 1,500,000",
+      "description": "حي الهياثم من الأحياء الحيوية في الخرج، قريب من الخدمات"
+    },
+    "الدلم": {
+      "land_avg_price_sqm": "600",
+      "farm_avg_price_sqm": "90",
+      "resthouse_avg_price": "250,000 - 900,000",
+      "description": "الدلم مركز تاريخي زراعي، مشهور بمزارعه وأراضيه الزراعية الواسعة"
+    },
+    "الضبيعة": {
+      "land_avg_price_sqm": "700",
+      "farm_avg_price_sqm": "100",
+      "resthouse_avg_price": "280,000 - 1,000,000",
+      "description": "منطقة زراعية هادئة بقرب من الخرج، مناسبة للمزارع والاستراحات"
+    },
+    "العفجة": {
+      "land_avg_price_sqm": "650",
+      "farm_avg_price_sqm": "95",
+      "resthouse_avg_price": "260,000 - 950,000",
+      "description": "منطقة زراعية بمنطقة الخرج، تتميز بأراضيها الخصبة"
+    }
+  },
+  "services": [
+    {
+      "id": "post-sale",
+      "title": "خدمات ما بعد البيع",
+      "icon": "fas fa-handshake",
+      "items": [
+        {"name": "استخراج رخص البناء", "desc": "إنجاز جميع معاملات رخص البناء بكفاءة وسرعة"},
+        {"name": "المقاولات", "desc": "تنفيذ المشاريع الإنشائية بأعلى معايير الجودة"},
+        {"name": "التشطيب", "desc": "تشطيبات داخلية وخارجية بأحدث التصاميم"},
+        {"name": "إدارة الأملاك", "desc": "إدارة عقاراتك بالكامل من تأجير وصيانة"},
+        {"name": "حفر الآبار", "desc": "حفر الآبار وتحديد مواقعها وتصويرها"},
+        {"name": "تصوير العقارات", "desc": "تصوير احترافي للعقارات لأغراض التسويق"}
+      ]
+    }
+  ]
+}
