@@ -1,0 +1,31 @@
+# ملف خدمة systemd لتشغيل البوت بشكل دائم على خادم Linux
+# Systemd service file for permanent bot hosting on a Linux server/VPS
+#
+# طريقة التثبيت:
+# 1. انسخ هذا الملف إلى: /etc/systemd/system/afaq-bot.service
+# 2. عدّل المسار في ExecStart ليتطابق مع موقع الملفات على خادمك
+# 3. شغّل الأوامر التالية:
+#    sudo cp afaq-bot.service /etc/systemd/system/
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable afaq-bot
+#    sudo systemctl start afaq-bot
+#    sudo systemctl status afaq-bot
+#
+# لعرض السجل: sudo journalctl -u afaq-bot -f
+
+[Unit]
+Description=Afaq Al-Injaz Real Estate Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/afaq/bot
+ExecStart=/usr/bin/python3 /opt/afaq/bot/bot.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/afaq/bot/bot.log
+StandardError=append:/opt/afaq/bot/bot.log
+
+[Install]
+WantedBy=multi-user.target

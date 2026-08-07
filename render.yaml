@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: afaq-bot
+    runtime: python
+    repo: https://github.com/abonasr0907-beep/-
+    branch: main
+    rootDir: .
+    buildCommand: pip install -r bot/requirements.txt
+    startCommand: cd bot && python3 bot.py
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
