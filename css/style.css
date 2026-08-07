@@ -90,18 +90,18 @@ body {
 .logo-section {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 18px;
     cursor: pointer;
 }
 
 .logo-img {
-    width: 78px;
-    height: 78px;
+    width: 110px;
+    height: 110px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid var(--gold);
+    border: 4px solid var(--gold);
     background: var(--white);
-    padding: 3px;
+    padding: 4px;
     box-shadow: 0 4px 14px rgba(196, 169, 86, 0.35);
     transition: var(--transition);
 }
@@ -113,27 +113,27 @@ body {
 
 .logo-text h1 {
     font-family: 'Cairo', sans-serif;
-    font-size: 26px;
+    font-size: 38px;
     font-weight: 900;
     color: var(--primary);
     line-height: 1.2;
     margin: 0;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.5px;
     text-shadow: 0 1px 2px rgba(42, 80, 80, 0.1);
 }
 
 .logo-text .logo-full {
     font-family: 'Cairo', sans-serif;
-    font-size: 15px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--primary-dark);
     line-height: 1.3;
-    margin: 2px 0 0;
+    margin: 4px 0 0;
     display: block;
 }
 
 .logo-text span {
-    font-size: 13px;
+    font-size: 17px;
     color: var(--gold);
     font-weight: 600;
     letter-spacing: 0.3px;
@@ -1657,20 +1657,20 @@ select.form-control {
     }
 
     .logo-img {
-        width: 54px;
-        height: 54px;
+        width: 72px;
+        height: 72px;
     }
 
     .logo-text h1 {
-        font-size: 17px;
+        font-size: 24px;
     }
 
     .logo-text .logo-full {
-        font-size: 10px;
+        font-size: 14px;
     }
 
     .logo-text span {
-        font-size: 9px;
+        font-size: 12px;
     }
 }
 

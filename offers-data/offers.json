@@ -11,8 +11,16 @@
       "price": 1200000,
       "price_text": "1,200,000 ريال",
       "description": "مزرعة زراعية خصبة بمخطط الرحمانية بمساحة 10,000 متر مربع، محاطة بأشجار النخيل، تشمل بئر مياه عام وشبكة ري بالتنقيط، أرض صالحة لجميع أنواع الزراعة، على شارعين، تصريف الأمطار ممتاز.",
-      "features": ["بئر مياء عام", "شبكة ري بالتنقيط", "أشجار نخيل", "على شارعين", "أرض خصبة"],
-      "images": ["images/farms-bg.jpg"],
+      "features": [
+        "بئر مياء عام",
+        "شبكة ري بالتنقيط",
+        "أشجار نخيل",
+        "على شارعين",
+        "أرض خصبة"
+      ],
+      "images": [
+        "images/farms-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-01",
       "featured": true
@@ -28,8 +36,15 @@
       "price": 1800000,
       "price_text": "1,800,000 ريال",
       "description": "مزرعة زراعية بالدلم بمساحة 20,000 متر، أرض صالحة للزراعة بأنواعها، تشمل مصدر مياه قريب، قرب من الخدمات والطرق المعبّدة، مناسبة للاستثمار الزراعي التجاري.",
-      "features": ["مساحة واسعة", "قرب من الخدمات", "أرض زراعية", "طرق معبّدة"],
-      "images": ["images/farms-bg.jpg"],
+      "features": [
+        "مساحة واسعة",
+        "قرب من الخدمات",
+        "أرض زراعية",
+        "طرق معبّدة"
+      ],
+      "images": [
+        "images/farms-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-02",
       "featured": false
@@ -45,8 +60,15 @@
       "price": 1500000,
       "price_text": "1,500,000 ريال",
       "description": "مزرعة بالضبيعة بمساحة 15,000 متر، مناسبة لزراعة النخيل والخضروات، تشمل غرفة حراسة وسور جزئي، قرب من طريق الخرج الرئيسي.",
-      "features": ["غرفة حراسة", "سور جزئي", "قرب من الطريق الرئيسي", "مناسبة للنخيل"],
-      "images": ["images/farms-bg.jpg"],
+      "features": [
+        "غرفة حراسة",
+        "سور جزئي",
+        "قرب من الطريق الرئيسي",
+        "مناسبة للنخيل"
+      ],
+      "images": [
+        "images/farms-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-03",
       "featured": false
@@ -62,8 +84,14 @@
       "price": 1140000,
       "price_text": "1,140,000 ريال",
       "description": "مزرعة بالعفجة بمساحة 12,000 متر، أرض زراعية خصبة، مناسبة لجميع أنواع الزراعة، موقع استراتيجي قرب من مناطق الخرج الزراعية.",
-      "features": ["أرض خصبة", "موقع استراتيجي", "مناسبة لجميع الزراعات"],
-      "images": ["images/farms-bg.jpg"],
+      "features": [
+        "أرض خصبة",
+        "موقع استراتيجي",
+        "مناسبة لجميع الزراعات"
+      ],
+      "images": [
+        "images/farms-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-04",
       "featured": false
@@ -79,8 +107,15 @@
       "price": 1200000,
       "price_text": "1,200,000 ريال",
       "description": "مزرعة بالهياثم بمساحة 8,000 متر، على شارعين، قرب من الخدمات والمدارس، تشمل أشجار نخيل مثمرة، مزرعة جاهزة للاستثمار.",
-      "features": ["على شارعين", "قرب من الخدمات", "نخيل مثمر", "جاهزة للاستثمار"],
-      "images": ["images/farms-bg.jpg"],
+      "features": [
+        "على شارعين",
+        "قرب من الخدمات",
+        "نخيل مثمر",
+        "جاهزة للاستثمار"
+      ],
+      "images": [
+        "images/farms-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-05",
       "featured": true
@@ -96,8 +131,16 @@
       "price": 850000,
       "price_text": "850,000 ريال",
       "description": "استراحة فاخرة بمخطط الرحمانية بمساحة 600 متر، تشمل مسبح خاص، حديقة منسقة، صالة كبيرة، غرف نوم، مطبخ مجهز، حمامات، تشطيب فاخر، مثالية للعائلة.",
-      "features": ["مسبح خاص", "حديقة منسقة", "تشطيب فاخر", "غرف نوم", "مطبخ مجهز"],
-      "images": ["images/resthouse-bg.jpg"],
+      "features": [
+        "مسبح خاص",
+        "حديقة منسقة",
+        "تشطيب فاخر",
+        "غرف نوم",
+        "مطبخ مجهز"
+      ],
+      "images": [
+        "images/resthouse-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-01",
       "featured": true
@@ -113,8 +156,15 @@
       "price": 900000,
       "price_text": "900,000 ريال",
       "description": "استراحة حديثة بالهياثم بمساحة 500 متر، تصميم عصري، صالة استقبال واسعة، منطقة شواء خارجية، موقف سيارات، تشطيب راقي.",
-      "features": ["تصميم عصري", "صالة واسعة", "منطقة شواء", "موقف سيارات"],
-      "images": ["images/resthouse-bg.jpg"],
+      "features": [
+        "تصميم عصري",
+        "صالة واسعة",
+        "منطقة شواء",
+        "موقف سيارات"
+      ],
+      "images": [
+        "images/resthouse-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-02",
       "featured": false
@@ -130,8 +180,15 @@
       "price": 650000,
       "price_text": "650,000 ريال",
       "description": "استراحة بالدلم بمساحة 800 متر، مساحة واسعة مناسبة للعائلات الكبيرة، سور كامل، غرفتين، صالة، منطقة خارجية واسعة.",
-      "features": ["مساحة واسعة", "سور كامل", "غرفتين", "منطقة خارجية"],
-      "images": ["images/resthouse-bg.jpg"],
+      "features": [
+        "مساحة واسعة",
+        "سور كامل",
+        "غرفتين",
+        "منطقة خارجية"
+      ],
+      "images": [
+        "images/resthouse-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-03",
       "featured": false
@@ -147,8 +204,15 @@
       "price": 580000,
       "price_text": "580,000 ريال",
       "description": "استراحة بالضبيعة بمساحة 550 متر، موقع هادئ ومناسب للاسترخاء، صالة + غرفة + حمام، حوش خارجي مع أشجار.",
-      "features": ["موقع هادئ", "صالة + غرفة", "حوش خارجي", "أشجار"],
-      "images": ["images/resthouse-bg.jpg"],
+      "features": [
+        "موقع هادئ",
+        "صالة + غرفة",
+        "حوش خارجي",
+        "أشجار"
+      ],
+      "images": [
+        "images/resthouse-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-04",
       "featured": false
@@ -164,8 +228,16 @@
       "price": 425000,
       "price_text": "425,000 ريال",
       "description": "أرض سكنية بمخطط الرحمانية بمساحة 500 متر، على شارعين، قرب من الخدمات (مدارس، مساجد، أسواق)، صك إلكتروني، مخطط معتمد، جاهزة للبناء.",
-      "features": ["على شارعين", "قرب من الخدمات", "صك إلكتروني", "مخطط معتمد", "جاهزة للبناء"],
-      "images": ["images/land-bg.jpg"],
+      "features": [
+        "على شارعين",
+        "قرب من الخدمات",
+        "صك إلكتروني",
+        "مخطط معتمد",
+        "جاهزة للبناء"
+      ],
+      "images": [
+        "images/land-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-01",
       "featured": true
@@ -181,8 +253,15 @@
       "price": 660000,
       "price_text": "660,000 ريال",
       "description": "أرض سكنية بالهياثم بمساحة 600 متر، موقع حيوي قرب من الطرق الرئيسية والخدمات، صك إلكتروني، مناسبة لبناء فيلا.",
-      "features": ["موقع حيوي", "قرب من الطرق الرئيسية", "صك إلكتروني", "مناسبة لفيلا"],
-      "images": ["images/land-bg.jpg"],
+      "features": [
+        "موقع حيوي",
+        "قرب من الطرق الرئيسية",
+        "صك إلكتروني",
+        "مناسبة لفيلا"
+      ],
+      "images": [
+        "images/land-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-02",
       "featured": false
@@ -198,8 +277,14 @@
       "price": 240000,
       "price_text": "240,000 ريال",
       "description": "أرض سكنية بالدلم بمساحة 400 متر، مخطط معتمد، قرب من الخدمات، مناسبة للسكن العائلي.",
-      "features": ["مخطط معتمد", "قرب من الخدمات", "مناسبة للسكن العائلي"],
-      "images": ["images/land-bg.jpg"],
+      "features": [
+        "مخطط معتمد",
+        "قرب من الخدمات",
+        "مناسبة للسكن العائلي"
+      ],
+      "images": [
+        "images/land-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-03",
       "featured": false
@@ -215,10 +300,33 @@
       "price": 292500,
       "price_text": "292,500 ريال",
       "description": "أرض سكنية بالعفجة زاوية على شارعين بمساحة 450 متر، موقع جيد، قرب من الخدمات الأساسية.",
-      "features": ["أرض زاوية", "على شارعين", "قرب من الخدمات"],
-      "images": ["images/land-bg.jpg"],
+      "features": [
+        "أرض زاوية",
+        "على شارعين",
+        "قرب من الخدمات"
+      ],
+      "images": [
+        "images/land-bg.jpg"
+      ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-04",
+      "featured": false
+    },
+    {
+      "id": "FAR-805F10",
+      "type": "farm",
+      "category": "مزرعة",
+      "title": "مزرعة",
+      "area": "الرحمانية",
+      "size_sqm": 55000,
+      "price_text": "1228889",
+      "description": "🌿 مزرعة خصبة للبيع في الرحمانية بالخرج!\n\nمساحة 55000 م²، موقع استراتيجي وقريب من الخدمات. فرصة استثمارية لا تعوض لمن يبحث عن مزرعة مثالية.\n\n📞 للتفاصيل والمعاينة: واتساب 0545888931",
+      "features": [],
+      "images": [
+        "images/bot/offer_1786122697_0.jpg"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-07",
       "featured": false
     }
   ]

@@ -5,12 +5,12 @@
   
   <!-- الصفحة الرئيسية -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/index.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://abonasr0907-beep.github.io/-/images/logo.jpg</image:loc>
+      <image:loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/images/logo.jpg</image:loc>
       <image:title>مكتب آفاق الإنجاز العقاري</image:title>
       <image:caption>شعار مكتب آفاق الإنجاز العقاري في الخرج</image:caption>
     </image:image>
@@ -24,55 +24,55 @@
 
   <!-- صفحة المزارع -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/farms.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/farms.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
     <image:image>
-      <image:loc>https://abonasr0907-beep.github.io/-/images/farms-bg.jpg</image:loc>
+      <image:loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/images/farms-bg.jpg</image:loc>
       <image:title>مزارع الخرج للبيع</image:title>
     </image:image>
   </url>
 
   <!-- صفحة الاستراحات -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/resthouses.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/resthouses.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
     <image:image>
-      <image:loc>https://abonasr0907-beep.github.io/-/images/resthouse-bg.jpg</image:loc>
+      <image:loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/images/resthouse-bg.jpg</image:loc>
       <image:title>استراحات الخرج للبيع</image:title>
     </image:image>
   </url>
 
   <!-- صفحة الأراضي السكنية -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/lands.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/lands.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
     <image:image>
-      <image:loc>https://abonasr0907-beep.github.io/-/images/land-bg.jpg</image:loc>
+      <image:loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/images/land-bg.jpg</image:loc>
       <image:title>أراضي سكنية في الخرج للبيع</image:title>
     </image:image>
   </url>
 
   <!-- صفحة الخدمات -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/services.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/services.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
     <image:image>
-      <image:loc>https://abonasr0907-beep.github.io/-/images/services-bg.jpg</image:loc>
+      <image:loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/images/services-bg.jpg</image:loc>
       <image:title>خدمات ما بعد البيع العقاري</image:title>
     </image:image>
   </url>
 
   <!-- صفحة عرض عقار -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/list-property.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/list-property.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -80,7 +80,7 @@
 
   <!-- صفحة الاستفسارات -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/inquiry.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/inquiry.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -88,18 +88,10 @@
 
   <!-- صفحة التواصل -->
   <url>
-    <loc>https://abonasr0907-beep.github.io/-/contact.html</loc>
+    <loc>https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/contact.html</loc>
     <lastmod>2026-08-07</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
-  </url>
-
-  <!-- صفحة الخدمات (مقاولات/حفر آبار/إدارة أملاك) -->
-  <url>
-    <loc>https://abonasr0907-beep.github.io/-/services.html</loc>
-    <lastmod>2026-08-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
   </url>
 
 </urlset>

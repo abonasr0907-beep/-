@@ -35,4 +35,4 @@ Allow: /
 User-agent: YandexBot
 Allow: /
 
-Sitemap: https://afaqalqary.pages.dev/sitemap.xml
+Sitemap: https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/sitemap.xml

@@ -44,7 +44,6 @@
         .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #ecf0f1; color: #7f8c8d; }
         @media print { body { padding: 0; } .container { box-shadow: none; border-radius: 0; } }
     </style>
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
 <body>
 <div class="container">
@@ -77,7 +76,7 @@
 
 <div class="url-box">
 <p>🌐 رابط الموقع الحالي (يعمل الآن):</p>
-<p class="url">https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/c579e9be/index.html</p>
+<p class="url">https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/index.html</p>
 </div>
 
 <div class="warning-box">
@@ -98,7 +97,7 @@
 </ul>
 
 <div class="url-box">
-<p class="url">https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/c579e9be/index.html</p>
+<p class="url">https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/index.html</p>
 </div>
 
 <h3>🔗 رابط أنظف عبر GitHub Pages (اختياري)</h3>
@@ -162,25 +161,43 @@ Branch: main
 <!-- ==================== OPTION 2: KOYEB ==================== -->
 <div class="option-card" id="option-koyeb">
 <h3><span class="badge free">مجاني</span> الخيار ٢: Koyeb.com</h3>
-<p><strong>Koyeb</strong> خيار مجاني آخر يدعم تشغيل حاويات Docker بشكل متواصل.</p>
+<p><strong>Koyeb</strong> منصة سحابية مجانية تدعم تشغيل حاويات Docker بشكل متواصل. تمنحك خطة مجانية واحدة كافية لتشغيل البوت على مدار الساعة.</p>
 
-<h3>الخطوات:</h3>
+<h3>الخطوات بالتفصيل:</h3>
 <div class="step">
-<p><strong>١.</strong> اذهب إلى <a href="https://koyeb.com" target="_blank">https://koyeb.com</a> وسجّل حساب مجاني</p>
+<p><strong>١.</strong> اذهب إلى <a href="https://koyeb.com" target="_blank">https://koyeb.com</a> وسجّل حساب مجاني (يمكنك التسجيل عبر GitHub مباشرة)</p>
 </div>
 <div class="step">
-<p><strong>٢.</strong> اضغط "Create Service" ثم اختر "GitHub"</p>
+<p><strong>٢.</strong> بعد تسجيل الدخول، اضغط على زر <strong>"Create Service"</strong> في الأعلى</p>
 </div>
 <div class="step">
-<p><strong>٣.</strong> اختر المستودع <code>abonasr0907-beep/-</code></p>
+<p><strong>٣.</strong> اختر <strong>"GitHub"</strong> كمصدر للكود، ثم اربط حساب GitHub الخاص بك</p>
 </div>
 <div class="step">
-<p><strong>٤.</strong> اختر "Dockerfile" كطريقة البناء (لقد أضفنا Dockerfile جاهز)</p>
+<p><strong>٤.</strong> اختر المستودع <code>abonasr0907-beep/-</code> من القائمة</p>
 </div>
 <div class="step">
-<p><strong>٥.</strong> اضغط "Deploy" — وسيبدأ البوت بالعمل!</p>
+<p><strong>٥.</strong> في قسم <strong>"Builder"</strong> اختر <strong>"Dockerfile"</strong> (لقد أضفنا Dockerfile جاهز في المشروع)</p>
 </div>
-<p>✅ <strong>المزايا:</strong> مجاني، يدعم Docker، يعمل بشكل متواصل</p>
+<div class="step">
+<p><strong>٦.</strong> في قسم <strong>"Region"</strong> اختر أقرب منطقة (مثل Frankfurt أو أي منطقة متاحة)</p>
+</div>
+<div class="step">
+<p><strong>٧.</strong> في <strong>"Instance"</strong> اختر الخطة المجانية <strong>"Free"</strong> (eco أو free tier)</p>
+</div>
+<div class="step">
+<p><strong>٨.</strong> اضغط <strong>"Deploy"</strong> — وسيبدأ البوت بالعمل خلال دقيقة!</p>
+</div>
+
+<div class="info-box">
+<h3>💡 معلومات مهمة عن Koyeb</h3>
+<p>• الخطة المجانية تمنحك实例 (instance) واحد يعمل باستمرار</p>
+<p>• البوت سيعمل طالما الخدمة نشطة ولا تحتاج لإعادة تشغيلها</p>
+<p>• يمكنك مراقبة السجلات (logs) من لوحة تحكم Koyeb</p>
+<p>• إذا توقف البوت لأي سبب، Koyeb سيعيد تشغيله تلقائياً</p>
+<p>• كلما دفعت Push إلى GitHub، سيتم إعادة نشر البوت تلقائياً</p>
+</div>
+<p>✅ <strong>المزايا:</strong> مجاني، يدعم Docker، يعمل بشكل متواصل، إعادة تشغيل تلقائية</p>
 </div>
 
 <!-- ==================== OPTION 3: VPS ==================== -->
@@ -225,28 +242,52 @@ sudo journalctl -u afaq-bot -f
 <!-- ==================== OPTION 4: PC ==================== -->
 <div class="option-card" id="option-pc">
 <h3><span class="badge free">مجاني</span> <span class="badge easy">سهل</span> الخيار ٤: تشغيل على جهازك الشخصي</h3>
-<p>يمكنك تشغيل البوت على جهازك (كمبيوتر أو لابتوب). البوت سيعمل طالما الجهاز يعمل ومتصل بالإنترنت.</p>
+<p>يمكنك تشغيل البوت على جهازك (كمبيوتر أو لابتوب). البوت سيعمل طالما الجهاز يعمل ومتصل بالإنترنت. هذا الخيار <strong>مجاني تماماً</strong> ولا يحتاج أي تسجيل.</p>
 
-<h3>الخطوات:</h3>
+<h3>الخطوات على Windows:</h3>
 <div class="code-block">
-<span class="comment"># 1. تنزيل وتثبيت Python 3.11+ من python.org</span>
+<span class="comment"># 1. تحميل وتثبيت Python 3.11+ من python.org</span>
+<span class="comment">#    تأكد من تفعيل خيار "Add Python to PATH" أثناء التثبيت</span>
 
-<span class="comment"># 2. تنزيل المشروع من GitHub</span>
+<span class="comment"># 2. فتح Command Prompt (cmd) أو PowerShell</span>
+
+<span class="comment"># 3. تنزيل المشروع من GitHub</span>
+git clone https://github.com/abonasr0907-beep/- afaq
+cd afaq\bot
+
+<span class="comment"># 4. تثبيت المكتبات المطلوبة</span>
+pip install -r requirements.txt
+
+<span class="comment"># 5. تشغيل البوت</span>
+python bot.py
+</div>
+
+<h3>الخطوات على Mac / Linux:</h3>
+<div class="code-block">
+<span class="comment"># 1. تثبيت Python 3.11+ (غالباً مثبت مسبقاً على Mac)</span>
+<span class="comment">#    أو عبر Homebrew: brew install python@3.11</span>
+
+<span class="comment"># 2. تنزيل المشروع</span>
 git clone https://github.com/abonasr0907-beep/- afaq
 cd afaq/bot
 
 <span class="comment"># 3. تثبيت المكتبات</span>
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 <span class="comment"># 4. تشغيل البوت مع إعادة تشغيل تلقائية</span>
-<span class="comment"># على Linux/Mac:</span>
 chmod +x start_bot.sh
 ./start_bot.sh
-
-<span class="comment"># على Windows:</span>
-python bot.py
 </div>
-<p>✅ <strong>المزايا:</strong> مجاني تماماً، لا يحتاج تسجيل في أي موقع</p>
+
+<div class="info-box">
+<h3>💡 للحصول على استقرار أفضل على جهازك</h3>
+<p>• استخدم سكربت <code>start_bot.sh</code> الذي أضفناه — يعيد تشغيل البوت تلقائياً عند توقفه</p>
+<p>• على Windows: يمكنك تشغيل البوت في الخلفية عبر Task Scheduler</p>
+<p>• لا تغلق نافذة Terminal/CMD أثناء عمل البوت</p>
+<p>• إذا أطفأت الجهاز، البوت سيتوقف — أعد تشغيله عند إعادة تشغيل الجهاز</p>
+</div>
+
+<p>✅ <strong>المزايا:</strong> مجاني تماماً، لا تحتاج تسجيل في أي موقع، تحكم كامل</p>
 <p>⚠ <strong>القيود:</strong> البوت يتوقف عند إغلاق الجهاز أو فقدان الإنترنت</p>
 </div>
 
@@ -312,10 +353,10 @@ python bot.py
 <div class="info-box">
 <h3>🔗 الروابط المهمة:</h3>
 <ul>
-<li>🌐 <strong>الموقع:</strong> <a href="https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/c579e9be/index.html" target="_blank">رابط الموقع العام</a></li>
+<li>🌐 <strong>الموقع:</strong> <a href="https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/index.html" target="_blank">رابط الموقع العام</a></li>
 <li>🤖 <strong>البوت:</strong> <a href="https://t.me/tlastlastlasbot" target="_blank">@tlastlastlasbot</a></li>
 <li>📂 <strong>GitHub:</strong> <a href="https://github.com/abonasr0907-beep/-" target="_blank">المستودع</a></li>
-<li>⚙️ <strong>لوحة التحكم:</strong> <a href="https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/c579e9be/admin.html" target="_blank">لوحة الإدارة</a> (كلمة المرور: afaq2026)</li>
+<li>⚙️ <strong>لوحة التحكم:</strong> <a href="https://sites.super.myninja.ai/ee6c91f4-b43b-4767-ab08-fecbd850fb32/ce86073d/admin.html" target="_blank">لوحة الإدارة</a> (كلمة المرور: afaq2026)</li>
 </ul>
 </div>
 
