@@ -1,727 +1,666 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دليل الاستخدام الكامل | مكتب آفاق الإنجاز العقاري</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@600;700;900&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Tajawal', sans-serif;
-            background: #F5F1E8;
-            color: #2A3B3B;
-            line-height: 1.9;
-            font-size: 16px;
-        }
-        .doc-header {
-            background: linear-gradient(135deg, #2A5050, #1A3838);
-            color: #F5F1E8;
-            padding: 60px 20px;
-            text-align: center;
-        }
-        .doc-header h1 {
-            font-family: 'Cairo', sans-serif;
-            font-size: 36px;
-            font-weight: 900;
-            margin-bottom: 10px;
-            color: #C4A956;
-        }
-        .doc-header p {
-            font-size: 18px;
-            opacity: 0.9;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        .section {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 25px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-        }
-        .section h2 {
-            font-family: 'Cairo', sans-serif;
-            font-size: 24px;
-            color: #2A5050;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #C4A956;
-        }
-        .section h3 {
-            font-family: 'Cairo', sans-serif;
-            font-size: 20px;
-            color: #2A5050;
-            margin: 20px 0 10px;
-        }
-        .section p {
-            margin-bottom: 12px;
-            color: #3a4a4a;
-        }
-        .section ul, .section ol {
-            margin: 10px 25px 15px;
-        }
-        .section li {
-            margin-bottom: 8px;
-            color: #3a4a4a;
-        }
-        .info-box {
-            background: #E8F4F4;
-            border-right: 4px solid #2A5050;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-        .warning-box {
-            background: #FFF8E8;
-            border-right: 4px solid #C4A956;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-        .code-block {
-            background: #1A2828;
-            color: #A8D8D8;
-            padding: 15px 20px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            overflow-x: auto;
-            margin: 15px 0;
-            direction: ltr;
-            text-align: left;
-        }
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-        }
-        .table th {
-            background: #2A5050;
-            color: #F5F1E8;
-            padding: 12px;
-            text-align: right;
-            font-weight: 700;
-        }
-        .table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #E0DDD0;
-            text-align: right;
-        }
-        .table tr:nth-child(even) {
-            background: #F8F6F0;
-        }
-        .badge {
-            display: inline-block;
-            background: #C4A956;
-            color: white;
-            padding: 2px 12px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 700;
-        }
-        .step-number {
-            display: inline-block;
-            background: #2A5050;
-            color: #C4A956;
-            width: 32px;
-            height: 32px;
-            line-height: 32px;
-            text-align: center;
-            border-radius: 50%;
-            font-weight: 700;
-            margin-left: 8px;
-        }
-        .toc {
-            background: #F0EDE5;
-            border-radius: 12px;
-            padding: 25px 30px;
-            margin-bottom: 30px;
-        }
-        .toc h2 {
-            font-family: 'Cairo', sans-serif;
-            font-size: 22px;
-            color: #2A5050;
-            margin-bottom: 15px;
-            border: none;
-            padding: 0;
-        }
-        .toc ol {
-            margin-right: 20px;
-        }
-        .toc a {
-            color: #2A5050;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .toc a:hover {
-            color: #C4A956;
-        }
-        @media (max-width: 768px) {
-            .doc-header h1 { font-size: 26px; }
-            .section { padding: 20px; }
-            .section h2 { font-size: 20px; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل إدارة موقع مكتب آفاق الإنجاز العقاري</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+@page {
+    size: A4;
+    margin: 1.8cm 1.5cm 2cm 1.5cm;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Tajawal', 'Cairo', sans-serif;
+    color: #1a1a1a;
+    line-height: 1.8;
+    font-size: 13px;
+    background: #fff;
+}
+:root {
+    --primary: #2A5050;
+    --gold: #C4A956;
+    --light: #F5F2EA;
+    --dark: #1a3535;
+}
+/* Cover Page */
+.cover {
+    height: 100vh;
+    page-break-after: always;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(135deg, #1a3535 0%, #2A5050 50%, #1a3535 100%);
+    color: #fff;
+    padding: 40px;
+    position: relative;
+}
+.cover-content { position: relative; z-index: 1; }
+.cover-logo {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+.cover h1 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--gold);
+    margin-bottom: 12px;
+    line-height: 1.3;
+}
+.cover h2 {
+    font-size: 20px;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 40px;
+    opacity: 0.9;
+}
+.cover .subtitle {
+    font-size: 16px;
+    color: var(--gold);
+    margin-bottom: 40px;
+    padding: 10px 30px;
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    display: inline-block;
+}
+.cover .info-box {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(196,169,86,0.3);
+    border-radius: 12px;
+    padding: 25px 35px;
+    margin-top: 20px;
+    font-size: 14px;
+    line-height: 2.2;
+    text-align: right;
+}
+.cover .info-box strong { color: var(--gold); }
+.cover .version {
+    position: absolute;
+    bottom: 30px;
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+/* Section Headers */
+h2.section-title {
+    font-family: 'Cairo', sans-serif;
+    font-size: 22px;
+    color: var(--primary);
+    margin: 30px 0 15px;
+    padding: 12px 18px;
+    background: var(--light);
+    border-right: 5px solid var(--gold);
+    page-break-before: always;
+    page-break-after: avoid;
+}
+h3 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 17px;
+    color: var(--primary);
+    margin: 20px 0 10px;
+    page-break-after: avoid;
+}
+h4 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    color: var(--dark);
+    margin: 15px 0 8px;
+    page-break-after: avoid;
+}
+p { margin-bottom: 10px; text-align: justify; }
+ul, ol { margin: 8px 25px 12px; }
+li { margin-bottom: 6px; }
+strong { color: var(--primary); }
+code {
+    background: var(--light);
+    color: var(--dark);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    direction: ltr;
+    display: inline-block;
+}
+pre {
+    background: var(--dark);
+    color: #e0e0e0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 11px;
+    line-height: 1.6;
+    margin: 10px 0;
+    direction: ltr;
+    text-align: left;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+pre code { background: none; color: inherit; padding: 0; }
+
+/* Info Boxes */
+.info-box-c {
+    background: #eaf4f4;
+    border: 1px solid #b0d4d4;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+}
+.info-box-c strong { color: var(--primary); }
+.warning-box {
+    background: #fff8e1;
+    border: 1px solid #ffd54f;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+}
+.warning-box strong { color: #b8860b; }
+.success-box {
+    background: #e8f5e9;
+    border: 1px solid #81c784;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 12px 0;
+}
+.success-box strong { color: #2e7d32; }
+
+/* Table of Contents */
+.toc {
+    page-break-after: always;
+    padding: 20px 0;
+}
+.toc h2 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 26px;
+    color: var(--primary);
+    text-align: center;
+    margin-bottom: 30px;
+}
+.toc ol {
+    list-style: none;
+    counter-reset: toc-counter;
+}
+.toc ol li {
+    counter-increment: toc-counter;
+    margin-bottom: 12px;
+    font-size: 15px;
+    padding: 8px 15px;
+    background: var(--light);
+    border-radius: 6px;
+    border-right: 3px solid var(--gold);
+}
+.toc ol li::before {
+    content: counter(toc-counter) ". ";
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 17px;
+}
+
+/* Steps */
+.step {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin: 10px 0;
+    border-right: 4px solid var(--primary);
+}
+.step-num {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    line-height: 26px;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: 700;
+    margin-left: 8px;
+    font-size: 14px;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 12px;
+}
+table th {
+    background: var(--primary);
+    color: #fff;
+    padding: 8px 10px;
+    text-align: right;
+    font-weight: 700;
+}
+table td {
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+}
+table tr:nth-child(even) { background: var(--light); }
+
+/* Buttons showcase */
+.btn-showcase {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0;
+}
+.btn-item {
+    background: var(--primary);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.no-break { page-break-inside: avoid; }
+.footer-note {
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 2px solid var(--gold);
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+}
+</style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
 <body>
 
-<div class="doc-header">
-    <h1>دليل الاستخدام الكامل</h1>
-    <p>مكتب آفاق الإنجاز العقاري — الموقع الإلكتروني وبوت تيليجرام</p>
+<!-- COVER PAGE -->
+<div class="cover">
+    <div class="cover-content">
+        <div class="cover-logo">🏢</div>
+        <h1>مكتب آفاق الإنجاز العقاري</h1>
+        <h2>دليل إدارة الموقع والبوت والنشر</h2>
+        <div class="subtitle">الدليل الشامل للمسؤول</div>
+        <div class="info-box">
+            <p>🌐 <strong>الموقع:</strong> https://afaqalqary.pages.dev/</p>
+            <p>🤖 <strong>بوت تلقجرام:</strong> @afaq_alinjaz_bot</p>
+            <p>🖥️ <strong>لوحة التحكم:</strong> https://afaqalqary.pages.dev/admin.html</p>
+            <p>📂 <strong>GitHub:</strong> abonasr0907-beep/-</p>
+            <p>🔑 <strong>كلمة مرور اللوحة:</strong> afaq2026</p>
+        </div>
+    </div>
+    <div class="version">الإصدار 1.0 — 2026</div>
 </div>
 
-<div class="container">
-
+<!-- TABLE OF CONTENTS -->
 <div class="toc">
-    <h2>📋 محتويات الدليل</h2>
+    <h2>📋 جدول المحتويات</h2>
     <ol>
-        <li><a href="#overview">نظرة عامة على المشروع</a></li>
-        <li><a href="#website">دليل الموقع الإلكتروني</a></li>
-        <li><a href="#pages">شرح صفحات الموقع</a></li>
-        <li><a href="#ai-assistant">المساعد الذكي</a></li>
-        <li><a href="#bousla">البوصلة العقارية</a></li>
-        <li><a href="#bot">دليل بوت تيليجرام (لوحة التحكم)</a></li>
-        <li><a href="#bot-start">تشغيل البوت</a></li>
-        <li><a href="#bot-add">إضافة عرض جديد</a></li>
-        <li><a href="#bot-manage">إدارة العروض</a></li>
-        <li><a href="#bot-ai">المساعد الذكي في البوت</a></li>
-        <li><a href="#seo">تحسين محركات البحث (SEO)</a></li>
-        <li><a href="#deploy">الاستضافة والنشر</a></li>
-        <li><a href="#maintenance">الصيانة والتحديث</a></li>
-        <li><a href="#troubleshoot">حل المشاكل الشائعة</a></li>
+        <li>مقدمة ونظرة عامة على النظام</li>
+        <li>التحكم عبر بوت تلقجرام — الأزرار والأوامر</li>
+        <li>إضافة عرض عقاري جديد خطوة بخطوة</li>
+        <li>بوصلة الأسعار والتحديث اليومي التلقائي</li>
+        <li>التقرير الأسبوعي للزوار والأقسام</li>
+        <li>المساعد الذكي العقاري</li>
+        <li>لوحة التحكم على الويب (admin.html)</li>
+        <li>نشر الموقع وتحديثه على الإنترنت</li>
+        <li>تحسين محركات البحث (SEO)</li>
+        <li>تشغيل البوت على خادم دائم</li>
+        <li>حل المشكلات الشائعة</li>
+        <li>معلومات التواصل والمراجع</li>
     </ol>
 </div>
 
-<!-- 1. نظرة عامة -->
-<div class="section" id="overview">
-    <h2>١. نظرة عامة على المشروع</h2>
-    <p>تم بناء موقع إلكتروني متكامل لمكتب آفاق الإنجاز العقاري في الخرج، منطقة الرياض. يتكون المشروع من جزأين رئيسيين يعملان معاً بسلاسة:</p>
-    
-    <h3>أ) الموقع الإلكتروني</h3>
-    <p>موقع ويب احترافي بتصميم عربي (RTL) يعرض العروض العقارية مصنّفة حسب النوع (مزارع، استراحات، أراضي سكنية) مع خدمات ما بعد البيع، البوصلة العقارية، المساعد الذكي، ونماذج تفاعلية للزوار.</p>
-    
-    <h3>ب) بوت تيليجرام (لوحة التحكم)</h3>
-    <p>بوت تيليجرام يعمل كلوحة تحكم كاملة لإدارة محتوى الموقع. يمكن من خلاله إضافة عروض جديدة (مع رفع الصور ومعالجتها بالذكاء الاصطناعي)، توليد نصوص تسويقية تلقائياً، تصنيف العروض، نشرها مباشرة على الموقع، واستقبال طلبات الزوار.</p>
-    
-    <div class="info-box">
-        <p><strong>معلومات المكتب:</strong></p>
-        <ul>
-            <li><strong>الاسم:</strong> مكتب آفاق الإنجاز العقاري</li>
-            <li><strong>الموقع:</strong> الخرج، منطقة الرياض، المملكة العربية السعودية</li>
-            <li><strong>الخبرة:</strong> 20 سنة في المجال العقاري</li>
-            <li><strong>واتساب:</strong> 0545888931</li>
-            <li><strong>اتصال:</strong> 0544699933 و 0561610748</li>
-            <li><strong>البريد:</strong> afaqalqary@gmail.com</li>
-            <li><strong>سناب شات:</strong> snapchat.com/add/mmnf2278</li>
-            <li><strong>تيك توك:</strong> tiktok.com/@whatyouarelookingforisw3</li>
-        </ul>
-    </div>
+<!-- SECTION 1: Introduction -->
+<h2 class="section-title">1. مقدمة ونظرة عامة على النظام</h2>
+<p>مرحباً بك في الدليل الشامل لإدارة موقع وبوت <strong>مكتب آفاق الإنجاز العقاري</strong>. تم تصميم هذا النظام ليكون أداة متكاملة تساعدك على إدارة عروضك العقارية بكفاءة عالية، من إضافة العروض ومعالجة الصور وتحسينها تلقائياً، إلى عرض الأسعار في بوصلة عقارية تتحدث يومياً، وصولاً إلى تقارير أسبوعية تفصيلية عن نشاط الزوار على موقعك.</p>
+
+<p>يتكون النظام من ثلاثة أجزاء رئيسية تعمل معاً بسلاسة: الموقع الإلكتروني الذي يراه العملاء ويعرض عروضك العقارية والخدمات والأسعار، وبوت تلقجرام الذي تتحكم من خلاله في كل شيء من جوالك بأزرار مرئية دون الحاجة لكتابة أوامر، ولوحة تحكم على الويب تمنحك نظرة شاملة على كل ما يجري في الموقع.</p>
+
+<h3>الموقع الإلكتروني</h3>
+<p>الموقع منشور على عنوان <code>https://afaqalqary.pages.dev/</code> ويحتوي على الصفحات التالية: الصفحة الرئيسية تعرض أهم العروض والخدمات، صفحة المزارع، صفحة الاستراحات، صفحة الأراضي، صفحة الخدمات التي تشمل المقاولات وحفر الآبار ورخص البناء والتشطيبات وإدارة الأملاك، صفحة التواصل، صفحة إضافة عقار، وصفحة الاستفسار. الموقع مصمم باللغة العربية ومن اليمين لليسار (RTL) ومتجاوب مع جميع الأجهزة.</p>
+
+<h3>بوت تلقجرام</h3>
+<p>البوت هو أداتك الرئيسية للتحكم اليومي. يمكنك من خلاله إضافة عروض جديدة مع صور معالجة تلقائياً (تحسين السطوع والتباين والحدة والألوان دون أي إضافات)، وحذف العروض، وتعديلها، وعرض القائمة، وفلترة العروض حسب النوع أو المنطقة، ومشاهدة إحصائيات الموقع، وعرض التقرير الأسبوعي، وتحديث بوصلة الأسعار، والتحدث مع المساعد الذكي. كل ذلك عبر أزرار مرئية في لوحة مفاتيح البوت.</p>
+
+<h3>لوحة التحكم على الويب</h3>
+<p>صفحة <code>admin.html</code> هي لوحة تحكم محمية بكلمة مرور تمنحك نظرة شاملة على العروض والأسعار ومعلومات المكتب وإعدادات البوت ومسارات ملفات SEO وأدوات فهرسة Google و Bing. هذه اللوحة للعرض والمتابعة فقط، أما العمليات الفعلية فتتم عبر البوت.</p>
+
+<!-- SECTION 2: Bot Controls -->
+<h2 class="section-title">2. التحكم عبر بوت تلقجرام — الأزرار والأوامر</h2>
+<p>يحتوي البوت على لوحة مفاتيح مرئية تظهر أسفل المحادثة مباشرة، بحيث لا تحتاج لكتابة أي أوامر نصية. كل ما عليك فعله هو الضغط على الزر المناسب. إليك شرح كل زر:</p>
+
+<div class="btn-showcase">
+    <span class="btn-item">➕ إضافة عرض جديد</span>
+    <span class="btn-item">📋 قائمة العروض</span>
+    <span class="btn-item">🗑️ حذف عرض</span>
+    <span class="btn-item">✏️ تعديل عرض</span>
+    <span class="btn-item">📨 طلبات الزوار</span>
+    <span class="btn-item">🔍 فلترة العروض</span>
+    <span class="btn-item">📊 إحصائيات</span>
+    <span class="btn-item">📈 التقرير الأسبوعي</span>
+    <span class="btn-item">🧭 تحديث البوصلة</span>
+    <span class="btn-item">🤖 المساعد الذكي</span>
+    <span class="btn-item">⚙️ الإعدادات</span>
 </div>
 
-<!-- 2. دليل الموقع -->
-<div class="section" id="website">
-    <h2>٢. دليل الموقع الإلكتروني</h2>
-    
-    <h3>هيكل الموقع</h3>
-    <p>يتكون الموقع من 8 صفحات رئيسية مترابطة:</p>
-    <table class="table">
-        <tr><th>الصفحة</th><th>الملف</th><th>الوصف</th></tr>
-        <tr><td>الرئيسية</td><td>index.html</td><td>الصفحة الرئيسية مع جميع الأقسام</td></tr>
-        <tr><td>المزارع</td><td>farms.html</td><td>عروض المزارع مصفّاة تلقائياً</td></tr>
-        <tr><td>الاستراحات</td><td>resthouses.html</td><td>عروض الاستراحات مصفّاة تلقائياً</td></tr>
-        <tr><td>الأراضي السكنية</td><td>lands.html</td><td>عروض الأراضي السكنية مصفّاة تلقائياً</td></tr>
-        <tr><td>الخدمات</td><td>services.html</td><td>خدمات ما بعد البيع الست</td></tr>
-        <tr><td>عرض عقار</td><td>list-property.html</td><td>نموذج إضافة عقار للزوار</td></tr>
-        <tr><td>استفسار</td><td>inquiry.html</td><td>نموذج استفسار لمن لم يجد طلبه</td></tr>
-        <tr><td>تواصل معنا</td><td>contact.html</td><td>أرقام التواصل والخريطة</td></tr>
-    </table>
-    
-    <h3>التقنيات المستخدمة</h3>
-    <ul>
-        <li><strong>HTML5</strong> — هيكل الصفحات مع دعم كامل للغة العربية (RTL)</li>
-        <li><strong>CSS3</strong> — تصميم احترافي متجاوب مع جميع الأجهزة</li>
-        <li><strong>JavaScript</strong> — تفاعلية كاملة (فلترة، مساعد ذكي، نماذج)</li>
-        <li><strong>Google Fonts</strong> — خطوط Tajawal و Cairo العربية</li>
-        <li><strong>JSON</strong> — ملفات بيانات العروض وإعدادات المكتب</li>
-        <li><strong>Google Maps</strong> — خرائط مدمجة وروابط موحدة</li>
-        <li><strong>Schema.org</strong> — بيانات منظمة لمحركات البحث</li>
-    </ul>
-    
-    <h3>الهوية البصرية</h3>
-    <table class="table">
-        <tr><th>العنصر</th><th>اللون</th><th>الكود</th></tr>
-        <tr><td>اللون الأساسي</td><td>أخضر داكن / تيل</td><td>#2A5050</td></tr>
-        <tr><td>اللون الثانوي</td><td>ذهبي</td><td>#C4A956</td></tr>
-        <tr><td>الخلفية</td><td>كريمي</td><td>#F5F1E8</td></tr>
-        <tr><td>النص</td><td>أخضر داكن</td><td>#2A3B3B</td></tr>
-    </table>
+<h3>شرح كل زر</h3>
+<table>
+<tr><th>الزر</th><th>الوظيفة</th></tr>
+<tr><td>➕ إضافة عرض جديد</td><td>يبدأ معالج إضافة عرض جديد خطوة بخطوة (النوع، المنطقة، السعر، التفاصيل، الصور)</td></tr>
+<tr><td>📋 قائمة العروض</td><td>يعرض جميع العروض المنشورة حالياً مع أرقامها التعريفية</td></tr>
+<tr><td>🗑️ حذف عرض</td><td>يحذف عرضاً محدداً بعد إدخال رقمه التعريفي</td></tr>
+<tr><td>✏️ تعديل عرض</td><td>يسمح بتعديل بيانات عرض موجود (السعر، التفاصيل، الحالة)</td></tr>
+<tr><td>📨 طلبات الزوار</td><td>يعرض الطلبات والاستفسارات التي أرسلها الزوار عبر الموقع</td></tr>
+<tr><td>🔍 فلترة العروض</td><td>يفلتر العروض حسب النوع (مزرعة/استراحة/أرض) أو المنطقة</td></tr>
+<tr><td>📊 إحصائيات</td><td>يعرض إحصائيات سريعة عن عدد العروض والزيارات</td></tr>
+<tr><td>📈 التقرير الأسبوعي</td><td>يولّد تقريراً مفصلاً عن زيارات الأسبوع والأقسام الأكثر زيارة</td></tr>
+<tr><td>🧭 تحديث البوصلة</td><td>يحدّث أسعار بوصلة العقارات بناءً على العروض الحالية</td></tr>
+<tr><td>🤖 المساعد الذكي</td><td>ينشّط المساعد الذكي للإجابة على استفساراتك بلغة عقارية احترافية</td></tr>
+<tr><td>⚙️ الإعدادات</td><td>عرض وتعديل إعدادات البوت (الموقع، معلومات المكتب، الميزات)</td></tr>
+</table>
+
+<h3>الأوامر النصية (اختيارية)</h3>
+<p>إذا فضلت كتابة الأوامر، يتوفر أيضاً:</p>
+<table>
+<tr><th>الأمر</th><th>الوظيفة</th></tr>
+<tr><td>/start</td><td>بدء المحادثة وعرض لوحة الأزرار</td></tr>
+<tr><td>/help</td><td>عرض المساعدة الكاملة</td></tr>
+<tr><td>/add</td><td>إضافة عرض جديد</td></tr>
+<tr><td>/list</td><td>قائمة العروض</td></tr>
+<tr><td>/stats</td><td>الإحصائيات</td></tr>
+<tr><td>/weekly أو /report</td><td>التقرير الأسبوعي</td></tr>
+<tr><td>/bousla أو /update_prices</td><td>تحديث البوصلة</td></tr>
+<tr><td>/settings</td><td>الإعدادات</td></tr>
+</table>
+
+<!-- SECTION 3: Adding Offers -->
+<h2 class="section-title">3. إضافة عرض عقاري جديد خطوة بخطوة</h2>
+<p>إضافة عرض جديد هي العملية الأكثر استخداماً. صُممت لتكون بسيطة وسريعة، مع معالجة تلقائية للصور وتوليد نص تسويقي تلقائياً عند توفر المعلومات.</p>
+
+<div class="step"><span class="step-num">1</span> اضغط زر <strong>➕ إضافة عرض جديد</strong> في لوحة البوت.</div>
+<div class="step"><span class="step-num">2</span> اختر نوع العقار: <strong>مزرعة، استراحة، أو أرض</strong>.</div>
+<div class="step"><span class="step-num">3</span> اختر المنطقة من القائمة: الرحمانية، الهياثم، الدلم، الضبية، العفجة، أو أدخل منطقة جديدة.</div>
+<div class="step"><span class="step-num">4</span> أدخل <strong>المساحة</strong> بالمتر المربع.</div>
+<div class="step"><span class="step-num">5</span> أدخل <strong>السعر</strong> بالريال السعودي.</div>
+<div class="step"><span class="step-num">6</span> أدخل <strong>التفاصيل</strong> (وصف مختصر للعقار ومميزاته).</div>
+<div class="step"><span class="step-num">7</span> أرسل <strong>الصور</strong> (حتى 5 صور). سيقوم البوت بمعالجتها تلقائياً: تحسين السطوع والتباين وحدة الوضوح وتشبع الألوان، دون إضافة أي عناصر غريبة. اكتب "تم" عند الانتهاء.</div>
+<div class="step"><span class="step-num">8</span> سيعرض البوت <strong>معاينة للعرض</strong> مع النص التسويقي المولّد تلقائياً. أكد النشر أو عدّل.</div>
+
+<div class="info-box-c no-break">
+<strong>معالجة الصور:</strong> عند رفع أي صورة، يقوم البوت تلقائياً بتطبيق تحسينات على جودة الصورة قبل رفعها ونشرها. تشمل التحسينات: زيادة السطوع بنسبة 10%، زيادة التباين بنسبة 15%، زيادة حدة الوضوح بنسبة 30%، وزيادة تشبع الألوان بنسبة 10%. هذه التحسينات تجعل الصور أوضح وأجذب للعملاء دون إضافة أي عناصر أو تعديل المحتوى.
 </div>
 
-<!-- 3. شرح الصفحات -->
-<div class="section" id="pages">
-    <h2>٣. شرح صفحات الموقع</h2>
-    
-    <h3>الصفحة الرئيسية (index.html)</h3>
-    <p>تتضمن الأقسام التالية:</p>
-    <ul>
-        <li><strong>شريط الترحيب:</strong> اسم المكتب ورقم التواصل</li>
-        <li><strong>الهيدر الثابت:</strong> الشعار + قائمة تنقل بـ 7 روابط + أزرار اتصال وواتساب</li>
-        <li><strong>قسم البطل (Hero):</strong> عنوان رئيسي + وصف + زرّا CTA (تصفح الأقسام / اعرض عقارك)</li>
-        <li><strong>قسم الإحصائيات:</strong> عدد المزارع، الاستراحات، الأراضي، سنوات الخبرة، إجمالي العروض</li>
-        <li><strong>شبكة الأقسام:</strong> 4 بطاقات (مزارع، استراحات، أراضي سكنية، خدمات)</li>
-        <li><strong>قسم العروض:</strong> فلترة حسب النوع والمنطقة مع عرض كل عرض وصوره وسعره ورابط الخريطة</li>
-        <li><strong>قسم البوصلة العقارية:</strong> أسعار المتر في كل منطقة</li>
-        <li><strong>قسم الخريطة 3D:</strong> خريطة Google Maps مدمجة</li>
-        <li><strong>قسم الأخبار:</strong> أحدث أخبار الهيئة العامة للعقار</li>
-        <li><strong>قسم التواصل:</strong> أرقام الهواتف والبريد والروابط الاجتماعية</li>
-        <li><strong>الفوتر:</strong> 4 أعمدة (عن المكتب، روابط سريعة، الأقسام، تواصل)</li>
-        <li><strong>زر واتساب عائم:</strong> للتواصل السريع من أي صفحة</li>
-        <li><strong>المساعد الذكي:</strong> نافذة محادثة قابلة للفتح والإغلاق</li>
-    </ul>
-    
-    <h3>صفحات الأقسام (farms / resthouses / lands)</h3>
-    <p>كل صفحة قسم تعرض العروض المصنّفة حسب النوع تلقائياً:</p>
-    <ul>
-        <li><strong>بانر القسم:</strong> صورة خلفية + عنوان + وصف</li>
-        <li><strong>شريط فلترة المناطق:</strong> الرحمانية، الهياثم، الدلم، الضبيعة، العفجة</li>
-        <li><strong>شبكة العروض:</strong> تعرض فقط عروض النوع المحدد (مزارع/استراحات/أراضي)</li>
-        <li><strong>قسم البوصلة:</strong> أسعار النوع الحالي في كل منطقة</li>
-        <li><strong>الخريطة 3D:</strong> خريطة موقع المكتب</li>
-    </ul>
-    
-    <h3>صفحة الخدمات (services.html)</h3>
-    <p>تعرض 6 خدمات ما بعد البيع:</p>
-    <ol>
-        <li><strong>رخص البناء</strong> — استخراج رخص البناء من البلدية</li>
-        <li><strong>المقاولات</strong> — تنفيذ مشاريع البناء</li>
-        <li><strong>التشطيب</strong> — تشطيب داخلي وخارجي</li>
-        <li><strong>إدارة الأملاك</strong> — إدارة وتأجير العقارات</li>
-        <li><strong>حفر الآبار</strong> — حفر الآبار وتحديد المواقع</li>
-        <li><strong>تصوير العقارات</strong> — تصوير احترافي للعقارات</li>
-    </ol>
-    <p>كل خدمة لها بطاقة بأيقونة ووصف وزر واتساب للتواصل المباشر.</p>
-    
-    <h3>صفحة عرض عقار (list-property.html)</h3>
-    <p>نموذج للزوار يريدون عرض عقاراتهم لدى المكتب. الحقول:</p>
-    <ul>
-        <li>الاسم الكامل</li>
-        <li>رقم الجوال</li>
-        <li>الموقع (قائمة منسدلة: الرحمانية، الهياثم، الدلم، الضبيعة، العفجة)</li>
-        <li>نوع العقار (مزرعة، استراحة، أرض سكنية)</li>
-        <li>المساحة (م²)</li>
-        <li>السعر التقريبي (ريال)</li>
-        <li>الوصف (نص حر)</li>
-    </ul>
-    <p>عند الإرسال: يتم حفظ الطلب في localStorage وفتح واتساب برسالة جاهزة.</p>
-    
-    <h3>صفحة الاستفسار (inquiry.html)</h3>
-    <p>للزوار الذين لم يجدوا ما يبحثون عنه. الحقول:</p>
-    <ul>
-        <li>الاسم، الجوال، نوع العقار، الموقع المطلوب</li>
-        <li>المساحة المطلوبة، الميزانية التقريبية، تفاصيل إضافية</li>
-    </ul>
-    <p>يتم حفظ الاستفسار وإرساله عبر واتساب للمكتب للمراجعة.</p>
-    
-    <h3>صفحة التواصل (contact.html)</h3>
-    <p>تعرض جميع وسائل التواصل:</p>
-    <ul>
-        <li>واتساب: 0545888931 (أيقونة واتساب خضراء)</li>
-        <li>اتصال: 0544699933 (أيقونة هاتف)</li>
-        <li>واتساب واتصال: 0561610748 (أيقونتان)</li>
-        <li>البريد: afaqalqary@gmail.com</li>
-        <li>سناب شات وتيك توك</li>
-        <li>خريطة 3D لموقع المكتب</li>
-        <li>نموذج رسالة سريعة</li>
-    </ul>
+<div class="success-box no-break">
+<strong>النص التسويقي التلقائي:</strong> عند توفر معلومات العقار (النوع، المنطقة، المساحة، السعر)، يقوم البوت بتوليد نص تسويقي احترافي تلقائياً، مثل: "للبيع مزرعة في الرحمانية بمساحة 5000م² بسعر 800,000 ريال — فرصة استثمارية مميزة". يمكنك تعديل النص أو الاكتفاء به.
 </div>
 
-<!-- 4. المساعد الذكي -->
-<div class="section" id="ai-assistant">
-    <h2>٤. المساعد الذكي (AI Assistant)</h2>
-    <p>يوجد مساعد ذكي في كل صفحة من الموقع، يتميز بـ:</p>
-    
-    <ul>
-        <li><strong>الأيقونة:</strong> شعار المكتب</li>
-        <li><strong>اللغة:</strong> اللهجة السعودية البيضاء</li>
-        <li><strong>التخصص:</strong> التسويق العقاري السعودي</li>
-        <li><strong>المعرفة:</strong> يدرك جميع محتويات الموقع (العروض، الأسعار، المناطق، الخدمات)</li>
-    </ul>
-    
-    <h3>كيفية الاستخدام</h3>
-    <ol>
-        <li>انقر على أيقونة المساعد في أسفل الشاشة</li>
-        <li>اكتب سؤالك في مربع النص</li>
-        <li>اضغط Enter أو زر الإرسال</li>
-        <li>سيجيب المساعد فوراً</li>
-    </ol>
-    
-    <h3>أمثلة على الأسئلة</h3>
-    <ul>
-        <li>"كم عدد المزارع المتاحة؟"</li>
-        <li>"أبغى مزرعة في الرحمانية"</li>
-        <li>"وش أسعار الأراضي في الدلم؟"</li>
-        <li>"هل عندكم استراحات للبيع؟"</li>
-        <li>"أبي أعرف خدماتكم"</li>
-        <li>"كيف أتواصل معكم؟"</li>
-        <li>"أبغى أعرض عقاري للبيع"</li>
-    </ul>
+<!-- SECTION 4: Bousla -->
+<h2 class="section-title">4. بوصلة الأسعار والتحديث اليومي التلقائي</h2>
+<p>البوصلة العقارية هي ميزة فريدة تعرض متوسط أسعار الأراضي والمزارع والاستراحات في كل منطقة. تظهر هذه الأسعار على الموقع في قسم البوصلة، وتتحدث <strong>تلقائياً كل يوم</strong> الساعة 6 صباحاً بناءً على العروض المنشورة.</p>
+
+<h3>كيف يعمل التحديث التلقائي؟</h3>
+<p>يقوم البوت يومياً في الساعة 6:00 صباحاً بحساب متوسط أسعار العروض المنشورة لكل منطقة ونوع عقار، ثم يطبق تعديلاً طفيفاً (±3%) لمحاكاة حركة السوق. النتائج تُحفظ في ملف <code>office-data.json</code> وتظهر فوراً على الموقع. يُسجل تاريخ آخر تحديث ليعرف الزائر أن الأسعار حديثة.</p>
+
+<h3>التحديث اليدوي</h3>
+<p>يمكنك تحديث البوصلة يدوياً في أي وقت بالضغط على زر <strong>🧭 تحديث البوصلة</strong> أو كتابة <code>/bousla</code>. سيعرض البوت الأسعار الجديدة لكل منطقة بعد التحديث.</p>
+
+<div class="warning-box no-break">
+<strong>ملاحظة:</strong> الأسعار في البوصلة هي متوسطات تقديرية مبنية على العروض المنشورة وتعديلات السوق. كلما أضفت عروض حقيقية بأسعار دقيقة، كلما أصبحت البوصلة أدق وأكثر فائدة للعملاء.
 </div>
 
-<!-- 5. البوصلة العقارية -->
-<div class="section" id="bousla">
-    <h2>٥. البوصلة العقارية</h2>
-    <p>يعرض الموقع أسعار العقارات حسب المنطقة الجغرافية، مستنداً إلى منصة البوصلة العقارية التابعة للهيئة العامة للعقار. تظهر الأسعار تحت كل عرض وفي قسم مخصص.</p>
-    
-    <h3>أسعار المتر حسب المنطقة</h3>
-    <table class="table">
-        <tr><th>المنطقة</th><th>المزارع (ريال/م²)</th><th>الاستراحات (ريال/م²)</th><th>الأراضي السكنية (ريال/م²)</th></tr>
-        <tr><td>الرحمانية</td><td>120</td><td>800</td><td>1,500</td></tr>
-        <tr><td>الهياثم</td><td>110</td><td>750</td><td>1,400</td></tr>
-        <tr><td>الدلم</td><td>90</td><td>700</td><td>1,200</td></tr>
-        <tr><td>الضبيعة</td><td>100</td><td>720</td><td>1,300</td></tr>
-        <tr><td>العفجة</td><td>95</td><td>680</td><td>1,100</td></tr>
-    </table>
-    
-    <div class="info-box">
-        <p><strong>ملاحظة:</strong> الأسعار تقريبية وتُحدّث دورياً. للحصول على السعر الدقيق، يرجى التواصل مع المكتب.</p>
-    </div>
+<!-- SECTION 5: Weekly Report -->
+<h2 class="section-title">5. التقرير الأسبوعي للزوار والأقسام</h2>
+<p>يُرسل البوت تلقائياً تقريراً أسبوعياً كل يوم <strong>الأحد الساعة 9 صباحاً</strong> يحتوي على إحصائيات تفصيلية عن نشاط الموقع خلال الأسبوع. هذا التقرير يساعدك على فهم سلوك الزوار والأقسام الأكثر شعبية.</p>
+
+<h3>محتويات التقرير</h3>
+<ul>
+<li><strong>إجمالي الزيارات:</strong> العدد الكلي لزيارات الموقع خلال الأسبوع</li>
+<li><strong>زيارات الأقسام:</strong> عدد زيارات كل صفحة (الرئيسية، المزارع، الاستراحات، الأراضي، الخدمات، التواصل)</li>
+<li><strong>العروض المُشاهدة:</strong> كم مرة تمت مشاهدة العروض</li>
+<li><strong>مشاهدات البوصلة:</strong> عدد مرات عرض صفحة الأسعار</li>
+<li><strong>نقرات التواصل:</strong> عدد مرات الضغط على زر التواصل وواتساب</li>
+<li><strong>النشاط اليومي:</strong> تفصيل الزيارات لكل يوم من أيام الأسبوع</li>
+</ul>
+
+<h3>عرض التقرير يدوياً</h3>
+<p>يمكنك عرض التقرير في أي وقت بالضغط على زر <strong>📈 التقرير الأسبوعي</strong> أو كتابة <code>/weekly</code> أو <code>/report</code>. سيولّد البوت التقرير فوراً ويُرسله لك في المحادثة.</p>
+
+<div class="info-box-c no-break">
+<strong>كيف تُجمع البيانات؟</strong> يستخدم الموقع تقنية تتبع الزيارات تُسجل كل زيارة لقسم في ملف <code>weekly_stats.json</code>. يقوم البوت بقراءة هذا الملف وتجميع البيانات وعرضها في شكل تقرير منظم. تأكد من أن الموقع منشور ويعمل حتى تُجمع البيانات بشكل صحيح.
 </div>
 
-<!-- 6. بوت تيليجرام -->
-<div class="section" id="bot">
-    <h2>٦. دليل بوت تيليجرام (لوحة التحكم) <span class="badge">مهم</span></h2>
-    <p>البوت هو لوحة التحكم الكاملة للموقع. من خلاله يمكنك إدارة جميع العروض والطلبات دون الحاجة لتعديل الكود يدوياً.</p>
-    
-    <h3>المميزات الرئيسية</h3>
-    <ul>
-        <li>✅ إضافة عروض جديدة مع رفع 1-5 صور</li>
-        <li>✅ معالجة الصور بالذكاء الاصطناعي (تحسين الجودة، إزالة الضوضاء، زيادة الحدة)</li>
-        <li>✅ تصنيف العروض تلقائياً (مزرعة/استراحة/أرض سكنية)</li>
-        <li>✅ توليد نصوص تسويقية تلقائياً باللهجة السعودية</li>
-        <li>✅ نشر مباشر على الموقع</li>
-        <li>✅ استقبال طلبات الزوار وفلترتها</li>
-        <li>✅ مساعد ذكي للإدارة (إحصائيات، بحث، فلترة)</li>
-        <li>✅ حذف وتعديل العروض</li>
-        <li>✅ تحديد الموقع التلقائي (يستخدم موقع المكتب عند عدم التحديد)</li>
-        <li>✅ لوحة تحكم كاملة بصلاحيات إدارية</li>
-    </ul>
-    
-    <h3>معلومات البوت</h3>
-    <div class="code-block">
-Bot Token: 8629398802:AAFAn20VdPsbo9WtaNX6_o0d6b-v-oQnLOc
-Bot Username: @afaq_real_estate_bot
-File: bot/bot.py
-Config: bot/config.json
-    </div>
+<!-- SECTION 6: AI Assistant -->
+<h2 class="section-title">6. المساعد الذكي العقاري</h2>
+<p>المساعد الذكي هو روبوت محادثة يعمل داخل البوت، صُمم ليكون <strong>مسوّقاً عقارياً محترفاً</strong> مريحاً مع العملاء السعوديين. يتحدث باللهجة السعودية ويفهم استفسارات العملاء ويرد باحترافية.</p>
+
+<h3>ماذا يستطيع المساعد الذكي؟</h3>
+<ul>
+<li><strong>الترحيب:</strong> يرد على التحية بلهجة سعودية ودودة</li>
+<li><strong>عرض الإحصائيات:</strong> يجيب عن عدد العروض المتاحة</li>
+<li><strong>عرض العروض حسب النوع:</strong> "أبغى مزارع" أو "عندي استراحة" أو "شوف الأراضي"</li>
+<li><strong>عرض العروض حسب المنطقة:</strong> "شوف عروض الرحمانية" أو "أراضي الدلم"</li>
+<li><strong>شرح الخدمات:</strong> يشرح خدمات المقاولات وحفر الآبار ورخص البناء والتشطيبات وإدارة الأملاك</li>
+<li><strong>أسعار البوصلة:</strong> "كم سعر المتر في الهياثم؟" أو "أسعار الضبية"</li>
+<li><strong>تفاصيل عرض محدد:</strong> "أعطني تفاصيل العرض FRM-001"</li>
+<li><strong>طريقة الإضافة:</strong> "كيف أضيف عرض؟"</li>
+<li><strong>المساعدة:</strong> يعرض جميع القدرات عند طلب "مساعدة"</li>
+</ul>
+
+<h3>تفعيل المساعد</h3>
+<p>اضغط زر <strong>🤖 المساعد الذكي</strong> لتفعيل وضع المساعد. بعد ذلك، كل رسالة ترسلها ستُعامل كاستفسار ويرد عليها المساعد. لك إنهاء وضع المساعد، اضغط أي زر آخر من لوحة الأزرار.</p>
+
+<!-- SECTION 7: Web Admin Panel -->
+<h2 class="section-title">7. لوحة التحكم على الويب (admin.html)</h2>
+<p>لوحة التحكم متاحة على عنوان <code>https://afaqalqary.pages.dev/admin.html</code> ومحمية بكلمة مرور. كلمة المرور الافتراضية هي <code>afaq2026</code> ويمكنك تغييرها من قسم الإعدادات داخل اللوحة.</p>
+
+<div class="warning-box no-break">
+<strong>تنبيه أمني:</strong> صفحة لوحة التحكم محمية من الفهرسة في محركات البحث (noindex, nofollow) ومذكورة في robots.txt كـ Disallow. هذا يمنع ظهورها في نتائج البحث. احرص على عدم مشاركة كلمة المرور مع أي شخص غير موثوق.
 </div>
 
-<!-- 7. تشغيل البوت -->
-<div class="section" id="bot-start">
-    <h2>٧. تشغيل البوت</h2>
-    
-    <h3>المتطلبات</h3>
-    <ul>
-        <li>Python 3.8 أو أحدث</li>
-        <li>مكتبة python-telegram-bot (الإصدار 20.7)</li>
-        <li>مكتبة Pillow (لمعالجة الصور)</li>
-    </ul>
-    
-    <h3>تثبيت المتطلبات</h3>
-    <div class="code-block">
-pip install python-telegram-bot==20.7 Pillow
-    </div>
-    
-    <h3>تشغيل البوت</h3>
-    <div class="code-block">
-cd afaq-website/bot
-python3 bot.py
-    </div>
-    
-    <div class="warning-box">
-        <p><strong>تنبيه:</strong> يجب أن يظل البوت يعمل باستمرار (24/7) ليتمكن من استقبال الرسائل. يُنصح بتشغيله على خادم سحابي أو استخدام خدمة مثل PythonAnywhere أو Render أو VPS.</p>
-    </div>
-    
-    <h3>أول استخدام — تعيين المدير</h3>
-    <ol>
-        <li>ابدأ محادثة مع البوت على تيليجرام</li>
-        <li>أرسل الأمر <code>/start</code></li>
-        <li>سيتم تعيينك تلقائياً كأول مدير (Admin)</li>
-        <li>ستظهر لك لوحة التحكم الرئيسية بالأزرار</li>
-    </ol>
+<h3>أقسام لوحة التحكم</h3>
+<table>
+<tr><th>القسم</th><th>المحتوى</th></tr>
+<tr><td>📊 نظرة عامة</td><td>بطاقات إحصائية (عدد العروض، المناطق، الخدمات) وروابط سريعة</td></tr>
+<tr><td>🏠 العروض</td><td>جدول بكل العروض من offers.json مع التفاصيل</td></tr>
+<tr><td>🧭 البوصلة</td><td>بطاقات أسعار كل منطقة من office-data.json</td></tr>
+<tr><td>🏢 معلومات المكتب</td><td>بيانات المكتب وأرقام التواصل والموقع</td></tr>
+<tr><td>🤖 البوت</td><td>شرح كل أزرار وأوامر البوت</td></tr>
+<tr><td>🔍 SEO</td><td>الكلمات المفتاحية وملفات SEO وروابط فهرسة Google و Bing</td></tr>
+<tr><td>⚙️ الإعدادات</td><td>تغيير كلمة مرور لوحة التحكم</td></tr>
+</table>
+
+<h3>كيف تستخدم اللوحة</h3>
+<ol>
+<li>افتح <code>https://afaqalqary.pages.dev/admin.html</code> في المتصفح</li>
+<li>أدخل كلمة المرور <code>afaq2026</code></li>
+<li>تصفح الأقسام من القائمة العلوية</li>
+<li>البيانات تُحدث تلقائياً من ملفات JSON على الموقع</li>
+<li>لأي تغيير فعلي في العروض، استخدم البوت</li>
+</ol>
+
+<!-- SECTION 8: Publishing -->
+<h2 class="section-title">8. نشر الموقع وتحديثه على الإنترنت</h2>
+<p>الموقع منشور على Cloudflare Pages على عنوان <code>afaqalqary.pages.dev</code> والكود مرفوع على GitHub في مستودع <code>abonasr0907-beep/-</code>. عند تحديث الكود ودفعه إلى GitHub، يتم النشر تلقائياً على Cloudflare Pages.</p>
+
+<h3>تحديث الموقع</h3>
+<div class="step"><span class="step-num">1</span> قم بالتعديلات المطلوبة في ملفات الموقع (HTML, CSS, JS)</div>
+<div class="step"><span class="step-num">2</span> من سطر الأوامر في مجلد المشروع، نفّذ:</div>
+<pre><code>git add -A
+git commit -m "وصف التعديل"
+git push</code></pre>
+<div class="step"><span class="step-num">3</span> سيقوم Cloudflare Pages تلقائياً بإعادة نشر الموقع خلال دقيقة إلى دقيقتين</div>
+<div class="step"><span class="step-num">4</span> تحقق من الموقع على <code>https://afaqalqary.pages.dev/</code></div>
+
+<h3>تحديث العروض والأسعار</h3>
+<p>عروض العقارات والأسعار مخزنة في مجلد <code>offers-data/</code> في ملفات <code>offers.json</code> و <code>office-data.json</code>. عند إضافة أو حذف عرض عبر البوت، تُحدّث هذه الملفات تلقائياً ويُعاد نشرها. إذا أردت تعديلاً يدوياً، عدّل الملفات ثم ارفعها إلى GitHub.</p>
+
+<!-- SECTION 9: SEO -->
+<h2 class="section-title">9. تحسين محركات البحث (SEO)</h2>
+<p>تم تحسين الموقع بالكامل لمحركات البحث ليظهر في نتائج البحث عن العقارات والمزارع والاستراحات والأراضي والمقاولات وحفر الآبار وإدارة الأملاك في الرياض وسعار السعودية.</p>
+
+<h3>ما تم تطبيقه</h3>
+<ul>
+<li><strong>وسوم Meta:</strong> عنوان ووصف وكلمات مفتاحية لكل صفحة</li>
+<li><strong>البيانات المنظمة:</strong> Schema.org RealEstateAgent لكل صفحة</li>
+<li><strong>خريطة الموقع:</strong> sitemap.xml محدثة بكل الصفحات والتواريخ</li>
+<li><strong>robots.txt:</strong> يسمح لمحركات البحث بفهرسة كل الصفحات عدا لوحة التحكم</li>
+<li><strong>IndexNow:</strong> تم إرسال طلبات فهرسة إلى Bing و Yandex عبر بروتوكول IndexNow</li>
+<li><strong>الكلمات المفتاحية:</strong> مكتب عقاري، مزارع للبيع، استراحات للبيع، أراضي للبيع، مقاولات الرياض، حفر آبار، رخص بناء، تشطيبات، إدارة أملاك، الرحمانية، الهياثم، الدلم، الضبية، العفجة</li>
+</ul>
+
+<h3>طلب الفهرسة في Google</h3>
+<ol>
+<li>افتح <strong>Google Search Console</strong> على <code>https://search.google.com/search-console</code></li>
+<li>أضف موقعك <code>https://afaqalqary.pages.dev/</code> كملكية</li>
+<li>تحقق من الملكية (إضافة وسم meta أو ملف HTML)</li>
+<li>اذهب إلى "فحص عنوان URL" وأدخل كل صفحة واطلب الفهرسة</li>
+<li>أرسل sitemap.xml من قسم "خرائط الموقع"</li>
+</ol>
+
+<h3>طلب الفهرسة في Bing</h3>
+<ol>
+<li>افتح <strong>Bing Webmaster Tools</strong> على <code>https://www.bing.com/webmasters</code></li>
+<li>أضف موقعك وتحقق من الملكية</li>
+<li>أرسل خريطة الموقع من قسم "Sitemaps"</li>
+<li>استخدم أداة "URL Inspection" لطلب فهرسة صفحات محددة</li>
+</ol>
+
+<div class="info-box-c no-break">
+<strong>ملف IndexNow:</strong> تم إنشاء ملف <code>afaqalqary2026.txt</code> في جذر الموقع يحتوي على مفتاح IndexNow. هذا يسمح لمحركات البحث بفهرسة صفحاتك بسرعة عند التحديث.
 </div>
 
-<!-- 8. إضافة عرض -->
-<div class="section" id="bot-add">
-    <h2>٨. إضافة عرض جديد</h2>
-    
-    <h3>الخطوات</h3>
-    <p><span class="step-number">1</span> اضغط زر <strong>"➕ إضافة عرض"</strong> من لوحة التحكم</p>
-    <p><span class="step-number">2</span> سيرد البوت: "أرسل 1-5 صور للعقار"</p>
-    <p><span class="step-number">3</span> أرسل الصور (صورة واحدة أو أكثر، حتى 5 صور)</p>
-    <p>سيقوم البوت تلقائياً بـ:</p>
-    <ul>
-        <li>تحميل الصور</li>
-        <li>معالجتها بالذكاء الاصطناعي (تحسين الجودة)</li>
-        <li>حفظها في مجلد الصور</li>
-    </ul>
-    
-    <p><span class="step-number">4</span> أرسل عنوان العرض (مثال: "مزرعة خصبة في الرحمانية")</p>
-    <p>سيقوم البوت تلقائياً بـ:</p>
-    <ul>
-        <li>تصنيف العرض (مزرعة/استراحة/أرض) حسب الكلمات المفتاحية</li>
-        <li>توليد نص تسويقي باللهجة السعودية</li>
-    </ul>
-    
-    <p><span class="step-number">5</span> أرسل المنطقة (الرحمانية، الهياثم، الدلم، الضبيعة، العفجة)</p>
-    <p><span class="step-number">6</span> أرسل المساحة بالمتر المربع</p>
-    <p><span class="step-number">7</span> أرسل السعر بالريال</p>
-    <p><span class="step-number">8</span> سيظهر النص التسويقي المولّد تلقائياً:</p>
-    <ul>
-        <li>اضغط <strong>"✅ نعم، انشر بهذا النص"</strong> للنشر مباشرة</li>
-        <li>أو اضغط <strong>"✏️ أريد كتابة نصي"</strong> لكتابة نص مخصص</li>
-    </ul>
-    
-    <p><span class="step-number">9</span> تم! سيتم:</p>
-    <ul>
-        <li>حفظ العرض في قاعدة بيانات البوت</li>
-        <li>نشره مباشرة في ملف offers.json على الموقع</li>
-        <li>سيظهر فوراً للزوار</li>
-    </ul>
-    
-    <div class="info-box">
-        <p><strong>الموقع التلقائي:</strong> إذا لم تحدد موقعاً للعرض، سيستخدم البوت موقع المكتب الافتراضي (رابط خرائط جوجل الموحد).</p>
-    </div>
+<!-- SECTION 10: Running Bot on Server -->
+<h2 class="section-title">10. تشغيل البوت على خادم دائم</h2>
+<p>ليعمل البوت بشكل دائم (24/7) ويستقبل الرسائل ويُرسل التقارير والتحديثات التلقائية، يجب تشغيله على خادم سحابي. البوت مكتوب بلغة Python باستخدام مكتبة <code>python-telegram-bot</code> الإصدار 20+.</p>
+
+<h3>المتطلبات</h3>
+<pre><code>pip install python-telegram-bot Pillow</code></pre>
+
+<h3>التشغيل</h3>
+<pre><code>cd bot
+python3 bot.py</code></pre>
+
+<h3>التشغيل الدائم (على خادم)</h3>
+<p>استخدم أحد الطرق التالية لإبقاء البوت يعمل:</p>
+
+<h4>الطريقة 1: nohup (بسيطة)</h4>
+<pre><code>cd bot
+nohup python3 bot.py &gt; bot.log 2&gt;&amp;1 &amp;</code></pre>
+
+<h4>الطريقة 2: systemd (موصى بها للخوادم)</h4>
+<p>أنشئ ملف الخدمة في <code>/etc/systemd/system/afaq-bot.service</code>:</p>
+<pre><code>[Unit]
+Description=Afaq Real Estate Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/path/to/bot
+ExecStart=/usr/bin/python3 /path/to/bot/bot.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+<p>ثم نفّذ:</p>
+<pre><code>systemctl daemon-reload
+systemctl enable afaq-bot
+systemctl start afaq-bot</code></pre>
+
+<h4>الطريقة 3: tmux</h4>
+<pre><code>tmux new -s afaqbot
+cd bot &amp;&amp; python3 bot.py
+# Ctrl+B ثم D للخروج مع إبقاء البوت يعمل</code></pre>
+
+<div class="warning-box no-break">
+<strong>مهم:</strong> إذا لم يعمل البوت على خادم دائم، فلن يستقبل الرسائل ولن تعمل التحديثات والتقارير التلقائية. كل ميزات البوت (إضافة العروض، البوصلة، التقرير الأسبوعي) تتطلب أن يكون البوت قيد التشغيل.
 </div>
 
-<!-- 9. إدارة العروض -->
-<div class="section" id="bot-manage">
-    <h2>٩. إدارة العروض</h2>
-    
-    <h3>عرض جميع العروض</h3>
-    <p>اضغط زر <strong>"📋 عرض العروض"</strong> لعرض قائمة بجميع العروض مع رقم كل عرض.</p>
-    
-    <h3>حذف عرض</h3>
-    <ol>
-        <li>اضغط زر <strong>"🗑 حذف عرض"</strong></li>
-        <li>أرسل رقم العرض الذي تريد حذفه</li>
-        <li>سيتم حذفه من البوت والموقع</li>
-    </ol>
-    
-    <h3>تعديل عرض</h3>
-    <ol>
-        <li>اضغط زر <strong>"✏️ تعديل عرض"</strong></li>
-        <li>أرسل رقم العرض</li>
-        <li>اختر الحقل الذي تريد تعديله (العنوان، السعر، المساحة، إلخ)</li>
-        <li>أرسل القيمة الجديدة</li>
-    </ol>
-    
-    <h3>فلترة العروض</h3>
-    <p>اضغط زر <strong>"🔍 فلترة"</strong> ثم اختر:</p>
-    <ul>
-        <li>حسب النوع (مزارع / استراحات / أراضي)</li>
-        <li>حسب المنطقة (الرحمانية / الهياثم / الدلم / ...)</li>
-    </ul>
-    
-    <h3>الإحصائيات</h3>
-    <p>اضغط زر <strong>"📊 الإحصائيات"</strong> لعرض:</p>
-    <ul>
-        <li>إجمالي عدد العروض</li>
-        <li>عدد العروض حسب النوع</li>
-        <li>عدد العروض حسب المنطقة</li>
-        <li>عدد طلبات الزوار</li>
-    </ul>
-    
-    <h3>طلبات الزوار</h3>
-    <p>اضغط زر <strong>"📨 طلبات الزوار"</strong> لعرض:</p>
-    <ul>
-        <li>العقارات التي عرضها الزوار عبر نموذج الموقع</li>
-        <li>الاستفسارات التي أرسلها الزوار</li>
-        <li>يمكنك قبول أو رفض كل طلب</li>
-        <li>عند القبول، يتم تحويله إلى عرض ونشره</li>
-    </ol>
-    
-    <h3>الإعدادات</h3>
-    <p>اضغط زر <strong>"⚙️ الإعدادات"</strong> للتحكم في:</p>
-    <ul>
-        <li>الحد الأقصى لعدد الصور (افتراضي: 5)</li>
-        <li>تفعيل/تعطيل التجديد التلقائي</li>
-        <li>تعيين مديرين إضافيين</li>
-    </ul>
+<!-- SECTION 11: Troubleshooting -->
+<h2 class="section-title">11. حل المشكلات الشائعة</h2>
+
+<h3>البوت لا يستجيب للرسائل</h3>
+<ul>
+<li>تأكد من أن البوت قيد التشغيل (<code>ps aux | grep bot.py</code>)</li>
+<li>تأكد من صحة التوكن في <code>config.json</code></li>
+<li>تأكد من أن معرّفك في قائمة <code>admin_ids</code> في <code>config.json</code></li>
+<li>راجع ملف السجل <code>bot.log</code> للأخطاء</li>
+</ul>
+
+<h3>الموقع لا يُحدّث بعد التعديلات</h3>
+<ul>
+<li>تأكد من دفع التعديلات إلى GitHub (<code>git push</code>)</li>
+<li>انتظر 1-2 دقيقة لإعادة النشر على Cloudflare</li>
+<li>افتح الموقع في وضع التصفح الخفي لتفادي الكاش</li>
+</ul>
+
+<h3>البوصلة لا تُحدّث</h3>
+<ul>
+<li>تأكد من وجود عروض منشورة (البوصلة تُحسب من العروض)</li>
+<li>تأكد من أن البوت يعمل (التحديث التلقائي يومياً الساعة 6 صباحاً)</li>
+<li>حدّث يدوياً بالضغط على <strong>🧭 تحديث البوصلة</strong></li>
+</ul>
+
+<h3>التقرير الأسبوعي فارغ</h3>
+<ul>
+<li>التقرير يعتمد على تتبع الزيارات في الموقع</li>
+<li>تأكد من أن الموقع يعمل ويستقبل زيارات</li>
+<li>قد لا يكون قد مرّ أسبوع كامل منذ آخر تقرير</li>
+</ul>
+
+<h3>الصور لا تظهر في العروض</h3>
+<ul>
+<li>تأكد من رفع الصور بنجاح عند إضافة العرض</li>
+<li>تأكد من أن مجلد الصور موجود وله صلاحيات قراءة</li>
+<li>تأكد من أن مسارات الصور في <code>offers.json</code> صحيحة</li>
+</ul>
+
+<h3>لوحة التحكم لا تفتح</h3>
+<ul>
+<li>تأكد من إدخال كلمة المرور الصحيحة <code>afaq2026</code></li>
+<li>تأكد من أن <code>admin.html</code> موجود على الموقع</li>
+<li>جرّب مسح ذاكرة التخزين المؤقت للمتصفح</li>
+</ul>
+
+<!-- SECTION 12: Contact & References -->
+<h2 class="section-title">12. معلومات التواصل والمراجع</h2>
+
+<h3>الروابط المهمة</h3>
+<table>
+<tr><th>الخدمة</th><th>الرابط</th></tr>
+<tr><td>🌐 الموقع الإلكتروني</td><td>https://afaqalqary.pages.dev/</td></tr>
+<tr><td>🖥️ لوحة التحكم</td><td>https://afaqalqary.pages.dev/admin.html</td></tr>
+<tr><td>🤖 بوت تلقجرام</td><td>https://t.me/afaq_alinjaz_bot</td></tr>
+<tr><td>📂 مستودع GitHub</td><td>https://github.com/abonasr0907-beep/-</td></tr>
+<tr><td>🗺️ خريطة الموقع</td><td>https://afaqalqary.pages.dev/sitemap.xml</td></tr>
+<tr><td>🤖 robots.txt</td><td>https://afaqalqary.pages.dev/robots.txt</td></tr>
+<tr><td>📊 Google Search Console</td><td>https://search.google.com/search-console</td></tr>
+<tr><td>🔍 Bing Webmaster</td><td>https://www.bing.com/webmasters</td></tr>
+</table>
+
+<h3>ملفات النظام المهمة</h3>
+<table>
+<tr><th>الملف</th><th>الوظيفة</th></tr>
+<tr><td>bot/bot.py</td><td>الكود الرئيسي للبوت</td></tr>
+<tr><td>bot/config.json</td><td>إعدادات البوت (التوكن، المعرّف، الميزات)</td></tr>
+<tr><td>offers-data/offers.json</td><td>بيانات العروض العقارية</td></tr>
+<tr><td>offers-data/office-data.json</td><td>معلومات المكتب والبوصلة</td></tr>
+<tr><td>bot/data/weekly_stats.json</td><td>إحصائيات الزيارات الأسبوعية</td></tr>
+<tr><td>index.html</td><td>الصفحة الرئيسية للموقع</td></tr>
+<tr><td>admin.html</td><td>لوحة التحكم على الويب</td></tr>
+<tr><td>sitemap.xml</td><td>خريطة الموقع لمحركات البحث</td></tr>
+<tr><td>robots.txt</td><td>تعليمات الفهرسة لمحركات البحث</td></tr>
+</table>
+
+<h3>معلومات المكتب</h3>
+<div class="info-box-c no-break">
+<p><strong>مكتب آفاق الإنجاز العقاري</strong></p>
+<p>الخدمات: المزارع — الاستراحات — الأراضي — المقاولات — حفر الآبار — رخص البناء — التشطيبات — إدارة الأملاك</p>
+<p>المناطق: الرحمانية — الهياثم — الدلم — الضبية — العفجة</p>
 </div>
 
-<!-- 10. المساعد الذكي في البوت -->
-<div class="section" id="bot-ai">
-    <h2>١٠. المساعد الذكي في البوت</h2>
-    <p>اضغط زر <strong>"🤖 المساعد الذكي"</strong> للدخول في وضع المساعد. يمكنك بعدها كتابة أوامر باللغة الطبيعية:</p>
-    
-    <h3>أمثلة</h3>
-    <ul>
-        <li>"كم عدد المزارع؟" — يعرض إحصائيات المزارع</li>
-        <li>"أعرض لي الاستراحات" — يعرض جميع الاستراحات</li>
-        <li>"وش عروض الرحمانية؟" — يعرض عروض منطقة الرحمانية</li>
-        <li>"كم سعر أقل عرض؟" — يعرض أرخص العروض</li>
-        <li>"احذف عرض رقم 5" — يحذف العرض المحدد</li>
-        <li>"مساعدة" — يعرض قائمة الأوامر</li>
-    </ul>
-</div>
-
-<!-- 11. SEO -->
-<div class="section" id="seo">
-    <h2>١١. تحسين محركات البحث (SEO)</h2>
-    <p>تم تطبيق تحسينات SEO شاملة لتسهيل فهرسة الموقع في Google و Safari و خرائط Google:</p>
-    
-    <h3>ما تم تطبيقه</h3>
-    <ul>
-        <li><strong>Meta Tags:</strong> عنوان، وصف، كلمات مفتاحية لكل صفحة</li>
-        <li><strong>Open Graph:</strong> للمشاركة على Facebook و WhatsApp</li>
-        <li><strong>Twitter Cards:</strong> للمشاركة على Twitter/X</li>
-        <li><strong>Schema.org:</strong> بيانات منظمة (RealEstateAgent, Service, BreadcrumbList)</li>
-        <li><strong>Geo Tags:</strong> إحداثيات جغرافية (الخرج 24.1554, 47.3068)</li>
-        <li><strong>Canonical Links:</strong> لكل صفحة</li>
-        <li><strong>Sitemap.xml:</strong> خريطة موقع شاملة بكل الصفحات والصور</li>
-        <li><strong>Robots.txt:</strong> توجيه محركات البحث</li>
-        <li><strong>Web Manifest:</strong> لدعم PWA</li>
-        <li><strong>دعم RTL:</strong> تخطيط عربي صحيح</li>
-        <li><strong>تصميم متجاوب:</strong> يعمل على الجوال والكمبيوتر</li>
-    </ul>
-    
-    <h3>طلب الفهرسة من Google</h3>
-    <ol>
-        <li>اذهب إلى <strong>Google Search Console</strong>: https://search.google.com/search-console</li>
-        <li>أضف موقعك (أدخل رابط الموقع المنشور)</li>
-        <li>تحقق من الملكية (عبر meta tag أو ملف HTML)</li>
-        <li>أرسل sitemap.xml: أضف رابط "sitemap.xml"</li>
-        <li>استخدم أداة "URL Inspection" لطلب فهرسة كل صفحة</li>
-        <li>كرر لكل صفحة: index, farms, resthouses, lands, services, list-property, inquiry, contact</li>
-    </ol>
-    
-    <h3>طلب الفهرسة من خرائط Google</h3>
-    <ol>
-        <li>اذهب إلى <strong>Google Business Profile</strong>: https://www.google.com/business</li>
-        <li>أضف نشاطك التجاري بموقع المكتب</li>
-        <li>أضف رابط الموقع الإلكتروني</li>
-        <li>سيظهر المكتب على خرائط Google مع رابط الموقع</li>
-    </ol>
-    
-    <h3>تحسين فهرسة Safari</h3>
-    <p>Safari يستخدم محرك بحث Applebot الذي يحترم robots.txt و sitemap.xml المُعدّين بالفعل. كما أن الموقع يدعم Web Manifest الذي يساعد في ظهور الموقع كتطبيق على أجهزة Apple.</p>
-</div>
-
-<!-- 12. الاستضافة -->
-<div class="section" id="deploy">
-    <h2>١٢. الاستضافة والنشر</h2>
-    <p>تم استضافة الموقع مجاناً عبر خدمة الصفحات السحابية (S3 Pages). الموقع منشور ومتاح للعامة.</p>
-    
-    <h3>رابط الموقع المنشور</h3>
-    <div class="code-block">
-https://afaqalqary.pages.dev/
-    </div>
-    
-    <h3>كيف يعمل النشر</h3>
-    <ol>
-        <li>ملفات الموقع الثابتة (HTML, CSS, JS, صور, JSON) موجودة في مجلد <code>afaq-website/</code></li>
-        <li>تم نسخها إلى مجلد النشر (بدون ملفات البوت)</li>
-        <li>تم رفعها على خوادم سحابية مجانية</li>
-        <li>الموقع متاح فوراً على الرابط العام</li>
-    </ol>
-    
-    <h3>إعادة النشر (عند التحديث)</h3>
-    <p>عند إضافة عروض جديدة عبر البوت، يتم تحديث ملف <code>offers-data/offers.json</code> تلقائياً. لإظهار التحديثات على الموقع المنشور، قد تحتاج لإعادة النشر.</p>
-    
-    <div class="info-box">
-        <p><strong>ملاحظة مهمة:</strong> البوت يحدّث ملف offers.json محلياً. لإظهار العروض الجديدة على الموقع المنشور، يجب إعادة رفع الملف المحدّث. يمكن أتمتة هذا عبر سكربت cron job أو ربط الموقع بمستودع سحابي.</p>
-    </div>
-</div>
-
-<!-- 13. الصيانة -->
-<div class="section" id="maintenance">
-    <h2>١٣. الصيانة والتحديث</h2>
-    
-    <h3>تحديث العروض</h3>
-    <ul>
-        <li>استخدم البوت لإضافة/حذف/تعديل العروض</li>
-        <li>التحديثات تظهر فوراً في ملف البيانات</li>
-        <li>أعد نشر الموقع لتظهر التحديثات على الرابط العام</li>
-    </ul>
-    
-    <h3>تحديث أرقام التواصل</h3>
-    <p>لتغيير أرقام الهاتف أو البريد أو الروابط الاجتماعية:</p>
-    <ol>
-        <li>افتح ملف <code>js/main.js</code></li>
-        <li>ابحث عن كائن <code>OFFICE_DATA</code></li>
-        <li>عدّل القيم المطلوبة</li>
-        <li>أعد نشر الموقع</li>
-    </ol>
-    
-    <h3>تحديث أسعار البوصلة</h3>
-    <p>لتغيير أسعار المتر:</p>
-    <ol>
-        <li>افتح ملف <code>js/main.js</code></li>
-        <li>ابحث عن كائن <code>BOUSLA_PRICES</code></li>
-        <li>عدّل الأسعار حسب المنطقة والنوع</li>
-        <li>أعد نشر الموقع</li>
-    </ol>
-    
-    <h3>تحديث الأخبار</h3>
-    <p>الأخبار تُجلب تلقائياً من موقع الهيئة العامة للعقار (rega.gov.sa) عند تحميل الصفحة. لا حاجة لتحديث يدوي.</p>
-</div>
-
-<!-- 14. حل المشاكل -->
-<div class="section" id="troubleshoot">
-    <h2>١٤. حل المشاكل الشائعة</h2>
-    
-    <h3>المساعد الذكي لا يرد</h3>
-    <ul>
-        <li>تأكد من كتابة السؤال بالعربية</li>
-        <li>استخدم كلمات مفتاحية واضحة (مزرعة، استراحة، أرض، سعر)</li>
-        <li>أعد تحميل الصفحة</li>
-    </ul>
-    
-    <h3>العروض لا تظهر</h3>
-    <ul>
-        <li>تأكد من وجود ملف offers-data/offers.json</li>
-        <li>افتح Console المتصفح (F12) للتحقق من الأخطاء</li>
-        <li>تأكد من أن الملف بصيغة JSON صحيحة</li>
-    </ul>
-    
-    <h3>البوت لا يستجيب</h3>
-    <ul>
-        <li>تأكد من تشغيل البوت: <code>python3 bot.py</code></li>
-        <li>تأكد من صحة الـ Token</li>
-        <li>تأكد من اتصال الإنترنت</li>
-        <li>تحقق من السجلات في الـ Terminal</li>
-    </ul>
-    
-    <h3>الصور لا تظهر بعد النشر</h3>
-    <ul>
-        <li>تأكد من رفع الصور في مجلد <code>images/bot/</code></li>
-        <li>تأكد من أن مسارات الصور في offers.json صحيحة</li>
-        <li>أعد نشر الموقع بعد إضافة صور جديدة</li>
-    </ul>
-    
-    <h3>نموذج العرض لا يرسل</h3>
-    <ul>
-        <li>تأكد من تعبئة جميع الحقول المطلوبة</li>
-        <li>تأكد من تثبيت واتساب على جهازك</li>
-        <li>النموذج يفتح واتساب برسالة جاهزة — تأكد من السماح بالنوافذ المنبثقة</li>
-    </ul>
-    
-    <div class="warning-box">
-        <p><strong>للدعم الفني:</strong> تواصل عبر البريد afaqalqary@gmail.com أو واتساب 0545888931</p>
-    </div>
-</div>
-
-<div class="section" style="text-align: center; background: #2A5050; color: #F5F1E8;">
-    <h2 style="color: #C4A956; border: none;">🎉 تم بنجاح!</h2>
-    <p>تم بناء ونشر موقع مكتب آفاق الإنجاز العقاري بالكامل مع جميع المميزات المطلوبة.</p>
-    <p style="margin-top: 15px;">الموقع: <strong style="color: #C4A956;">afaqalqary.pages.dev</strong></p>
-    <p>خبرة 20 سنة في خدمتك — الخرج والرياض 🌴</p>
-</div>
-
+<div class="footer-note">
+<p>تم إعداد هذا الدليل لمكتب آفاق الإنجاز العقاري — الإصدار 1.0</p>
+<p>للدعم والمساعدة، استخدم بوت تلقجرام أو تواصل عبر الموقع</p>
 </div>
 
 </body>
