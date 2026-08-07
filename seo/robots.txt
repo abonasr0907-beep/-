@@ -35,4 +35,4 @@ Allow: /
 User-agent: YandexBot
 Allow: /
 
-Sitemap: https://afaqalqary.pages.dev/sitemap.xml
+Sitemap: https://abonasr0907-beep.github.io/-/sitemap.xml

@@ -79,7 +79,7 @@ def load_config():
     return {
         "admin_ids": [],
         "office_location": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-        "website_url": "https://afaqalqary.pages.dev/",
+        "website_url": "https://abonasr0907-beep.github.io/-/",
         "offers_file": str(OFFERS_JSON),
         "auto_renew": True,
         "max_images": 5,
@@ -312,7 +312,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"للاستفسار عن العقارات:\n"
             f"📞 واتساب: 0545888931\n"
             f"📞 اتصال: 0544699933\n"
-            f"🌐 الموقع: afaqalqary.pages.dev"
+            f"🌐 الموقع: abonasr0907-beep.github.io/-"
         )
         await update.message.reply_text(welcome)
         return
@@ -1100,7 +1100,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "للاستفسار عن العقارات تواصل معنا:\n"
             "📞 واتساب: 0545888931\n"
             "📞 اتصال: 0544699933\n"
-            "🌐 الموقع: afaqalqary.pages.dev"
+            "🌐 الموقع: abonasr0907-beep.github.io/-"
         )
         return
 
