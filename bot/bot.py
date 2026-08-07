@@ -29,6 +29,8 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageEnhance, ImageFilter
 
+import github_sync
+
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -580,8 +582,27 @@ async def _finalize_offer(update, uid, query=None):
     site_data["offers"].append(offer)
     save_offers_json(site_data)
 
+    # رفع العرض والصور إلى GitHub → إعادة نشر تلقائية على الموقع العام
+    try:
+        sync_pairs = []
+        for rel in offer["images"]:
+            local_full = WEBSITE_DIR / rel
+            if local_full.exists():
+                sync_pairs.append((str(local_full), rel))
+        if sync_pairs:
+            ok = github_sync.sync_offer_to_github(offer, sync_pairs)
+            if github_sync.is_enabled():
+                sync_note = " ✅ ورفعت على الموقع العام" if ok else " (تحذير: لم تكتمل المزامنة)"
+            else:
+                sync_note = " (محلياً — اضبط GITHUB_TOKEN للنشر العام)"
+        else:
+            sync_note = ""
+    except Exception as e:
+        logger.error(f"خطأ في المزامنة مع GitHub: {e}")
+        sync_note = " (تعذّرت المزامنة)"
+
     msg = (
-        f"✅ تم نشر العرض بنجاح!\n\n"
+        f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
         f"🏷️ النوع: {offer['category']}\n"
         f"📍 المنطقة: {offer['area']}\n"
@@ -652,6 +673,20 @@ async def _delete_offer_by_id(update, offer_id, query=None):
     bot_data = load_bot_offers()
     bot_data["offers"] = [o for o in bot_data["offers"] if o["id"] != offer_id]
     save_bot_offers(bot_data)
+    # مزامنة الحذف مع GitHub
+    if before != after and github_sync.is_enabled():
+        try:
+            from pathlib import Path
+            base = Path(__file__).resolve().parent
+            offers_file = base.parent / "offers-data" / "offers.json"
+            if offers_file.exists():
+                github_sync.upload_text_file(
+                    "offers-data/offers.json",
+                    offers_file.read_text(encoding="utf-8"),
+                    f"حذف عرض: {offer_id}"
+                )
+        except Exception as e:
+            logger.error(f"خطأ في مزامنة الحذف: {e}")
 
     msg = f"🗑️ تم حذف العرض {offer_id}" if before != after else f"⚠️ لم يتم العثور على العرض {offer_id}"
     if query:

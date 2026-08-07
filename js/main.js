@@ -12,7 +12,7 @@ const OFFICE_DATA = {
     snapchat: "https://www.snapchat.com/add/mmnf2278",
     tiktok: "https://www.tiktok.com/@whatyouarelookingforisw3",
     defaultMap: "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-    telegramBot: "https://t.me/afaq_alinjaz_bot"
+    // telegramBot: مخفي عن العامة — للاستخدام الإداري فقط
 };
 
 // ===== أسعار البوصلة العقارية حسب المنطقة =====
