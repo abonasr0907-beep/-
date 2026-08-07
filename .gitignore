@@ -3,3 +3,5 @@ __pycache__/
 bot/data/__pycache__/
 .DS_Store
 todo.md
+bot.log
+*.log
