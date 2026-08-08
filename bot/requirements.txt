@@ -1,4 +1,5 @@
 python-telegram-bot[job-queue,webhooks]==20.8
 Pillow>=10.0.0
+requests>=2.31.0
 httpx>=0.26.0
 APScheduler>=3.10.0
