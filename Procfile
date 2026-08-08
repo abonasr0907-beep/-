@@ -1,1 +1,1 @@
-worker: cd bot && python3 bot.py
+web: cd bot && python3 bot.py

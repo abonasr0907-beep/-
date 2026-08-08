@@ -65,7 +65,7 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # توكن البوت — مقدم من المستخدم
-BOT_TOKEN = "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os"
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os"
 
 logging.basicConfig(
     format="%(asctime)s — %(name)s — %(levelname)s — %(message)s",

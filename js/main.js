@@ -29,22 +29,26 @@ let OFFERS = [];
 
 // ===== تحميل العروض من ملف JSON أو من localStorage =====
 async function loadOffers(defaultFilter = 'all') {
-    // محاولة تحميل العروض من localStorage (من بوت التلجرام)
-    const storedOffers = localStorage.getItem('afaq_offers');
-    if (storedOffers) {
-        try {
-            OFFERS = JSON.parse(storedOffers);
-        } catch(e) {
-            OFFERS = getDefaultOffers();
-        }
-    } else {
-        // تحميل من ملف JSON
-        try {
-            const response = await fetch('offers-data/offers.json');
+    // جلب العروض دائماً من ملف JSON العام (مع cache-busting)
+    // هذا يضمن أن جميع الزوار يرون نفس العروض المحدثة
+    try {
+        const response = await fetch('offers-data/offers.json?_=' + Date.now());
+        if (response.ok) {
             const data = await response.json();
-            OFFERS = data.offers;
-            localStorage.setItem('afaq_offers', JSON.stringify(OFFERS));
-        } catch(e) {
+            OFFERS = data.offers || getDefaultOffers();
+            // حفظ نسخة في localStorage كـ cache احتياطي
+            try { localStorage.setItem('afaq_offers', JSON.stringify(OFFERS)); } catch(e) {}
+        } else {
+            // إذا فشل الـ fetch، استخدم cache المحلي
+            const storedOffers = localStorage.getItem('afaq_offers');
+            OFFERS = storedOffers ? JSON.parse(storedOffers) : getDefaultOffers();
+        }
+    } catch(e) {
+        // في حالة عدم الاتصال، استخدم cache المحلي أو العروض الافتراضية
+        const storedOffers = localStorage.getItem('afaq_offers');
+        if (storedOffers) {
+            try { OFFERS = JSON.parse(storedOffers); } catch(e2) { OFFERS = getDefaultOffers(); }
+        } else {
             OFFERS = getDefaultOffers();
         }
     }
