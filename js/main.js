@@ -199,15 +199,17 @@ async function loadNews() {
         { date: "2025-08-01", title: "بوابة العقار الجيومكانية: خدمة جديدة لعرض البيانات العقارية", desc: "أطلقت الهيئة العامة للعقار بوابة العقار الجيومكانية لعرض البيانات العقارية المكانية عبر خرائط دقيقة.", link: "https://rega.gov.sa", source: "الهيئة العامة للعقار" }
     ];
 
-    // محاولة تحميل الأخبار من localStorage (محدثة من البوت)
-    const storedNews = localStorage.getItem('afaq_news');
-    let news = defaultNews;
-    if (storedNews) {
-        try {
-            news = JSON.parse(storedNews);
-        } catch(e) {
-            news = defaultNews;
+    // محاولة تحميل الأخبار من ملف news.json (محدث آلياً كل 3 أيام)
+    try {
+        const resp = await fetch('offers-data/news.json?_=' + Date.now());
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && Array.isArray(data.news) && data.news.length > 0) {
+                news = data.news;
+            }
         }
+    } catch(e) {
+        console.log('تعذر تحميل news.json، استخدام الأخبار الافتراضية');
     }
 
     grid.innerHTML = news.map(item => `
