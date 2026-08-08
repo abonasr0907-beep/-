@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل تشغيل البوت على Render — مكتب آفاق الإنجاز</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+h1 { color: #2A5050; text-align: center; margin-bottom: 10px; font-size: 28px; }
+h2 { color: #2A5050; margin: 30px 0 15px; font-size: 22px; border-right: 4px solid #C4A956; padding-right: 12px; }
+h3 { color: #C4A956; margin: 20px 0 10px; font-size: 18px; }
+p { margin: 10px 0; }
+.step { background: #f0f7f7; border-radius: 8px; padding: 15px 20px; margin: 15px 0; border-right: 3px solid #2A5050; }
+.step-number { display: inline-block; background: #2A5050; color: white; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; font-weight: bold; margin-left: 10px; }
+code { background: #1e1e1e; color: #4FC3F7; padding: 3px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 14px; direction: ltr; display: inline-block; }
+.code-block { background: #1e1e1e; color: #ddd; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; direction: ltr; overflow-x: auto; margin: 10px 0; white-space: pre; }
+.warning { background: #fff3cd; border-right: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin: 15px 0; }
+.success { background: #d4edda; border-right: 4px solid #28a745; padding: 15px; border-radius: 8px; margin: 15px 0; }
+.error { background: #f8d7da; border-right: 4px solid #dc3545; padding: 15px; border-radius: 8px; margin: 15px 0; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+th { background: #2A5050; color: white; }
+.highlight { background: #fff9e6; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+ul { margin: 10px 20px; }
+li { margin: 5px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🚀 دليل تشغيل البوت على Render</h1>
+<p style="text-align:center; color:#666; margin-bottom:30px;">مكتب آفاق الإنجاز العقاري — دليل مبسط ومحدّث</p>
+
+<div class="error">
+<h3>❌ المشكلة الحالية</h3>
+<p>البوت لا يعمل على Render بسبب Dockerfile غير صحيح:</p>
+<ul>
+<li><code>COPY requirements.txt .</code> — يبحث عن الملف في الجذر، لكنه في <code>bot/</code></li>
+<li>لم تُثبت مكتبات النظام لـ Pillow (معالجة الصور)</li>
+<li>مكتبة <code>requests</code> ناقصة من المتطلبات</li>
+</ul>
+<p><strong>الحل:</strong> تم إصلاح كل ذلك في PR #4 — ادمجه أولاً!</p>
+</div>
+
+<h2>📋 الخطوة 0: ادمج PR #4 أولاً</h2>
+<div class="step">
+<span class="step-number">1</span>
+<p>اذهب إلى: <a href="https://github.com/abonasr0907-beep/-/pull/4" target="_blank">https://github.com/abonasr0907-beep/-/pull/4</a></p>
+<p>اضغط <strong>"Merge pull request"</strong> ثم <strong>"Confirm merge"</strong></p>
+<p>هذا يدمج الإصلاحات: Dockerfile صحيح + requests + جعل العروض عامة</p>
+</div>
+
+<h2>⚙️ الخطوة 1: إعدادات Render</h2>
+
+<h3>متغيرات البيئة المطلوبة</h3>
+<p>في Render → خدمتك → <strong>Environment</strong> → أضف المتغيرات التالية:</p>
+
+<table>
+<tr><th>المتغير</th><th>القيمة</th><th>مطلوب؟</th></tr>
+<tr><td><code>WEBHOOK_URL</code></td><td>رابط خدمتك على Render (مثل <code>https://afaq-bot-xxxx.onrender.com</code>)</td><td>✅ نعم — ضروري</td></tr>
+<tr><td><code>GITHUB_TOKEN</code></td><td>توكن GitHub Personal Access Token</td><td>✅ نعم — لرفع الصور للموقع</td></tr>
+<tr><td><code>BOT_TOKEN</code></td><td>مدمج في الكود (لا حاجة لضبطه)</td><td>❌ اختياري</td></tr>
+</table>
+
+<div class="warning">
+<h3>⚠️ مهم جداً عن WEBHOOK_URL</h3>
+<p>Render يعطيك رابط خدمتك <strong>بعد النشر الأول</strong>. لذلك:</p>
+<ol>
+<li>انشر الخدمة <strong>بدون</strong> <code>WEBHOOK_URL</code> أولاً</li>
+<li>بعد النشر، Render سيعطيك رابطاً مثل <code>https://afaq-bot-xxxx.onrender.com</code></li>
+<li>انسخ هذا الرابط وضعه في متغير <code>WEBHOOK_URL</code></li>
+<li>أعد النشر — البوت سيسجل webhook تلقائياً مع Telegram</li>
+</ol>
+</div>
+
+<h3>كيف تحصل على GITHUB_TOKEN</h3>
+<div class="step">
+<span class="step-number">1</span>
+<p>اذهب إلى: <a href="https://github.com/settings/tokens" target="_blank">https://github.com/settings/tokens</a></p>
+</div>
+<div class="step">
+<span class="step-number">2</span>
+<p>اضغط <strong>"Generate new token (classic)"</strong></p>
+</div>
+<div class="step">
+<span class="step-number">3</span>
+<p>اختر صلاحية <code>repo</code> (كاملة)</p>
+</div>
+<div class="step">
+<span class="step-number">4</span>
+<p>انسخ التوكن (يبدأ بـ <code>ghp_</code>) وضعه في Render</p>
+</div>
+
+<h2>🐳 الخطوة 2: إعدادات Docker في Render</h2>
+<p>إذا كنت تستخدم Dockerfile (الافتراضي بعد دمج PR #4):</p>
+<ul>
+<li><strong>Build Command:</strong> <code>pip install -r bot/requirements.txt</code></li>
+<li><strong>Start Command:</strong> <code>cd bot && python3 bot.py</code></li>
+<li><strong>Dockerfile Path:</strong> <code>./Dockerfile</code> (افتراضي)</li>
+</ul>
+
+<p>أو إذا اخترت "Custom Start Command" في الإعدادات:</p>
+<div class="code-block">cd bot && python3 bot.py</div>
+
+<h2>✅ الخطوة 3: التحقق من العمل</h2>
+<div class="success">
+<p>بعد النشر الناجح:</p>
+<ol>
+<li>اذهب للبوت في تيليجرام: <a href="https://t.me/tlastlastlasbot">@tlastlastlasbot</a></li>
+<li>أرسل <code>/start</code></li>
+<li>يجب أن يرد البوت فوراً</li>
+<li>إذا لم يرد، تحقق من سجلات Render (Logs tab)</li>
+</ol>
+</div>
+
+<h2>🔍 استكشاف الأخطاء</h2>
+
+<h3>البوت لا يرد</h3>
+<div class="step">
+<p>تحقق من Render → <strong>Logs</strong>:</p>
+<ul>
+<li>ابحث عن <code>🚀 تشغيل البوت في وضع WEBHOOK</code> — يعني أنه يعمل</li>
+<li>إذا رأيت <code>ImportError: No module named 'requests'</code> — لم يُدمج PR #4 بعد</li>
+<li>إذا رأيت <code>polling</code> بدل <code>WEBHOOK</code> — <code>WEBHOOK_URL</code> غير مضبوط</li>
+</ul>
+</div>
+
+<h3>الصور لا تصل للموقع</h3>
+<div class="step">
+<p><code>GITHUB_TOKEN</code> غير مضبوط أو منتهي الصلاحية. جدده من GitHub Settings.</p>
+</div>
+
+<h3>Render ينام (Free Plan)</h3>
+<div class="step">
+<p>الخطة المجانية تنام بعد 15 دقيقة من عدم النشاط. لكن مع <strong>webhook mode</strong>، يستيقظ تلقائياً عند وصول رسالة!</p>
+</div>
+
+<h2>📝 ملخص سريع</h2>
+<div class="success">
+<ol>
+<li>ادمج PR #4: <a href="https://github.com/abonasr0907-beep/-/pull/4">github.com/abonasr0907-beep/-/pull/4</a></li>
+<li>في Render: اضبط <code>WEBHOOK_URL</code> و <code>GITHUB_TOKEN</code></li>
+<li>انشر → اختبر بـ <code>/start</code> في البوت</li>
+<li>الموقع عام: <a href="https://abonasr0907-beep.github.io/-/">abonasr0907-beep.github.io/-/</a></li>
+</ol>
+</div>
+
+</div>
+</body>
+</html>
