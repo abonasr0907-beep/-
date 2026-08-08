@@ -1,5 +1,12 @@
+# render.yaml — تكوين نشر البوت على Render (وضع webhook — مجاني)
+# هذا الملف يسهل النشر بنقرة واحدة على Render.com
+# https://render.com/docs/blueprint-spec
+#
+# مهم: نوع الخدمة = web (وليس worker) لأن البوت الآن يستخدم webhook
+# هذا يعني أنه يعمل على الخطة المجانية و يستيقظ تلقائياً عند وصول رسالة
+
 services:
-  - type: worker
+  - type: web
     name: afaq-bot
     runtime: python
     repo: https://github.com/abonasr0907-beep/-
@@ -8,6 +15,15 @@ services:
     buildCommand: pip install -r bot/requirements.txt
     startCommand: cd bot && python3 bot.py
     autoDeploy: true
+    plan: free
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: WEBHOOK_URL
+        # مهم: بعد أول نشر، احصل على رابط الخدمة (مثل https://afaq-bot-xxxx.onrender.com)
+        # وضعه هنا كقيمة. ثم أعد النشر. البوت سيسجل webhook تلقائياً.
+        sync: false
+      - key: GITHUB_TOKEN
+        # ضع هنا توكن GitHub (Personal Access Token) لرفع الوسائط للموقع
+        # بدونه، البوت يعمل لكن الوسائط لا تصل للموقع العام
+        sync: false

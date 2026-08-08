@@ -1453,9 +1453,8 @@ def _do_price_update():
 
 
 # ============================================================
-def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-
+def _setup_handlers(app):
+    """تسجيل جميع معالجات البوت — مشترك بين وضعي polling و webhook."""
     # الأوامر
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
@@ -1483,16 +1482,54 @@ def main():
 
     # المهام المجدولة (التقرير الأسبوعي + تحديث الأسعار اليومي)
     if CONFIG.get("weekly_report", True) and app.job_queue:
-        # كل يوم أحد الساعة 9:00 صباحاً
         app.job_queue.run_daily(auto_weekly_report, days=[6], time=__import__("datetime").time(hour=9, minute=0))
         logger.info("📅 تم جدولة التقرير الأسبوعي — كل يوم أحد 9 صباحاً")
     if CONFIG.get("auto_prices_update", True) and app.job_queue:
-        # كل يوم الساعة 6:00 صباحاً
         app.job_queue.run_daily(auto_update_prices, time=__import__("datetime").time(hour=6, minute=0))
         logger.info("🧭 تم جدولة تحديث الأسعار اليومي — كل يوم 6 صباحاً")
 
-    logger.info("🚀 بدء تشغيل بوت آفاق الإنجاز العقاري...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+# ============================================================
+def main():
+    """
+    تشغيل البوت في وضع webhook أو polling حسب متغيرات البيئة.
+
+    وضع webhook (للاستضافة السحابية المجانية):
+      WEBHOOK_URL  = الرابط العام الكامل (مثل https://myapp.onrender.com)
+      PORT         = منفذ الخادم (تحدده منصة الاستضافة، افتراضي 10000)
+
+    وضع polling (للتشغيل المحلي / على جهازك):
+      لا تضع WEBHOOK_URL — سيعمل البوت بـ polling تلقائياً
+    """
+    app = Application.builder().token(BOT_TOKEN).build()
+    _setup_handlers(app)
+
+    webhook_url = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")
+    port = int(os.environ.get("PORT", "10000"))
+
+    if webhook_url:
+        # ─── وضع webhook (للاستضافة السحابية) ───
+        webhook_path = f"/bot/{BOT_TOKEN}"
+        full_webhook_url = f"{webhook_url}{webhook_path}"
+
+        logger.info("🚀 تشغيل البوت في وضع WEBHOOK")
+        logger.info(f"   الرابط العام: {webhook_url}")
+        logger.info(f"   منفذ الخادم: {port}")
+        logger.info(f"   webhook URL: {full_webhook_url}")
+
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=webhook_path,
+            webhook_url=full_webhook_url,
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=False,
+        )
+    else:
+        # ─── وضع polling (للتشغيل المحلي) ───
+        logger.info("🚀 تشغيل البوت في وضع POLLING (محلي)")
+        app.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == "__main__":
     main()

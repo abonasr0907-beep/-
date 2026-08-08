@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # نسخ المتطلبات وتثبيتها
-COPY bot/requirements.txt ./
+COPY bot/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # نسخ المشروع كامل
@@ -19,5 +19,9 @@ COPY . .
 # مجلد العمل داخل مجلد البوت
 WORKDIR /app/bot
 
-# تشغيل البوت (مع إعادة تشغيل تلقائية داخل start_bot.sh)
-CMD ["bash", "start_bot.sh"]
+# المنفذ الذي يستمع عليه البوت في وضع webhook
+# Render وغيرها تحدد PORT تلقائياً عبر متغير البيئة
+EXPOSE 10000
+
+# تشغيل البوت مباشرة (python-telegram-bot يعيد التشغيل تلقائياً عند الأخطاء)
+CMD ["python3", "bot.py"]
