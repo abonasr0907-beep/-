@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دليل تشغيل البوت على Railway — مكتب آفاق الإنجاز العقاري</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.8; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+h1 { color: #2A5050; text-align: center; margin-bottom: 10px; font-size: 28px; }
+h2 { color: #2A5050; margin: 30px 0 15px; font-size: 22px; border-right: 4px solid #C4A956; padding-right: 12px; }
+h3 { color: #C4A956; margin: 20px 0 10px; font-size: 18px; }
+p { margin: 10px 0; }
+.step { background: #f0f7f7; border-radius: 8px; padding: 15px 20px; margin: 15px 0; border-right: 3px solid #2A5050; }
+.step-number { display: inline-block; background: #2A5050; color: white; width: 30px; height: 30px; border-radius: 50%; text-align: center; line-height: 30px; font-weight: bold; margin-left: 10px; }
+code { background: #1e1e1e; color: #4FC3F7; padding: 3px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 14px; direction: ltr; display: inline-block; }
+.code-block { background: #1e1e1e; color: #ddd; padding: 15px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; direction: ltr; overflow-x: auto; margin: 10px 0; white-space: pre; }
+.warning { background: #fff3cd; border-right: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin: 15px 0; }
+.success { background: #d4edda; border-right: 4px solid #28a745; padding: 15px; border-radius: 8px; margin: 15px 0; }
+.error { background: #f8d7da; border-right: 4px solid #dc3545; padding: 15px; border-radius: 8px; margin: 15px 0; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+th { background: #2A5050; color: white; }
+.highlight { background: #fff9e6; padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+ul { margin: 10px 20px; }
+li { margin: 5px 0; }
+.railway-color { color: #9F7AEA; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🚂 دليل تشغيل البوت على Railway</h1>
+<p style="text-align: center; color: #666;">مكتب آفاق الإنجاز العقاري — بوت تيليجرام</p>
+
+<div class="success">
+<p><strong>✅ هذا الدليل مخصص لمنصة Railway</strong> — المنصة التي تستخدمها بالفعل. تم إعداد ملف <code>railway.json</code> و <code>Dockerfile</code> ليعملا مع Railway مباشرة.</p>
+</div>
+
+<h2>📋 ما تم إصلاحه</h2>
+<p>كان البوت لا يعمل بسبب 3 مشاكل في الإعدادات السابقة:</p>
+<table>
+<tr><th>المشكلة</th><th>الحل</th></tr>
+<tr><td>مسار <code>requirements.txt</code> خاطئ في Dockerfile</td><td>تم تصحيح المسار إلى <code>bot/requirements.txt</code></td></tr>
+<tr><td>مكتبة <code>requests</code> ناقصة</td><td>تمت إضافتها إلى <code>requirements.txt</code></td></tr>
+<tr><td>مكتبات النظام لـ Pillow غير مثبتة</td><td>تمت إضافة <code>libjpeg62-turbo</code> و <code>zlib1g</code></td></tr>
+</table>
+
+<h2>🔧 الإعدادات الموجودة في الكود</h2>
+<p>تم إنشاء ملف <code>railway.json</code> الذي يخبر Railway بكيفية بناء وتشغيل البوت:</p>
+<div class="code-block">{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "python3 bot.py",
+    "restartPolicyType": "ALWAYS",
+    "restartPolicyMaxRetries": 10
+  }
+}</div>
+<p>Railway سيستخدم <code>Dockerfile</code> لبناء الصورة تلقائياً، ثم يشغّل <code>python3 bot.py</code> كأمر البداية. البوت سيقرأ <code>PORT</code> تلقائياً من متغيرات البيئة التي توفرها Railway.</p>
+
+<h2>🚀 خطوات التشغيل على Railway</h2>
+
+<div class="step">
+<span class="step-number">1</span>
+<h3>ادمج Pull Request رقم 4</h3>
+<p>اذهب إلى الرابط التالي واضغط <span class="highlight">Merge pull request</span>:</p>
+<p>🔗 <a href="https://github.com/abonasr0907-beep/-/pull/4" target="_blank">https://github.com/abonasr0907-beep/-/pull/4</a></p>
+<p>هذا سيضيف جميع الإصلاحات (Dockerfile + railway.json + requests) إلى الفرع الرئيسي <code>main</code>.</p>
+</div>
+
+<div class="step">
+<span class="step-number">2</span>
+<h3>اربط Railway بمستودع GitHub</h3>
+<p>في لوحة تحكم Railway:</p>
+<ul>
+<li>افتح مشروعك الحالي (أو أنشئ مشروعاً جديداً)</li>
+<li>اذهب إلى <span class="highlight">Settings → Service → Source</span></li>
+<li>تأكد أنه مرتبط بمستودع <code>abonasr0907-beep/-</code> على فرع <code>main</code></li>
+<li>فعّل <span class="highlight">Auto Deploy</span> ليُعاد النشر تلقائياً عند أي تحديث</li>
+</ul>
+</div>
+
+<div class="step">
+<span class="step-number">3</span>
+<h3>أضف متغيرات البيئة (مهم جداً)</h3>
+<p>اذهب إلى <span class="highlight">Variables</span> في لوحة تحكم Railway وأضف المتغيرات التالية:</p>
+<table>
+<tr><th>اسم المتغير</th><th>القيمة</th><th>مطلوب؟</th></tr>
+<tr>
+<td><code>WEBHOOK_URL</code></td>
+<td>رابط خدمتك على Railway (مثل: <code>https://afaq-bot-xxxx.up.railway.app</code>)</td>
+<td><strong>نعم — مهم جداً</strong></td>
+</tr>
+<tr>
+<td><code>GITHUB_TOKEN</code></td>
+<td>توكن GitHub (Personal Access Token) لرفع الوسائط للموقع</td>
+<td>اختياري لكن مهم لعرض الصور</td>
+</tr>
+<tr>
+<td><code>BOT_TOKEN</code></td>
+<td>مدمج في الكود مسبقاً، لا تحتاج لضبطه</td>
+<td>لا (افتراضي موجود)</td>
+</tr>
+</table>
+<div class="warning">
+<p><strong>⚠️ كيف تحصل على WEBHOOK_URL؟</strong></p>
+<ol style="margin: 10px 20px;">
+<li>في Railway، اذهب إلى <span class="highlight">Settings → Networking</span> (أو Service → Settings)</li>
+<li>اضغط <span class="highlight">Generate Domain</span> — ستحصل على رابط مثل <code>https://afaq-bot-xxxx.up.railway.app</code></li>
+<li>انسخ هذا الرابط وضعه في متغير <code>WEBHOOK_URL</code></li>
+<li>أعد النشر (Redeploy) — البوت سيسجّل الـ webhook تلقائياً مع Telegram</li>
+</ol>
+</div>
+</div>
+
+<div class="step">
+<span class="step-number">4</span>
+<h3>تحقق من أمر التشغيل (Custom Start Command)</h3>
+<p>اذهب إلى <span class="highlight">Settings → Deploy</span> في Railway. إذا كان هناك حقل <span class="highlight">Custom Start Command</span>:</p>
+<ul>
+<li>إذا كان فارغاً ← ممتاز، Railway سيستخدم <code>CMD</code> من Dockerfile تلقائياً</li>
+<li>إذا كنت قد وضعت قيمة سابقة ← احذفها أو ضع: <code>python3 bot.py</code></li>
+</ul>
+<p>البوت يعمل من مجلد <code>/app/bot</code> (محدد في Dockerfile بـ <code>WORKDIR</code>)، لذا أمر التشغيل هو <code>python3 bot.py</code> بدون مسار إضافي.</p>
+</div>
+
+<div class="step">
+<span class="step-number">5</span>
+<h3>أعد النشر (Redeploy)</h3>
+<p>بعد ضبط المتغيرات، اذهب إلى <span class="highlight">Deployments</span> واضغط <span class="highlight">Redeploy</span>.</p>
+<p>أو ببساطة ادفع أي تغيير إلى فرع <code>main</code> وسيُعاد النشر تلقائياً.</p>
+</div>
+
+<div class="step">
+<span class="step-number">6</span>
+<h3>تحقق من أن البوت يعمل</h3>
+<p>في Railway، اذهب إلى <span class="highlight">Logs</span> وابحث عن:</p>
+<div class="code-block">🚀 تشغيل البوت في وضع WEBHOOK
+   الرابط العام: https://afaq-bot-xxxx.up.railway.app
+   منفذ الخادم: <PORT>
+   webhook URL: https://afaq-bot-xxxx.up.railway.app/bot/TOKEN</div>
+<p>إذا رأيت هذه الرسائل، فالبوت يعمل! أرسل رسالة للبوت على تيليجرام للتأكد.</p>
+</div>
+
+<h2>🟡 إذا لم تضع WEBHOOK_URL</h2>
+<div class="warning">
+<p>إذا لم تضف متغير <code>WEBHOOK_URL</code>، سيحاول البوت العمل بوضع <strong>polling</strong>. لكن <strong>وضع polling لا يعمل بشكل موثوق على Railway</strong> لأن Railway تتطلب أن يستمع التطبيق على منفذ (PORT) ويرد على health checks. لذلك:</p>
+<p><strong>ضع WEBHOOK_URL دائماً</strong> — هذه هي الطريقة الصحيحة لتشغيل البوت على Railway.</p>
+</div>
+
+<h2>🔍 استكشاف الأخطاء</h2>
+
+<h3>المشكلة: البوت لا يستجيب</h3>
+<ol style="margin: 10px 20px;">
+<li>تحقق من <span class="highlight">Logs</span> في Railway — هل هناك أخطاء؟</li>
+<li>تأكد من وجود <code>WEBHOOK_URL</code> في المتغيرات</li>
+<li>تأكد أن الرابط يبدأ بـ <code>https://</code> وينتهي بـ <code>.up.railway.app</code></li>
+<li>أعد النشر بعد إضافة المتغير</li>
+</ol>
+
+<h3>المشكلة: "Application failed to respond"</h3>
+<p>هذا يعني أن Railway لا تصل إلى البوت على المنفذ. تأكد من:</p>
+<ul>
+<li>أن البوت يستمع على <code>0.0.0.0</code> (موجود في الكود ✅)</li>
+<li>أن <code>PORT</code> يُقرأ من متغير البيئة (موجود في الكود ✅)</li>
+<li>أن <code>WEBHOOK_URL</code> مضبوط (بدونه البوت يعمل بـ polling ولا يستمع على منفذ)</li>
+</ul>
+
+<h3>المشكلة: الصور لا تصل للموقع</h3>
+<p>هذا يعني أن <code>GITHUB_TOKEN</code> غير مضبوط. البوت يعمل لكنه لا يستطيع رفع الصور إلى GitHub Pages.</p>
+<ol style="margin: 10px 20px;">
+<li>اذهب إلى GitHub → Settings → Developer settings → Personal access tokens</li>
+<li>أنشئ توكن بصلاحية <code>repo</code></li>
+<li>ضعه في Railway كقيمة لـ <code>GITHUB_TOKEN</code></li>
+<li>أعد النشر</li>
+</ol>
+
+<h2>📊 ملخص المتغيرات المطلوبة</h2>
+<table>
+<tr><th>المتغير</th><th>القيمة</th><th>الحالة</th></tr>
+<tr><td><code>WEBHOOK_URL</code></td><td>https://your-app.up.railway.app</td><td>ضع رابط Railway الذي تحصل عليه من Generate Domain</td></tr>
+<tr><td><code>GITHUB_TOKEN</code></td><td>ghp_xxxxxxxxxxxx</td><td>توكن GitHub لرفع الصور (اختياري لكن موصى به)</td></tr>
+<tr><td><code>BOT_TOKEN</code></td><td>—</td><td>مدمج في الكود، لا تحتاج لضبطه</td></tr>
+<tr><td><code>PORT</code></td><td>—</td><td>Railway توفره تلقائياً، لا تضبطه يدنياً</td></tr>
+</table>
+
+<div class="success">
+<p><strong>✅ بعد إكمال الخطوات:</strong></p>
+<ul>
+<li>البوت سيعمل على Railway 24/7</li>
+<li>سيستقبل الرسائل عبر webhook</li>
+<li>الموقع العام سيعرض جميع العروض للزوار</li>
+<li>الصور سترفع تلقائياً إلى GitHub Pages</li>
+</ul>
+</div>
+
+<p style="text-align: center; margin-top: 30px; color: #999; font-size: 13px;">
+مكتب آفاق الإنجاز العقاري — دليل Railway | البوت: @tlastlastlasbot
+</p>
+
+</div>
+</body>
+</html>

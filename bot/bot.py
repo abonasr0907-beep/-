@@ -2269,7 +2269,7 @@ def main():
     تشغيل البوت في وضع webhook أو polling حسب متغيرات البيئة.
 
     وضع webhook (للاستضافة السحابية المجانية):
-      WEBHOOK_URL  = الرابط العام الكامل (مثل https://myapp.onrender.com)
+      WEBHOOK_URL  = الرابط العام الكامل (مثل https://afaq-bot.up.railway.app)
       PORT         = منفذ الخادم (تحدده منصة الاستضافة، افتراضي 10000)
 
     وضع polling (للتشغيل المحلي / على جهازك):

@@ -20,9 +20,9 @@ COPY . .
 WORKDIR /app/bot
 
 # المنفذ الذي يستمع عليه البوت في وضع webhook
-# Render يحدد PORT تلقائياً عبر متغير البيئة
+# Railway تحدد PORT تلقائياً عبر متغير البيئة (لا تحتاج لضبطه يدنياً)
 ENV PORT=10000
 EXPOSE 10000
 
-# تشغيل البوت مباشرة
+# تشغيل البوت مباشرة — Railway يستخدم CMD من Dockerfile افتراضياً
 CMD ["python3", "bot.py"]
