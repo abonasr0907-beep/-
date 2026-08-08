@@ -115,6 +115,60 @@ def upload_binary_file(path_in_repo, file_path, commit_message):
         return False
 
 
+def sync_office_data_to_github():
+    """مزامنة ملف بوصلة الأسعار (office-data.json) إلى GitHub لتحديث الموقع."""
+    token = _get_token()
+    if not token:
+        logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي مزامنة البوصلة")
+        return False
+    try:
+        from pathlib import Path
+        base = Path(__file__).resolve().parent
+        office_file = base.parent / "offers-data" / "office-data.json"
+        if not office_file.exists():
+            logger.warning("github_sync: office-data.json غير موجود محلياً")
+            return False
+        text = office_file.read_text(encoding="utf-8")
+        ok = upload_text_file(
+            "offers-data/office-data.json",
+            text,
+            "🧭 تحديث تلقائي لبوصلة الأسعار العقارية"
+        )
+        if ok:
+            logger.info("github_sync: تمت مزامنة بوصلة الأسعار إلى GitHub ✓")
+        return ok
+    except Exception as e:
+        logger.error(f"github_sync: فشل مزامنة office-data.json: {e}")
+        return False
+
+
+def sync_news_to_github():
+    """مزامنة ملف الأخبار العقارية (news.json) إلى GitHub."""
+    token = _get_token()
+    if not token:
+        logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي مزامنة الأخبار")
+        return False
+    try:
+        from pathlib import Path
+        base = Path(__file__).resolve().parent
+        news_file = base.parent / "offers-data" / "news.json"
+        if not news_file.exists():
+            logger.warning("github_sync: news.json غير موجود محلياً")
+            return False
+        text = news_file.read_text(encoding="utf-8")
+        ok = upload_text_file(
+            "offers-data/news.json",
+            text,
+            "🗞️ تحديث تلقائي للأخبار العقارية"
+        )
+        if ok:
+            logger.info("github_sync: تمت مزامنة الأخبار إلى GitHub ✓")
+        return ok
+    except Exception as e:
+        logger.error(f"github_sync: فشل مزامنة news.json: {e}")
+        return False
+
+
 def sync_offer_to_github(offer, local_image_paths):
     """
     رفع عرض جديد بالكامل: الصور + offers.json.

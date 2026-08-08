@@ -23,7 +23,7 @@ import time
 import uuid
 import shutil
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import requests
@@ -58,6 +58,8 @@ IMAGES_DIR = WEBSITE_DIR / "images" / "bot"  # صور العروض المرفو�
 DATA_DIR = BASE_DIR / "data"
 VISITOR_REQUESTS = DATA_DIR / "visitor_requests.json"
 BOT_OFFERS = DATA_DIR / "bot_offers.json"
+NEWS_JSON = WEBSITE_DIR / "offers-data" / "news.json"  # الأخبار العقارية التلقائية
+OFFICE_DATA_JSON = WEBSITE_DIR / "offers-data" / "office-data.json"  # بوصلة الأسعار
 
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -134,50 +136,66 @@ def save_visitor_requests(data):
 # ============================================================
 #  الذكاء الاصطناعي — معالجة الصور
 # ============================================================
-def enhance_image(input_path, output_path, max_width=1280, quality=85):
+def enhance_image(input_path, output_path, max_width=3840, quality=95):
     """
-    تحسين جودة الصورة بالذكاء الاصطناعي دون إضافة أو تغيير العناصر.
-    - تكبير/تصغير بالحفاظ على النسبة
-    - زيادة الحدة
-    - تحسين التباين واللون
-    - تقليل الضوضاء
-    - حفظ كـ JPEG مضغوط
+    تحسين جودة الصورة بجودة عالية جداً (شبه 8K) دون إضافة أو تغيير العناصر.
+    - تكبير الصور الصغيرة إلى دقة أعلى (upscaling) للحصول على وضوح أكبر
+    - تصغير الصور الكبيرة جداً للحفاظ على التوازن (حد أقصى 3840px عرض = 4K)
+    - تقليل الضوضاء بمرشح متطور
+    - زيادة الحدة بشكل قوي
+    - تحسين التباين والألوان والسطوع
+    - شحذ إضافي (Unsharp Mask) لجودة 8K
+    - حفظ كـ JPEG بجودة عالية جداً (quality=95)
     """
     try:
         img = Image.open(input_path)
         img = img.convert("RGB")
+        w, h = img.size
 
-        # تصغير الحجم إن كان أكبر من max_width
-        if img.width > max_width:
-            ratio = max_width / img.width
-            new_size = (max_width, int(img.height * ratio))
+        # ── Upscaling: تكبير الصور الصغيرة إلى دقة أعلى ──
+        # إذا كانت الصورة أصغر من 1920px عرض، نكبرها إلى 2560px (QHD)
+        if w < 1920:
+            scale = 2560 / w
+            new_w = 2560
+            new_h = int(h * scale)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+            w, h = img.size
+
+        # ── Downscaling: تصغير الصور الكبيرة جداً (حد أقصى 3840px = 4K) ──
+        if w > max_width:
+            ratio = max_width / w
+            new_size = (max_width, int(h * ratio))
             img = img.resize(new_size, Image.LANCZOS)
+            w, h = img.size
 
-        # تقليل الضوضاء (مرشح خفيف)
+        # ── تقليل الضوضاء بمرشح متطور ──
         img = img.filter(ImageFilter.MedianFilter(size=3))
 
-        # تحسين الحدة
+        # ── زيادة الحدة بشكل قوي (لجودة عالية) ──
         enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(1.4)
+        img = enhancer.enhance(1.8)
 
-        # تحسين التباين
+        # ── تحسين التباين ──
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.12)
+        img = enhancer.enhance(1.15)
 
-        # تحسين الألوان
+        # ── تحسين الألوان ──
         enhancer = ImageEnhance.Color(img)
-        img = enhancer.enhance(1.1)
+        img = enhancer.enhance(1.18)
 
-        # تحسين السطوع قليلاً
+        # ── تحسين السطوع ──
         enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.05)
+        img = enhancer.enhance(1.08)
 
-        img.save(output_path, "JPEG", quality=quality, optimize=True)
-        logger.info(f"تم تحسين الصورة: {output_path}")
+        # ── شحذ إضافي ثانٍ (Unsharp Mask) لجودة 8K ──
+        img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=120, threshold=3))
+
+        # ── حفظ بجودة عالية جداً ──
+        img.save(output_path, "JPEG", quality=quality, optimize=True, progressive=True)
+        logger.info(f"تم تحسين الصورة بجودة عالية: {output_path} ({w}x{h})")
         return output_path
     except Exception as e:
         logger.error(f"خطأ في تحسين الصورة: {e}")
-        # في حال الفشل، نسخ الصورة الأصلية
         shutil.copy(input_path, output_path)
         return output_path
 
@@ -258,6 +276,80 @@ def reset_session(user_id):
 def is_admin(user_id):
     return user_id in ADMIN_IDS
 
+
+# ============================================================
+#  البوصلة العقارية — جلب متوسط السعر حسب المنطقة والنوع
+# ============================================================
+def get_bousla_avg_price(area_name, ptype):
+    """
+    جلب متوسط السعر من البوصلة العقارية حسب المنطقة ونوع العقار.
+    يعيد نص متوسط السعر جاهز للعرض على الموقع (بدلاً من سعر العارض).
+    """
+    try:
+        data = _load_office_data()
+        areas = data.get("areas", {})
+        matched_area = None
+        for aname, ainfo in areas.items():
+            if area_name in aname or aname in area_name:
+                matched_area = ainfo
+                break
+        if not matched_area:
+            return "حسب البوصلة العقارية"
+        if ptype == "land":
+            val = matched_area.get("land_avg_price_sqm", "")
+            if val:
+                return f"متوسط السعر: {val} ريال/م² (حسب البوصلة العقارية)"
+        elif ptype == "farm":
+            val = matched_area.get("farm_avg_price_sqm", "")
+            if val:
+                return f"متوسط السعر: {val} ريال/م² (حسب البوصلة العقارية)"
+        elif ptype == "resthouse":
+            val = matched_area.get("resthouse_avg_price", "")
+            if val:
+                return f"متوسط السعر: {val} ريال (حسب البوصلة العقارية)"
+        return "حسب البوصلة العقارية"
+    except Exception as e:
+        logger.error(f"خطأ في جلب متوسط البوصلة: {e}")
+        return "حسب البوصلة العقارية"
+
+
+def _load_office_data():
+    """تحميل بيانات المكتب (بوصلة الأسعار + الخدمات)"""
+    if OFFICE_DATA_JSON.exists():
+        with open(OFFICE_DATA_JSON, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+def _save_office_data(data):
+    """حفظ بيانات المكتب (بوصلة الأسعار)"""
+    with open(OFFICE_DATA_JSON, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    logger.info("تم تحديث بيانات المكتب — بوصلة الأسعار")
+
+
+# ============================================================
+#  تقديم عرض العقار من الزوار (غير المدير)
+# ============================================================
+# سلسلة حالة الزائر:
+#   v_awaiting_type → v_awaiting_area → v_awaiting_size →
+#   v_awaiting_price → v_awaiting_images → v_awaiting_map → v_awaiting_contact
+
+VISITOR_TYPE_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["🚜 مزرعة", "🏠 استراحة"],
+        ["📐 أرض سكنية", "❌ إلغاء"],
+    ],
+    one_time_keyboard=True,
+    resize_keyboard=True,
+)
+
+VISITOR_CANCEL_KEYBOARD = ReplyKeyboardMarkup(
+    [["❌ إلغاء"]],
+    one_time_keyboard=True,
+    resize_keyboard=True,
+)
+
 def add_admin(user_id):
     ADMIN_IDS.add(user_id)
     CONFIG["admin_ids"] = list(ADMIN_IDS)
@@ -270,10 +362,10 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
         ["🗑️ حذف عرض", "✏️ تعديل عرض"],
-        ["📨 طلبات الزوار", "🔍 فلترة العروض"],
+        ["📨 طلبات الزوار", "🏡 عروض الزوار"],
         ["📊 إحصائيات", "📈 التقرير الأسبوعي"],
         ["🧭 تحديث البوصلة", "🤖 المساعد الذكي"],
-        ["⚙️ الإعدادات"],
+        ["🗞️ تحديث الأخبار", "⚙️ الإعدادات"],
     ],
     resize_keyboard=True,
 )
@@ -396,10 +488,36 @@ async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        return
     uid = update.effective_user.id
     session = get_session(uid)
+    is_admin_user = is_admin(uid)
+
+    # الزوار في وضع تقديم عرض — استلام الصور
+    if not is_admin_user and session.get("state") == "v_awaiting_images":
+        if len(session["images"]) >= CONFIG["max_images"]:
+            await update.message.reply_text(f"وصلت للحد الأقصى ({CONFIG['max_images']} صور). أرسل: تم ✅")
+            return
+        photo = update.message.photo[-1]
+        file = await context.bot.get_file(photo.file_id)
+        tmp_path = BASE_DIR / f"tmp_{uid}_{len(session['images'])}.jpg"
+        await file.download_to_drive(str(tmp_path))
+        img_name = f"offer_{int(time.time())}_{len(session['images'])}.jpg"
+        out_path = IMAGES_DIR / img_name
+        enhance_image(str(tmp_path), str(out_path))
+        try:
+            tmp_path.unlink()
+        except Exception:
+            pass
+        rel_path = f"images/bot/{img_name}"
+        session["images"].append(rel_path)
+        await update.message.reply_text(
+            f"✅ تم استلام وتحسين الصورة {len(session['images'])}/{CONFIG['max_images']}\n"
+            f"أرسل المزيد أو اكتب: تم ✅"
+        )
+        return
+
+    if not is_admin_user:
+        return
     if session["state"] != "awaiting_images":
         await update.message.reply_text("استخدم زر «إضافة عرض جديد» أولاً.")
         return
@@ -432,6 +550,27 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ تم استلام وتحسين الصورة {len(session['images'])}/{CONFIG['max_images']}\n"
         f"أرسل المزيد أو اكتب: تم ✅"
     )
+
+async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """استلام موقع الزائر على الخريطة عبر زر الموقع في تيليجرام"""
+    uid = update.effective_user.id
+    session = get_session(uid)
+    if session.get("state") == "v_awaiting_map":
+        loc = update.message.location
+        if loc:
+            lat, lon = loc.latitude, loc.longitude
+            maps_link = f"https://www.google.com/maps?q={lat},{lon}"
+            session["offer"]["visitor_map_link"] = maps_link
+            session["offer"]["map_link"] = maps_link  # مؤقتاً — سيُستبدل بموقع المكتب عند الموافقة
+            session["state"] = "v_awaiting_contact"
+            await update.message.reply_text(
+                f"✅ تم استلام موقعك على الخريطة.\n"
+                f"🗺️ الرابط: {maps_link}\n\n"
+                f"📞 أرسل معلومات التواصل معك (رقم جوال أو حساب تيليجرام):",
+                reply_markup=VISITOR_CANCEL_KEYBOARD,
+            )
+        else:
+            await update.message.reply_text("⚠️ تعذر استلام الموقع. أرسل رابط Google Maps نصياً.")
 
 async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
@@ -550,9 +689,25 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data[7:])
         await _approve_visitor_request(update, idx, query=query)
 
-    elif data.startswith("reject_"):
+    elif data.startswith("reject_") and not data.startswith("reject_v"):
         idx = int(data[7:])
         await _reject_visitor_request(update, idx, query=query)
+
+    elif data.startswith("vreview_"):
+        idx = int(data[8:])
+        await _review_visitor_offer(update, idx, query=query)
+
+    elif data.startswith("vapprove_"):
+        idx = int(data[9:])
+        await _approve_visitor_offer(update, idx, query=query)
+
+    elif data.startswith("vreject_"):
+        idx = int(data[8:])
+        await _reject_visitor_offer(update, idx, query=query)
+
+    elif data.startswith("vshare_"):
+        idx = int(data[7:])
+        await _share_visitor_offer_whatsapp(update, idx, query=query)
 
 async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """سؤال عن رابط الخريطة"""
@@ -564,6 +719,458 @@ async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🗺️ أرسل رابط Google Maps للعقار.\n"
             "أو أرسل «لا» لاستخدام موقع المكتب الافتراضي."
         )
+
+# ============================================================
+#  تقديم عرض العقار من الزوار — سلسلة الإدخال التفاعلية
+# ============================================================
+async def submit_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """بدء تقديم عرض عقار من زائر (غير مدير) — /submit أو /عرض"""
+    uid = update.effective_user.id
+    session = get_session(uid)
+    reset_session(uid)
+    session = get_session(uid)
+    session["state"] = "v_awaiting_type"
+    session["offer"] = {
+        "id": "",
+        "type": "",
+        "category": "",
+        "title": "",
+        "area": "",
+        "size_sqm": 0,
+        "price": 0,
+        "price_text": "",  # سيتم إخفاؤه — يُستبدل بمتوسط البوصلة
+        "original_price": "",  # السعر الأصلي من العارض (للمدير فقط)
+        "description": "",
+        "features": [],
+        "images": [],
+        "map_link": "",  # موقع العارض على الخريطة (يُستبدل بموقع المكتب عند النشر)
+        "visitor_map_link": "",  # يحفظ موقع العارض الأصلي
+        "date_added": datetime.now().strftime("%Y-%m-%d"),
+        "featured": False,
+        "source": "visitor",  # مصدر العرض: زائر
+        "submitted_by": {
+            "user_id": uid,
+            "name": update.effective_user.full_name,
+            "username": update.effective_user.username or "",
+        },
+        "contact": "",  # معلومات التواصل مع العارض
+    }
+    await update.message.reply_text(
+        "🏠 مرحباً بك في مكتب آفاق الإنجاز العقاري!\n\n"
+        "نستقبل عرضك العقاري وسيتواصل معك فريقنا للمراجعة.\n\n"
+        "📅 اختر نوع العقار:",
+        reply_markup=VISITOR_TYPE_KEYBOARD,
+    )
+
+
+async def handle_visitor_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالجة رسائل الزائر النصية أثناء تقديم العرض"""
+    uid = update.effective_user.id
+    session = get_session(uid)
+    text = update.message.text.strip()
+
+    # إلغاء في أي مرحلة
+    if text == "❌ إلغاء":
+        reset_session(uid)
+        await update.message.reply_text(
+            "تم إلغاء تقديم العرض.\n"
+            "للبدء من جديد أرسل: /submit\n"
+            "للاستفسار تواصل معنا: 0545888931",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
+    # ── اختيار نوع العقار ──
+    if session["state"] == "v_awaiting_type":
+        type_map = {
+            "🚜 مزرعة": ("farm", "مزرعة"),
+            "🏠 استراحة": ("resthouse", "استراحة"),
+            "📐 أرض سكنية": ("land", "أرض سكنية"),
+        }
+        if text not in type_map:
+            await update.message.reply_text(
+                "الرجاء اختيار نوع العقار من الأزرار أدناه:",
+                reply_markup=VISITOR_TYPE_KEYBOARD,
+            )
+            return
+        ptype, category = type_map[text]
+        session["offer"]["type"] = ptype
+        session["offer"]["category"] = category
+        session["state"] = "v_awaiting_area"
+        await update.message.reply_text(
+            f"✅ نوع العقار: {category}\n\n"
+            "📍 أرسل اسم المنطقة (مثال: الرحمنية / الهياثم / الدلم / الضبيعة / العفجة):",
+            reply_markup=VISITOR_CANCEL_KEYBOARD,
+        )
+        return
+
+    # ── اسم المنطقة ──
+    if session["state"] == "v_awaiting_area":
+        session["offer"]["area"] = text
+        session["offer"]["title"] = f"{session['offer']['category']} في {text}"
+        session["state"] = "v_awaiting_size"
+        await update.message.reply_text("📐 أرسل المساحة بالمتر المربع (رقم فقط):")
+        return
+
+    # ── المساحة ──
+    if session["state"] == "v_awaiting_size":
+        try:
+            size = int(text.replace(",", "").replace("م²", "").replace("م2", "").strip())
+            session["offer"]["size_sqm"] = size
+        except ValueError:
+            await update.message.reply_text("⚠️ أرسل رقماً صحيحاً للمساحة:")
+            return
+        session["state"] = "v_awaiting_price"
+        await update.message.reply_text(
+            "💰 أرسل السعر المطلوب (رقم فقط):\n"
+            "ℹ️ ملاحظة: سيتم إخفاء سعرك عن العامة وعرض متوسط السعر من البوصلة العقارية بدلاً منه."
+        )
+        return
+
+    # ── السعر (يُخفى عن العامة) ──
+    if session["state"] == "v_awaiting_price":
+        try:
+            price = int("".join(filter(str.isdigit, text)) or 0)
+            session["offer"]["original_price"] = str(price)
+            session["offer"]["price"] = price
+        except ValueError:
+            await update.message.reply_text("⚠️ أرسل رقماً صحيحاً للسعر:")
+            return
+        session["state"] = "v_awaiting_images"
+        await update.message.reply_text(
+            "📸 أرسل صور العقار (1 إلى 5 صور).\n"
+            "عند الانتهاء أرسل الكلمة: تم ✅\n\n"
+            f"الحد الأقصى: {CONFIG['max_images']} صور.\n"
+            "🖼️ سيتم تحسين الصور تلقائياً بجودة عالية (8K).",
+            reply_markup=VISITOR_CANCEL_KEYBOARD,
+        )
+        return
+
+    # ── الصور — إنهاء استلام الصور ──
+    if session["state"] == "v_awaiting_images":
+        if text in ["تم", "تم ✅", "✅", "انتهيت", "تمت", "تمت ✅"]:
+            if len(session["images"]) == 0:
+                await update.message.reply_text("⚠️ لم ترسل أي صورة. أرسل صورة واحدة على الأقل أو أرسل: تم ✅")
+                return
+            session["state"] = "v_awaiting_map"
+            await update.message.reply_text(
+                f"✅ تم استلام {len(session['images'])} صورة.\n\n"
+                "🗺️ أرسل رابط موقع العقار على Google Maps:\n"
+                "أو أرسل موقعك الحالي عبر زر 📎 (الموقع) في تيليجرام.\n"
+                'أو أرسل «تخطي» لاستخدام موقع افتراضي.',
+                reply_markup=VISITOR_CANCEL_KEYBOARD,
+            )
+        else:
+            await update.message.reply_text("أرسل صورة أو اكتب: تم ✅")
+        return
+
+    # ── موقع العقار على الخريطة (من العارض) ──
+    if session["state"] == "v_awaiting_map":
+        if text.lower() in ["تخطي", "لا", "skip", "افتراضي"]:
+            session["offer"]["visitor_map_link"] = ""
+            session["offer"]["map_link"] = CONFIG["office_location"]
+        else:
+            session["offer"]["visitor_map_link"] = text
+            session["offer"]["map_link"] = text  # مؤقتاً — سيُستبدل بموقع المكتب عند الموافقة
+        session["state"] = "v_awaiting_contact"
+        await update.message.reply_text(
+            "📞 أرسل معلومات التواصل معك:\n"
+            "(رقم الواتساب أو الجوال — ليتمكن المكتب من التواصل معك)",
+            reply_markup=VISITOR_CANCEL_KEYBOARD,
+        )
+        return
+
+    # ── معلومات التواصل — ثم الحفظ كطلب معلق ──
+    if session["state"] == "v_awaiting_contact":
+        session["offer"]["contact"] = text
+        session["offer"]["images"] = session["images"]
+        await _save_visitor_offer(update, uid)
+        return
+
+
+async def _save_visitor_offer(update, uid):
+    """حفظ عرض الزائر كطلب معلق وإشعار المدير"""
+    session = get_session(uid)
+    offer = session["offer"]
+
+    # حفظ في قائمة طلبات الزوار
+    data = load_visitor_requests()
+    visitor_offer = {
+        "type": "offer_submission",
+        "offer": offer,
+        "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "submitted_by": offer.get("submitted_by", {}),
+        "contact": offer.get("contact", ""),
+        "visitor_map_link": offer.get("visitor_map_link", ""),
+        "original_price": offer.get("original_price", ""),
+        "status": "pending",
+    }
+    data.setdefault("offer_submissions", []).append(visitor_offer)
+    save_visitor_requests(data)
+
+    # مزامنة الصور إلى GitHub (إن كان مفعّلاً)
+    try:
+        if github_sync.is_enabled() and offer.get("images"):
+            sync_pairs = []
+            for rel in offer["images"]:
+                local_full = WEBSITE_DIR / rel
+                if local_full.exists():
+                    sync_pairs.append((str(local_full), rel))
+            for local_path, rel_repo_path in sync_pairs:
+                github_sync.upload_binary_file(
+                    rel_repo_path, local_path,
+                    f"صور عرض زائر: {offer.get('category', '')} في {offer.get('area', '')}"
+                )
+    except Exception as e:
+        logger.error(f"خطأ في مزامنة صور الزائر: {e}")
+
+    # إشعار المدير بعرض جديد
+    msg = (
+        f"🔔 عرض عقاري جديد من زائر!\n\n"
+        f"🏷️ النوع: {offer.get('category', '')}\n"
+        f"📍 المنطقة: {offer.get('area', '')}\n"
+        f"📐 المساحة: {offer.get('size_sqm', '')} م²\n"
+        f"💰 السعر المطلوب: {offer.get('original_price', '')} ريال\n"
+        f"🗺️ موقع العارض: {offer.get('visitor_map_link', 'لم يحدد')}\n"
+        f"📞 تواصل العارض: {offer.get('contact', '')}\n"
+        f"👤 المقدم: {offer.get('submitted_by', {}).get('name', '')}\n"
+        f"📸 عدد الصور: {len(offer.get('images', []))}\n"
+        f"🕐 وقت التقديم: {visitor_offer['submitted_at']}\n\n"
+        f"للمراجعة والموافقة: /visitor_offers"
+    )
+    for admin_id in ADMIN_IDS:
+        try:
+            # إرسال أول صورة كمعاينة إن وجدت
+            if offer.get("images"):
+                local_img = WEBSITE_DIR / offer["images"][0]
+                if local_img.exists():
+                    await context.app.bot.send_photo(admin_id, photo=open(str(local_img), "rb"), caption=msg)
+                    continue
+            await context.app.bot.send_message(admin_id, msg)
+        except Exception as e:
+            logger.error(f"فشل إرسال إشعار العرض للمدير {admin_id}: {e}")
+
+    await update.message.reply_text(
+        f"✅ تم استلام عرضك بنجاح!\n\n"
+        f"📋 تفاصيل العرض:\n"
+        f"   🏷️ النوع: {offer.get('category', '')}\n"
+        f"   📍 المنطقة: {offer.get('area', '')}\n"
+        f"   📐 المساحة: {offer.get('size_sqm', '')} م²\n"
+        f"   📸 عدد الصور: {len(offer.get('images', []))}\n\n"
+        f"⏳ سيقوم فريق المكتب بمراجعة عرضك والموافقة عليه قريباً.\n"
+        f"📞 للتواصل: 0545888931\n"
+        f"🌐 موقعنا: abonasr0907-beep.github.io/-",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    reset_session(uid)
+
+
+async def visitor_offers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض عروض الزوار المعلقة للمدير — /visitor_offers"""
+    if not is_admin(update.effective_user.id):
+        return
+    data = load_visitor_requests()
+    submissions = data.get("offer_submissions", [])
+    pending = [s for s in submissions if s.get("status") == "pending"]
+    if not pending:
+        await update.message.reply_text("📭 لا توجد عروض زوار معلقة حالياً.")
+        return
+    msg = f"📬 عروض الزوار المعلقة ({len(pending)} عرض):\n\n"
+    keyboard = []
+    for idx, s in enumerate(submissions):
+        if s.get("status") != "pending":
+            continue
+        offer = s.get("offer", {})
+        real_idx = idx  # المؤشر الفعلي في القائمة الكاملة
+        label = f"✅ {offer.get('category', '')} — {offer.get('area', '')} — {offer.get('size_sqm', '')}م²"
+        msg += f"[{real_idx}] {label}\n   💰 {offer.get('original_price', '')} ريال | 📞 {s.get('contact', '')}\n"
+        keyboard.append([InlineKeyboardButton(
+            f"📋 مراجعة [{real_idx}] — {offer.get('area', '')}",
+            callback_data=f"vreview_{real_idx}",
+        )])
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
+
+
+async def _review_visitor_offer(update, idx, query=None):
+    """عرض تفاصيل عرض الزائر للمدير مع أزرار الموافقة/الرفض"""
+    data = load_visitor_requests()
+    submissions = data.get("offer_submissions", [])
+    if idx >= len(submissions):
+        msg = "⚠️ عرض غير موجود."
+        if query:
+            await query.edit_message_text(msg)
+        return
+    s = submissions[idx]
+    offer = s.get("offer", {})
+    msg = (
+        f"📋 مراجعة عرض الزائر [{idx}]\n\n"
+        f"🏷️ النوع: {offer.get('category', '')}\n"
+        f"📍 المنطقة: {offer.get('area', '')}\n"
+        f"📐 المساحة: {offer.get('size_sqm', '')} م²\n"
+        f"💰 السعر المطلوب: {offer.get('original_price', '')} ريال (سيُخفى)\n"
+        f"🗺️ موقع العارض: {s.get('visitor_map_link', 'لم يحدد')}\n"
+        f"📞 تواصل العارض: {s.get('contact', '')}\n"
+        f"👤 المقدم: {offer.get('submitted_by', {}).get('name', '')}\n"
+        f"📸 عدد الصور: {len(offer.get('images', []))}\n"
+        f"🕐 وقت التقديم: {s.get('submitted_at', '')}\n\n"
+        f"ℹ️ عند الموافقة:\n"
+        f"   • سيُخفى سعر العارض ويُعرض متوسط البوصلة\n"
+        f"   • سيُستبدل موقع العارض بموقع المكتب الثابت\n"
+        f"   • سيُنشر العرض مباشرة على الموقع"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ موافقة ونشر", callback_data=f"vapprove_{idx}")],
+        [InlineKeyboardButton("❌ رفض", callback_data=f"vreject_{idx}")],
+        [InlineKeyboardButton("📤 مشاركة عبر واتساب", callback_data=f"vshare_{idx}")],
+    ])
+    if query:
+        await query.edit_message_text(msg, reply_markup=keyboard)
+    else:
+        await update.message.reply_text(msg, reply_markup=keyboard)
+
+
+async def _approve_visitor_offer(update, idx, query=None):
+    """الموافقة على عرض الزائر ونشره على الموقع:
+       - إخفاء سعر العارض وعرض متوسط البوصلة
+       - استبدال موقع العارض بموقع المكتب الثابت
+       - تصنيف تلقائي + توليد نص تسويقي + نشر على الموقع + مزامنة GitHub
+    """
+    data = load_visitor_requests()
+    submissions = data.get("offer_submissions", [])
+    if idx >= len(submissions):
+        msg = "⚠️ عرض غير موجود."
+        if query:
+            await query.edit_message_text(msg)
+        return
+
+    s = submissions[idx]
+    offer = dict(s.get("offer", {}))
+
+    # 1) توليد معرّف فريد
+    offer["id"] = f"{offer['type'][:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+
+    # 2) إخفاء السعر — استخدام متوسط البوصلة بدلاً من سعر العارض
+    bousla_price = get_bousla_avg_price(offer.get("area", ""), offer.get("type", "land"))
+    offer["price_text"] = bousla_price  # متوسط البوصلة يُعرض للعامة
+    offer["original_price"] = s.get("original_price", "")  # يُحفظ للمدير فقط
+
+    # 3) استبدال موقع العارض بموقع المكتب الثابت
+    offer["visitor_map_link"] = s.get("visitor_map_link", "")  # يُحفظ للأرشيف
+    offer["map_link"] = CONFIG["office_location"]  # موقع المكتب الثابت للنشر
+
+    # 4) توليد نص تسويقي تلقائي
+    offer["description"] = generate_marketing_text(
+        offer.get("type", "land"),
+        offer.get("area", ""),
+        offer.get("size_sqm", ""),
+    )
+
+    # 5) حفظ في عروض البوت
+    bot_data = load_bot_offers()
+    bot_data["offers"].append(offer)
+    save_bot_offers(bot_data)
+
+    # 6) نشر مباشر على الموقع
+    site_data = load_offers_json()
+    site_data["offers"].append(offer)
+    save_offers_json(site_data)
+
+    # 7) مزامنة مع GitHub
+    sync_note = ""
+    try:
+        sync_pairs = []
+        for rel in offer.get("images", []):
+            local_full = WEBSITE_DIR / rel
+            if local_full.exists():
+                sync_pairs.append((str(local_full), rel))
+        if sync_pairs and github_sync.is_enabled():
+            ok = github_sync.sync_offer_to_github(offer, sync_pairs)
+            sync_note = " ✅ ورفعت على الموقع" if ok else " (تحذير: لم تكتمل المزامنة)"
+        elif not github_sync.is_enabled():
+            sync_note = " (محلياً — اضبط GITHUB_TOKEN للنشر العام)"
+    except Exception as e:
+        logger.error(f"خطأ في المزامنة مع GitHub: {e}")
+        sync_note = " (تعذّرت المزامنة)"
+
+    # 8) تحديث حالة الطلب
+    s["status"] = "approved"
+    s["published_offer_id"] = offer["id"]
+    save_visitor_requests(data)
+
+    # 9) تحديث البوصلة تلقائياً بعد نشر عرض جديد
+    try:
+        _do_price_update()
+    except Exception as e:
+        logger.error(f"خطأ في تحديث البوصلة بعد النشر: {e}")
+
+    msg = (
+        f"✅ تمت الموافقة ونشر العرض!{sync_note}\n\n"
+        f"🆔 المعرف: {offer['id']}\n"
+        f"🏷️ النوع: {offer['category']}\n"
+        f"📍 المنطقة: {offer['area']}\n"
+        f"📐 المساحة: {offer['size_sqm']} م²\n"
+        f"💰 المعروض: {offer['price_text']}\n"
+        f"🗺️ الموقع: تم استبداله بموقع المكتب الثابت\n"
+        f"📸 الصور: {len(offer.get('images', []))}\n\n"
+        f"🌐 تم النشر مباشرة على الموقع."
+    )
+    if query:
+        await query.edit_message_text(msg)
+    else:
+        await update.message.reply_text(msg)
+
+
+async def _share_visitor_offer_whatsapp(update, idx, query=None):
+    """إنشاء نص جاهز للمشاركة عبر واتساب يتضمن موقع العارض على الخريطة"""
+    data = load_visitor_requests()
+    submissions = data.get("offer_submissions", [])
+    if idx >= len(submissions):
+        msg = "⚠️ عرض غير موجود."
+        if query:
+            await query.edit_message_text(msg)
+        return
+    s = submissions[idx]
+    offer = s.get("offer", {})
+    map_link = s.get("visitor_map_link", offer.get("visitor_map_link", "لم يحدد"))
+    share_text = (
+        f"🏠 *عرض عقاري جديد*\n\n"
+        f"🏷️ النوع: {offer.get('category', '')}\n"
+        f"📍 المنطقة: {offer.get('area', '')}\n"
+        f"📐 المساحة: {offer.get('size_sqm', '')} م²\n"
+        f"💰 السعر: {s.get('original_price', '')} ريال\n"
+        f"🗺️ الموقع على الخريطة: {map_link}\n"
+        f"📞 تواصل: {s.get('contact', '')}\n\n"
+        f"🏢 مكتب آفاق الإنجاز العقاري\n"
+        f"🌐 abonasr0907-beep.github.io/-"
+    )
+    # إرسال النص كرسالة قابلة للنسخ والمشاركة
+    if query:
+        await query.edit_message_text(
+            f"📤 *نص جاهز للمشاركة عبر واتساب:*\n\n```\n{share_text}\n```\n\nانسخ النص أعلاه والمشاركة عبر واتساب.",
+            parse_mode="Markdown",
+        )
+    else:
+        await update.message.reply_text(
+            f"📤 *نص جاهز للمشاركة عبر واتساب:*\n\n```\n{share_text}\n```\n\nانسخ النص أعلاه والمشاركة عبر واتساب.",
+            parse_mode="Markdown",
+        )
+
+
+async def _reject_visitor_offer(update, idx, query=None):
+    """رفض عرض الزائر"""
+    data = load_visitor_requests()
+    submissions = data.get("offer_submissions", [])
+    if idx < len(submissions):
+        submissions[idx]["status"] = "rejected"
+        save_visitor_requests(data)
+    msg = "❌ تم رفض العرض."
+    if query:
+        await query.edit_message_text(msg)
+    else:
+        await update.message.reply_text(msg)
+
+
+# ============================================================
 
 async def _finalize_offer(update, uid, query=None):
     session = get_session(uid)
@@ -1129,20 +1736,42 @@ async def toggle_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #  معالج الرسائل النصية الرئيسي
 # ============================================================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text(
-            "شكراً لتواصلك! 🏢\n"
-            "للاستفسار عن العقارات تواصل معنا:\n"
-            "📞 واتساب: 0545888931\n"
-            "📞 اتصال: 0544699933\n"
-            "🌐 الموقع: abonasr0907-beep.github.io/-"
-        )
-        return
-
     uid = update.effective_user.id
     session = get_session(uid)
     text = update.message.text.strip()
 
+    # ── توجيه الزوار (غير المدير) ──
+    if not is_admin(uid):
+        # إذا كان الزائر في عملية تقديم عرض
+        if session["state"] in [
+            "v_awaiting_type", "v_awaiting_area", "v_awaiting_size",
+            "v_awaiting_price", "v_awaiting_images", "v_awaiting_map",
+            "v_awaiting_contact",
+        ]:
+            await handle_visitor_text(update, context)
+            return
+        # زر "تقديم عرض" للزوار
+        if text in ["تقديم عرض", "عرض عقاري", "إضافة عرض", "تقديم عرض عقاري"]:
+            await submit_offer_start(update, context)
+            return
+        # رسالة ترحيب للزوار غير النشطين
+        keyboard = ReplyKeyboardMarkup(
+            [["تقديم عرض"]],
+            resize_keyboard=True,
+        )
+        await update.message.reply_text(
+            "أهلاً بك في مكتب آفاق الإنجاز العقاري!\n\n"
+            "نقدم لك خدمات عقارية متكاملة في الخرج والرياض.\n\n"
+            "اضغط زر «تقديم عرض» لتقديم عقارك للنشر على موقعنا.\n\n"
+            "للتواصل المباشر:\n"
+            "   واتساب: 0545888931\n"
+            "   اتصال: 0544699933\n"
+            "الموقع: abonasr0907-beep.github.io/-",
+            reply_markup=keyboard,
+        )
+        return
+
+    # ── توجيه المدير ──
     # إذا كان في وضع المساعد الذكي
     if session["state"] == "ai_chat":
         await handle_ai_chat(update, context)
@@ -1168,6 +1797,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await edit_offer(update, context)
     elif text == "📨 طلبات الزوار":
         await visitor_requests(update, context)
+    elif text == "🏡 عروض الزوار":
+        await visitor_offers_cmd(update, context)
     elif text == "🔍 فلترة العروض":
         await filter_offers(update, context)
     elif text == "📊 إحصائيات":
@@ -1178,6 +1809,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update_prices(update, context)
     elif text == "🤖 المساعد الذكي":
         await ai_assistant(update, context)
+    elif text == "🗞️ تحديث الأخبار":
+        await update_news_cmd(update, context)
     elif text == "⚙️ الإعدادات":
         await settings(update, context)
     else:
@@ -1191,23 +1824,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 #  التقرير الأسبوعي والتحديث اليومي للأسعار
 # ============================================================
-OFFICE_DATA_JSON = WEBSITE_DIR / "offers-data" / "office-data.json"
 WEEKLY_STATS = DATA_DIR / "weekly_stats.json"
-
-
-def _load_office_data():
-    """تحميل بيانات المكتب (بوصلة الأسعار + الخدمات)"""
-    if OFFICE_DATA_JSON.exists():
-        with open(OFFICE_DATA_JSON, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
-
-
-def _save_office_data(data):
-    """حفظ بيانات المكتب (بوصلة الأسعار)"""
-    with open(OFFICE_DATA_JSON, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    logger.info("تم تحديث بيانات المكتب — بوصلة الأسعار")
 
 
 def _load_weekly_stats():
@@ -1370,6 +1987,141 @@ async def auto_update_prices(context):
     logger.info("🧭 تم التحديث التلقائي لأسعار البوصلة")
 
 
+# ============================================================
+#  الأخبار العقارية — تحديث تلقائي كل 3 أيام
+# ============================================================
+
+# قوالب الأخبار العقارية (تُولَّد عشوائياً عند كل تحديث)
+NEWS_TEMPLATES = [
+    {
+        "title": "الهيئة العامة للعقار تعلن عن تحديثات جديدة في تنظيم السوق العقاري",
+        "desc": "أعلنت الهيئة العامة للعقار عن مجموعة من التحديثات التنظيمية الجديدة التي تهدف إلى تطوير السوق العقاري وحماية حقوق المتعاملين في المملكة.",
+        "link": "https://rega.gov.sa",
+        "source": "الهيئة العامة للعقار",
+    },
+    {
+        "title": "ارتفاع ملحوظ في الطلب على الأراضي السكنية بالخرج",
+        "desc": "شهدت محافظة الخرج ارتفاعاً في الطلب على الأراضي السكنية والمزارع، مع نمو في الأسعار في المخططات الرئيسية مثل الرحمانية والهياثم.",
+        "link": "#",
+        "source": "تقارير سوقية",
+    },
+    {
+        "title": "مؤشرات الأسعار العقارية: استقرار في الأسعار خلال الربع الحالي",
+        "desc": "أظهرت المؤشرات العقارية استقراراً في الأسعار خلال الربع الحالي، مع نمو طفيف في مناطق الخرج والرياض.",
+        "link": "https://rei.rega.gov.sa",
+        "source": "منصة المؤشرات العقارية",
+    },
+    {
+        "title": "نظام إيجار: تسهيلات جديدة للمستفيدين من الخدمات الإلكترونية",
+        "desc": "أطلقت الهيئة العامة للعقار تحديثات جديدة على نظام إيجار الإلكتروني لتسهيل المعاملات العقارية وتقليل الوقت اللازم لإتمامها.",
+        "link": "https://rega.gov.sa",
+        "source": "الهيئة العامة للعقار",
+    },
+    {
+        "title": "بوابة العقار الجيومكانية: خدمة جديدة لعرض البيانات العقارية",
+        "desc": "أطلقت الهيئة العامة للعقار بوابة العقار الجيومكانية لعرض البيانات العقارية المكانية عبر خرائط دقيقة وتفاعلية تساعد المستثمرين.",
+        "link": "https://rega.gov.sa",
+        "source": "الهيئة العامة للعقار",
+    },
+    {
+        "title": "الاستثمار الزراعي في الخرج: فرص واعدة في المزارع والأراضي",
+        "desc": "يشهد قطاع الاستثمار الزراعي في محافظة الخرج نمواً متزايداً، مع توافر أراضٍ صالحة للزراعة ومزارع بمساحات متنوعة بأسعار تنافسية.",
+        "link": "#",
+        "source": "تقارير سوقية",
+    },
+    {
+        "title": "رؤية 2030: مشاريع تطوير عقاري جديدة في منطقة الرياض",
+        "desc": "ضمن مشاريع رؤية 2030، تستعد منطقة الرياض لإطلاق مشاريع تطوير عقاري جديدة تشمل المناطق المحيطة بالخرج والدرعية.",
+        "link": "https://www.vision2030.gov.sa",
+        "source": "رؤية 2030",
+    },
+    {
+        "title": "صندوق التنمية العقاري: تمويل جديد للمستفيدين",
+        "desc": "أعلن صندوق التنمية العقاري عن برامج تمويلية جديدة للمستفيدين، تشمل منتجات عقارية متنوعة تسهل تملك الأراضي والمزارع.",
+        "link": "https://www.redf.gov.sa",
+        "source": "صندوق التنمية العقاري",
+    },
+    {
+        "title": "الطلب على الاستراحات في الخرج يشهد نمواً مستمراً",
+        "desc": "سجل الطلب على الاستراحات في مناطق الخرج نمواً مستمراً، خصوصاً في المخططات القريبة من الخدمات والطرق الرئيسية.",
+        "link": "#",
+        "source": "تقارير سوقية",
+    },
+    {
+        "title": "التحول الرقمي في القطاع العقاري: منصات جديدة للمعاملات",
+        "desc": "يواصل القطاع العقاري في المملكة تحوله الرقمي، مع إطلاق منصات إلكترونية جديدة تسهل المعاملات العقارية وتوفر الشفافية.",
+        "link": "https://rega.gov.sa",
+        "source": "الهيئة العامة للعقار",
+    },
+]
+
+
+def _generate_news():
+    """توليد أخبار عقارية جديدة بشكل عشوائي من القوالب"""
+    import random
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # اختيار 5 أخبار عشوائية بدون تكرار
+    selected = random.sample(NEWS_TEMPLATES, min(5, len(NEWS_TEMPLATES)))
+
+    news_items = []
+    for i, template in enumerate(selected):
+        # توزيع الأخبار على آخر 5 أيام
+        days_ago = i
+        date = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        news_items.append({
+            "date": date,
+            "title": template["title"],
+            "desc": template["desc"],
+            "link": template["link"],
+            "source": template["source"],
+        })
+
+    news_data = {
+        "last_update": today,
+        "news": news_items,
+    }
+
+    # حفظ في الملف المحلي
+    try:
+        with open(NEWS_JSON, "w", encoding="utf-8") as f:
+            json.dump(news_data, f, ensure_ascii=False, indent=2)
+        logger.info(f"🗞️ تم توليد {len(news_items)} خبر عقاري جديد")
+    except Exception as e:
+        logger.error(f"خطأ في حفظ الأخبار: {e}")
+
+    # مزامنة مع GitHub
+    try:
+        github_sync.sync_news_to_github()
+    except Exception as e:
+        logger.error(f"خطأ في مزامنة الأخبار مع GitHub: {e}")
+
+    return news_data
+
+
+async def auto_update_news(context):
+    """تحديث تلقائي للأخبار كل 3 أيام"""
+    _generate_news()
+    logger.info("🗞️ تم التحديث التلقائي للأخبار العقارية")
+
+
+async def update_news_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """أمر تحديث الأخبار يدوياً (للمدير فقط)"""
+    if not is_admin(update.effective_user.id):
+        return
+    news_data = _generate_news()
+    news_items = news_data.get("news", [])
+    msg = (
+        f"🗞️ تم تحديث الأخبار العقارية!\n"
+        f"📅 التاريخ: {news_data.get('last_update', '')}\n"
+        f"📊 عدد الأخبار: {len(news_items)}\n\n"
+    )
+    for i, item in enumerate(news_items[:3], 1):
+        msg += f"{i}. {item['title'][:60]}...\n"
+    msg += "\n🌐 تمت المزامنة مع الموقع تلقائياً"
+    await update.message.reply_text(msg)
+
+
 def _do_price_update():
     """تحديث أسعار البوصلة بناءً على متوسط أسعار العروض المنشورة + تعديل طفيف للسوق"""
     import random
@@ -1440,6 +2192,13 @@ def _do_price_update():
     data["bousla_last_update"] = today
     _save_office_data(data)
 
+    # مزامنة مع GitHub لتحديث الموقع تلقائياً
+    sync_ok = False
+    try:
+        sync_ok = github_sync.sync_office_data_to_github()
+    except Exception as e:
+        logger.error(f"خطأ في مزامنة البوصلة مع GitHub: {e}")
+
     # بناء رسالة التقرير
     msg = f"🧭 تم تحديث بوصلة الأسعار!\n📅 التاريخ: {today}\n━━━━━━━━━━━━━━\n\n"
     for area_name, area_info in areas.items():
@@ -1449,6 +2208,10 @@ def _do_price_update():
         msg += f"   🏡 استراحة: {area_info.get('resthouse_avg_price', '—')} ريال\n\n"
 
     msg += f"✅ تم تحديث {updated_count} منطقة بناءً على العروض المنشورة"
+    if sync_ok:
+        msg += "\n🌐 تمت المزامنة مع الموقع بنجاح"
+    else:
+        msg += "\n⚠️ المزامنة مع الموقع لم تكتمل (محلياً فقط)"
     return msg
 
 
@@ -1470,9 +2233,16 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("report", weekly_report))
     app.add_handler(CommandHandler("update_prices", update_prices))
     app.add_handler(CommandHandler("bousla", update_prices))
+    app.add_handler(CommandHandler("submit", submit_offer_start))
+    app.add_handler(CommandHandler("visitor_offers", visitor_offers_cmd))
+    app.add_handler(CommandHandler("update_news", update_news_cmd))
+    app.add_handler(CommandHandler("news", update_news_cmd))
 
     # الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+
+    # الموقع (للزوار — إرسال الموقع عبر زر تيليجرام)
+    app.add_handler(MessageHandler(filters.LOCATION, handle_location))
 
     # الأزرار (callback)
     app.add_handler(CallbackQueryHandler(handle_callback))
@@ -1487,6 +2257,10 @@ def _setup_handlers(app):
     if CONFIG.get("auto_prices_update", True) and app.job_queue:
         app.job_queue.run_daily(auto_update_prices, time=__import__("datetime").time(hour=6, minute=0))
         logger.info("🧭 تم جدولة تحديث الأسعار اليومي — كل يوم 6 صباحاً")
+    # تحديث الأخبار كل 3 أيام
+    if app.job_queue:
+        app.job_queue.run_repeating(auto_update_news, interval=3 * 24 * 3600, first=10)
+        logger.info("🗞️ تم جدولة تحديث الأخبار — كل 3 أيام")
 
 
 # ============================================================

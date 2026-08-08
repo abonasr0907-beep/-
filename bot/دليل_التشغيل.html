@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دليل تشغيل البوت — مكتب آفاق الإنجاز العقاري</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            line-height: 1.8;
+            color: #1a1a2e;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0d7377;
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #0d7377;
+            padding-bottom: 15px;
+        }
+        h2 {
+            color: #0d7377;
+            font-size: 22px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-right: 15px;
+            border-right: 5px solid #14a085;
+        }
+        h3 {
+            color: #14a085;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        p {
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+        .solution {
+            background: #f0f9f9;
+            border: 2px solid #14a085;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+        .solution-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #0d7377;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .badge {
+            background: #14a085;
+            color: white;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        .badge.free { background: #27ae60; }
+        .badge.paid { background: #e67e22; }
+        .badge.best { background: #2980b9; }
+        .steps {
+            list-style: none;
+            counter-reset: step;
+            padding: 0;
+        }
+        .steps li {
+            counter-increment: step;
+            padding: 10px 15px 10px 50px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 8px;
+            position: relative;
+            border: 1px solid #e0e0e0;
+        }
+        .steps li::before {
+            content: counter(step);
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #0d7377;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        code {
+            background: #1a1a2e;
+            color: #14ffec;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            direction: ltr;
+            display: inline-block;
+        }
+        .code-block {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            direction: ltr;
+            text-align: left;
+            overflow-x: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .warning {
+            background: #fff3cd;
+            border-right: 5px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .tip {
+            background: #d4edda;
+            border-right: 5px solid #28a745;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .toc ul {
+            list-style: none;
+            padding: 0;
+        }
+        .toc li {
+            padding: 5px 0;
+        }
+        .toc a {
+            color: #0d7377;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+            color: #666;
+            font-size: 14px;
+        }
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; padding: 20px; }
+            .solution { page-break-inside: avoid; }
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 دليل تشغيل بوت مكتب آفاق الإنجاز العقاري</h1>
+        <p style="text-align: center; color: #666; font-size: 16px;">حلول متعددة لضمان عمل البوت بشكل دائم ٢٤/٧</p>
+
+        <div class="toc">
+            <h3 style="margin-top: 0;">📋 جدول المحتويات</h3>
+            <ul>
+                <li><a href="#intro">مقدمة: لماذا يتوقف البوت؟</a></li>
+                <li><a href="#render">الحل الأول: Render (مجاني — موصى به)</a></li>
+                <li><a href="#koyeb">الحل الثاني: Koyeb (مجاني)</a></li>
+                <li><a href="#railway">الحل الثالث: Railway (محدود مجاني)</a></li>
+                <li><a href="#termux">الحل الرابع: Android Termux (تشغيل من الجوال)</a></li>
+                <li><a href="#pythonista">الحل الخامس: iPad Pythonista</a></li>
+                <li><a href="#troubleshoot">استكشاف الأخطاء وإصلاحها</a></li>
+                <li><a href="#summary">الخلاصة والمقارنة</a></li>
+            </ul>
+        </div>
+
+        <h2 id="intro">مقدمة: لماذا يتوقف البوت؟</h2>
+        <p>بوت التيليجرام يعمل بطريقتين: <strong>الاستطلاع (Polling)</strong> و<strong>الـ Webhook</strong>. في وضع الاستطلاع، يحتاج البوت إلى أن يعمل بشكل متواصل ٢٤ ساعة ليتمكن من استقبال الرسائل. إذا توقف البرنامج أو نام الجهاز، يتوقف البوت عن الرد. في وضع الـ Webhook، يرسل تيليجرام الرسائل إلى عنوان ويب (URL) ثابت، فلا يحتاج البوت للعمل بشكل متواصل — يكفي أن يستيقظ عند وصول رسالة.</p>
+        <p>المشكلة الرئيسية في الاستضافات المجانية هي أنها تُوقف البرامج الخاملة بعد فترة من عدم النشاط. الحل الأمثل هو استخدام <strong>وضع Webhook</strong> مع استضافة تدعم الاستيقاظ التلقائي عند وصول الطلبات.</p>
+
+        <div class="solution" id="render">
+            <div class="solution-title">
+                🚀 الحل الأول: Render <span class="badge free">مجاني</span> <span class="badge best">الأفضل</span>
+            </div>
+            <p><strong>Render</strong> هي منصة استضافة سحابية تقدم خطة مجانية تدعم تطبيقات Python مع Webhook. البوت مصمم مسبقاً للعمل معها بوضع Webhook.</p>
+
+            <h3>المميزات</h3>
+            <p>مجاني بالكامل في الخطة الأساسية، يدعم Webhook (البوت يستيقظ عند كل رسالة)، لا يحتاج إلى تشغيل مستمر، يدعم متغيرات البيئة (Environment Variables) لحفظ التوكن بشكل آمن، ويتكامل مع GitHub مباشرة — أي تحديث في الكود يُنشر تلقائياً.</p>
+
+            <h3>الخطوات</h3>
+            <ol class="steps">
+                <li>ادخل إلى <code>https://render.com</code> وسجّل حساب جديد (يمكن التسجيل بحساب GitHub).</li>
+                <li>اضغط <strong>New +</strong> ثم اختر <strong>Web Service</strong>.</li>
+                <li>اربط حساب GitHub واختر المستودع <code>abonasr0907-beep/-</code>.</li>
+                <li>في إعدادات الخدمة:
+                    <div class="code-block">Name: afaq-bot
+Runtime: Python 3
+Build Command: pip install -r bot/requirements.txt
+Start Command: python bot/bot.py
+Instance Type: Free</div>
+                </li>
+                <li>في قسم <strong>Environment Variables</strong> أضف المتغيرات التالية:
+                    <div class="code-block">BOT_TOKEN = 8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os
+GITHUB_TOKEN = (ضع توكن GitHub الخاص بك هنا)
+WEBHOOK_URL = https://afaq-bot.onrender.com
+ADMIN_IDS = 7746757675</div>
+                </li>
+                <li>اضغط <strong>Create Web Service</strong> وانتظر دقائق حتى يكتمل البناء.</li>
+                <li>ستحصل على رابط مثل <code>https://afaq-bot.onrender.com</code> — انسخه.</li>
+                <li>اضبط رابط الـ Webhook في تيليجرام:
+                    <div class="code-block">https://api.telegram.org/bot&lt;BOT_TOKEN&gt;/setWebhook?url=https://afaq-bot.onrender.com/webhook</div>
+                </li>
+                <li>أرسل أي رسالة للبوت في تيليجرام — يجب أن يرد فوراً!</li>
+            </ol>
+
+            <div class="tip">
+                <strong>💡 ملاحظة مهمة:</strong> في الخطة المجانية، ينام البوت بعد 15 دقيقة من عدم النشاط. عند وصول رسالة جديدة، يستيقظ تلقائياً (يستغرق 30-50 ثانية لأول رسالة). هذا طبيعي ومجاني تماماً.
+            </div>
+        </div>
+
+        <div class="solution" id="koyeb">
+            <div class="solution-title">
+                ☁️ الحل الثاني: Koyeb <span class="badge free">مجاني</span>
+            </div>
+            <p><strong>Koyeb</strong> منصة استضافة سحابية بديلة لـ Render، تقدم خطة مجانية مع تشغيل مستمر بدون نوم.</p>
+
+            <h3>الخطوات</h3>
+            <ol class="steps">
+                <li>ادخل إلى <code>https://app.koyeb.com</code> وسجّل حساب جديد.</li>
+                <li>اضغط <strong>Create Service</strong> ثم اختر <strong>GitHub</strong>.</li>
+                <li>اختر المستودع <code>abonasr0907-beep/-</code> والفرع <code>main</code>.</li>
+                <li>في الإعدادات:
+                    <div class="code-block">Builder: Buildpack
+Build Command: pip install -r bot/requirements.txt
+Run Command: python bot/bot.py
+Port: 8443</div>
+                </li>
+                <li>أضف متغيرات البيئة نفسها المذكورة في حل Render.</li>
+                <li>اضبط رابط الـ Webhook كما في الخطوة 8 من حل Render.</li>
+                <li>انتظر حتى يكتمل النشر وجرّب البوت.</li>
+            </ol>
+
+            <div class="warning">
+                <strong>⚠️ تنبيه:</strong> قد تتغير سياسة Koyeb المجانية من وقت لآخر. تأكد من مراجعة الخطط الحالية قبل الاشتراك.
+            </div>
+        </div>
+
+        <div class="solution" id="railway">
+            <div class="solution-title">
+                🚂 الحل الثالث: Railway <span class="badge paid">محدود مجاني</span>
+            </div>
+            <p><strong>Railway</strong> منصة استضافة سريعة وسهلة، تقدم رصيد مجاني محدود (5 دولارات شهرياً).</p>
+
+            <h3>الخطوات</h3>
+            <ol class="steps">
+                <li>ادخل إلى <code>https://railway.app</code> وسجّل بحساب GitHub.</li>
+                <li>اضغط <strong>New Project</strong> ثم <strong>Deploy from GitHub repo</strong>.</li>
+                <li>اختر المستودع <code>abonasr0907-beep/-</code>.</li>
+                <li>أضف متغيرات البيئة (BOT_TOKEN, GITHUB_TOKEN, WEBHOOK_URL, ADMIN_IDS).</li>
+                <li>في إعدادات التشغيل: <code>python bot/bot.py</code></li>
+                <li>اضبط رابط الـ Webhook كالمعتاد.</li>
+            </ol>
+
+            <div class="tip">
+                <strong>💡 ميزة Railway:</strong> لا ينام البوت أبداً في Railway، لكن الرصيد المجاني قد ينفد بسرعة إذا كان الاستخدام عالياً.
+            </div>
+        </div>
+
+        <div class="solution" id="termux">
+            <div class="solution-title">
+                📱 الحل الرابع: Android Termux <span class="badge free">مجاني — من جوالك</span>
+            </div>
+            <p><strong>Termux</strong> هو محاكي طرفية (Terminal) لأندرويد يتيح تشغيل البوت مباشرة من جوالك. مناسب للاختبار أو التشغيل المؤقت، لكن يتطلب أن يظل الجوال مفتوحاً.</p>
+
+            <h3>الخطوات</h3>
+            <ol class="steps">
+                <li>حمّل تطبيق <strong>Termux</strong> من <code>https://f-droid.org/packages/com.termux/</code> (لا تستخدم متجر Play — النسخة هناك قديمة).</li>
+                <li>افتح Termux ونفّذ الأوامر التالية بالترتيب:
+                    <div class="code-block">pkg update && pkg upgrade -y
+pkg install python git -y
+pip install python-telegram-bot[job-queue,webhooks] Pillow httpx APScheduler requests
+termux-setup-storage</div>
+                </li>
+                <li>انسخ المستودع:
+                    <div class="code-block">cd ~/
+git clone https://github.com/abonasr0907-beep/-.git afaq-bot
+cd afaq-bot</div>
+                </li>
+                <li>أنشئ ملف التوكن:
+                    <div class="code-block">echo "BOT_TOKEN=8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os" > .env
+echo "GITHUB_TOKEN=ضع_توكنك_هنا" >> .env</div>
+                </li>
+                <li>شغّل البوت:
+                    <div class="code-block">python bot/bot.py</div>
+                </li>
+                <li>للحفاظ على عمل البوت في الخلفية:
+                    <div class="code-block">pkg install tmux -y
+tmux new -s afaq
+python bot/bot.py
+# اضغط Ctrl+B ثم D للخروج مع إبقاء البوت يعمل
+# للعودة: tmux attach -t afaq</div>
+                </li>
+            </ol>
+
+            <div class="warning">
+                <strong>⚠️ قيود Termux:</strong> يتوقف البوت عند إغلاق التطبيق أو إعادة تشغيل الجوال. يحتاج اتصال إنترنت مستمر. غير مناسب للتشغيل ٢٤/٧ — استخدمه للاختبار فقط.
+            </div>
+
+            <h3>منع أندرويد من إيقاف Termux</h3>
+            <p>اذهب إلى إعدادات الجوال ← التطبيقات ← Termux ← البطارية ← اختر "غير محدود". فعّل "عدم تحسين البطارية" لتطبيق Termux. يمكنك أيضاً استخدام تطبيق <strong>Termux:Boot</strong> لتشغيل البوت تلقائياً عند إعادة تشغيل الجوال.</p>
+        </div>
+
+        <div class="solution" id="pythonista">
+            <div class="solution-title">
+                🍎 الحل الخامس: iPad Pythonista <span class="badge paid">يتطلب شراء التطبيق</span>
+            </div>
+            <p><strong>Pythonista</strong> هو تطبيق Python احترافي لنظام iOS (iPad/iPhone) يتيح تشغيل البوت من جهازك. سعر التطبيق حوالي 9.99 دولار.</p>
+
+            <h3>الخطوات</h3>
+            <ol class="steps">
+                <li>اشترِ وحمّل تطبيق <strong>Pythonista 3</strong> من متجر التطبيقات.</li>
+                <li>افتح Pythonista وأنشئ سكربت جديد باسم <code>afaq_bot.py</code>.</li>
+                <li>انسخ محتوى ملف <code>bot/bot.py</code> من المستودع والصقه في Pythonista.</li>
+                <li>ثبّت المكتبات المطلوبة (Pythonista يأتي معظمها مدمجاً، لكن قد تحتاج تثبيت httpx):
+                    <div class="code-block">import pip
+pip.main(['install', 'httpx'])</div>
+                </li>
+                <li>قبل تشغيل البوت، احذف أي reference لـ <code>filters.LOCATION</code> و <code>ReplyKeyboardMarkup</code> إن لم تكن مدعومة، أو استخدم وضع Polling فقط.</li>
+                <li>اضبط التوكن مباشرة في الكود:
+                    <div class="code-block">BOT_TOKEN = "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os"</div>
+                </li>
+                <li>اضغط زر التشغيل ▶️ في Pythonista.</li>
+            </ol>
+
+            <div class="warning">
+                <strong>⚠️ قيود iOS:</strong> النظام يوقف التطبيقات في الخلفية بسرعة. لا يمكن تشغيل البوت ٢٤/٧ من iOS. مناسب فقط للاختبار السريع. للحصول على تشغيل دائم، استخدم Render أو Koyeb.
+            </div>
+        </div>
+
+        <h2 id="troubleshoot">🔧 استكشاف الأخطاء وإصلاحها</h2>
+
+        <h3>البوت لا يرد على الرسائل</h3>
+        <p>تأكد أولاً من أن البوت يعمل بدون أخطاء — راجع سجل الأخطاء (Logs) في Render أو Koyeb. ثانياً، تحقق من أن BOT_TOKEN صحيح: أرسل طلباً إلى <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getMe</code> في المتصفح — يجب أن ترى معلومات البوت. ثالثاً، إذا كنت تستخدم Webhook، تأكد من ضبطه بشكل صحيح: <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getWebhookInfo</code> — يجب أن يكون <code>last_error_message</code> فارغاً. رابعاً، احذف الـ Webhook وأعد ضبطه إذا لزم الأمر: <code>https://api.telegram.org/bot&lt;TOKEN&gt;/deleteWebhook</code> ثم أعد ضبطه.</p>
+
+        <h3>الصور لا تُرفع إلى الموقع</h3>
+        <p>هذه المشكلة تعني أن GITHUB_TOKEN غير مضبوط أو منتهي الصلاحية. أنشئ توكن جديد من GitHub: اذهب إلى Settings ← Developer settings ← Personal access tokens ← Generate new token، وفعّل صلاحية <code>repo</code>. ضع التوكن في متغير البيئة <code>GITHUB_TOKEN</code> في Render/Koyeb.</p>
+
+        <h3>البوصلة لا تتحدث تلقائياً</h3>
+        <p>البوصلة تتحدث يومياً الساعة 6 صباحاً تلقائياً، ومزامنة الموقع تتم عند كل تحديث. إذا لم تتحدث، تأكد من أن المهمة المجدولة (job_queue) تعمل — وهذا يتطلب أن البوت يعمل بشكل متواصل أو يستيقظ بصفة منتظمة. في Render المجاني، قد لا تعمل المهمة المجدولة بسبب النوم — يمكنك تحديث البوصلة يدوياً بأمر <code>/bousla</code> أو <code>/update_prices</code>.</p>
+
+        <h3>الأخبار لا تظهر على الموقع</h3>
+        <p>الأخبار تتحدث كل 3 أيام تلقائياً. يمكنك تحديثها يدوياً بأمر <code>/update_news</code> أو الضغط على زر "🗞️ تحديث الأخبار" في لوحة المدير. تأكد من أن ملف <code>offers-data/news.json</code> موجود في المستودع ومن أن الموقع يقرأ منه.</p>
+
+        <h2 id="summary">الخلاصة والمقارنة</h2>
+
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <thead>
+                <tr style="background: #0d7377; color: white;">
+                    <th style="padding: 12px; border: 1px solid #ddd;">الحل</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">التكلفة</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">٢٤/٧</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">الصعوبة</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">التوصية</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Render</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">مجاني</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">✅ (مع نوم)</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐ سهل</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐⭐⭐ الأفضل</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Koyeb</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">مجاني</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">✅</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐⭐ متوسط</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐⭐ جيد</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Railway</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">محدود مجاني</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">✅</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐ سهل</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐⭐ جيد</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Termux</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">مجاني</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">❌</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐⭐⭐ صعب</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐ للاختبار</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Pythonista</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">9.99$</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">❌</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐⭐ متوسط</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">⭐ للاختبار</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="tip">
+            <strong>🎯 التوصية النهائية:</strong> استخدم <strong>Render</strong> كحل أساسي مجاني. هو الأسهل في الإعداد، ويدعم Webhook (البوت يستيقظ عند كل رسالة)، ويتكامل مع GitHub تلقائياً. إذا واجهت مشاكل مع Render، استخدم <strong>Koyeb</strong> كبديل. استخدم <strong>Termux</strong> فقط للاختبار السريع من جوالك.
+        </div>
+
+        <div class="footer">
+            <p>📝 دليل تشغيل بوت مكتب آفاق الإنجاز العقاري</p>
+            <p>🌐 الموقع: <a href="https://abonasr0907-beep.github.io/-/">abonasr0907-beep.github.io/-/</a></p>
+            <p>🤖 البوت: <a href="https://t.me/tlastlastlasbot">@tlastlastlasbot</a></p>
+            <p>📞 للتواصل: 0545888931 — 0544699933</p>
+        </div>
+    </div>
+</body>
+</html>
