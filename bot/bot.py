@@ -1703,6 +1703,74 @@ async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(row)
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
 
+def _parse_request_from_callback_message(query, req_id):
+    """
+    استخراج بيانات الطلب من نص رسالة الإشعار (عندما لم يتم حفظ الطلب في visitor_requests.json).
+    يُستخدم كحل احتياطي عندما يُرسل الموقع الإشعار مباشرة عبر Telegram API
+    دون المرور بخادم البوت (الذي يحفظ الطلب).
+    """
+    if not query or not query.message:
+        return None
+    try:
+        text = query.message.text or ""
+        if not text:
+            text = query.message.html_text or ""
+        if not text:
+            return None
+
+        import re
+
+        def extract_field(text, label_pattern):
+            m = re.search(label_pattern, text, re.DOTALL)
+            if m:
+                return m.group(1).strip()
+            return ""
+
+        # إزالة وسوم HTML
+        clean_text = re.sub(r'<[^>]+>', '', text)
+
+        # استخراج الحقول حسب التسميات في رسالة الإشعار
+        name = extract_field(clean_text, r'اسم العميل:\s*(.+?)(?:\n|$)')
+        phone = extract_field(clean_text, r'رقم الهاتف:\s*(.+?)(?:\n|$)')
+        property_type = extract_field(clean_text, r'نوع العقار:\s*(.+?)(?:\n|$)')
+        location = extract_field(clean_text, r'الموقع:\s*(.+?)(?:\n|$)')
+        area = extract_field(clean_text, r'المساحة:\s*(\d[\d,]*)')
+        price = extract_field(clean_text, r'السعر التقريبي:\s*(\d[\d,]*)')
+        description = extract_field(clean_text, r'الوصف:\s*(.+?)(?:\n\n|\n📷|\n📄|$)')
+        latitude = extract_field(clean_text, r'خط العرض \(Latitude\):\s*(.+?)(?:\n|$)')
+        longitude = extract_field(clean_text, r'خط الطول \(Longitude\):\s*(.+?)(?:\n|$)')
+        maps_link = extract_field(clean_text, r'رابط Google Maps:\s*(.+?)(?:\n|$)')
+
+        img_match = re.search(r'الصور:\s*(\d+)', clean_text)
+        image_count = int(img_match.group(1)) if img_match else 0
+
+        if not name and not phone:
+            return None
+
+        request = {
+            "id": req_id,
+            "name": name,
+            "phone": phone,
+            "propertyType": property_type,
+            "location": location,
+            "area": area,
+            "price": price,
+            "description": description,
+            "latitude": latitude,
+            "longitude": longitude,
+            "mapsLink": maps_link,
+            "imageCount": image_count,
+            "source": "website_callback_fallback",
+            "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "status": "pending",
+        }
+        logger.info(f"\U0001f4cb تم استخراج بيانات الطلب من رسالة الإشعار: {req_id} \u2014 {name}")
+        return request
+    except Exception as e:
+        logger.error(f"\u274c خطأ في تحليل بيانات الطلب من الرسالة: {e}")
+        return None
+
+
 async def _approve_visitor_request(update, req_ref, query=None):
     """
     الموافقة على طلب زائر ونشره كعرض على الموقع:
@@ -1747,7 +1815,24 @@ async def _approve_visitor_request(update, req_ref, query=None):
             target_idx = req_ref
 
     if target is None:
-        msg = "\u26a0\ufe0f \u0637\u0644\u0628 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f."
+        # محاولة استخراج بيانات الطلب من رسالة الإشعار (حل احتياطي)
+        if isinstance(req_ref, str) and not req_ref.startswith("idx_"):
+            parsed = _parse_request_from_callback_message(query, req_ref)
+            if parsed:
+                # حفظ الطلب المستخرج في visitor_requests.json
+                try:
+                    vdata = load_visitor_requests()
+                    vdata.setdefault("requests", []).append(parsed)
+                    save_visitor_requests(vdata)
+                    logger.info(f"💾 تم حفظ الطلب المستخرج من الرسالة: {req_ref}")
+                    # إعادة البحث عن الطلب
+                    target = ("request", parsed)
+                    target_idx = len(vdata["requests"]) - 1
+                except Exception as e:
+                    logger.error(f"❌ خطأ في حفظ الطلب المستخرج: {e}")
+
+    if target is None:
+        msg = "⚠️ طلب غير موجود. قد لا تكون بياناته محفوظة."
         if query:
             await query.edit_message_text(msg)
         else:
@@ -1898,7 +1983,20 @@ async def _reject_visitor_request(update, req_ref, query=None):
             target = all_items[req_ref]
 
     if target is None:
-        msg = "\u26a0\ufe0f \u0637\u0644\u0628 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f."
+        # محاولة استخراج بيانات الطلب من رسالة الإشعار (حل احتياطي)
+        if isinstance(req_ref, str) and not req_ref.startswith("idx_"):
+            parsed = _parse_request_from_callback_message(query, req_ref)
+            if parsed:
+                try:
+                    data.setdefault("requests", []).append(parsed)
+                    save_visitor_requests(data)
+                    logger.info(f"💾 تم حفظ الطلب المستخرج من الرسالة للرفض: {req_ref}")
+                    target = ("request", parsed)
+                except Exception as e:
+                    logger.error(f"❌ خطأ في حفظ الطلب المستخرج: {e}")
+
+    if target is None:
+        msg = "⚠️ طلب غير موجود."
         if query:
             await query.edit_message_text(msg)
         else:
@@ -1911,7 +2009,7 @@ async def _reject_visitor_request(update, req_ref, query=None):
     item["rejected_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     save_visitor_requests(data)
 
-    msg = "\u274c \u062a\u0645 \u0631\u0641\u0636 \u0627\u0644\u0637\u0644\u0628. \u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062d\u0627\u0644\u0629 \u0625\u0644\u0649 \u0645\u0631\u0641\u0648\u0636 (\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u062a\u0633\u062c\u064a\u0644 \u0644\u0644\u0646\u0634\u0631)."
+    msg = "❌ تم رفض الطلب. تم تحديث الحالة إلى مرفوض (لم يتم التسجيل للنشر)."
     if query:
         await query.edit_message_text(msg)
     else:
@@ -3324,7 +3422,7 @@ def main():
         # في وضع polling: نحتاج لخادم API منفصل على منفذ 8080
         webhook_url_check = os.environ.get("WEBHOOK_URL", "").strip()
         if not webhook_url_check:
-            api_port = int(os.environ.get("API_PORT", "8080"))
+            api_port = int(os.environ.get("PORT", os.environ.get("API_PORT", "8080")))
             try:
                 start_api_server(api_port)
                 logger.info(f"🌐 خادم API جاهز لاستقبال طلبات الزوار على المنفذ {api_port}")
