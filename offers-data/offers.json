@@ -408,6 +408,23 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
       "featured": false
+    },
+    {
+      "id": "AFQ-2026-0010",
+      "type": "resthouse",
+      "category": "استراحة",
+      "title": "استراحة",
+      "area": "الرحمانية",
+      "size_sqm": 10000,
+      "price_text": "قابل للتفاوض",
+      "description": "✨ استراحة مميزة في الرحمانية بالخرج\n\nالمساحة: 10000 م²\neبيئة هادئة وموقع مميز. فرصة لا تفوت!\n\nتواصل: 0544699933",
+      "features": [],
+      "images": [
+        "images/bot/draft_0_1786291586.webp"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-09",
+      "featured": false
     }
   ]
 }
