@@ -4,4 +4,5 @@ httpx>=0.26.0
 APScheduler>=3.10.0
 requests==2.31.0
 aiofiles>=23.2.1
+aiohttp>=3.9.0
 # Force rebuild 2026-08-09

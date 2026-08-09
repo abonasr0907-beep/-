@@ -26,6 +26,8 @@ RUN mkdir -p /app/bot/data /app/bot/data/backups
 # Railway يوفر PORT تلقائياً عبر متغير البيئة
 # البوت يستخدم PORT في وضع webhook، أو polling إذا لم يوجد WEBHOOK_URL
 EXPOSE 10000
+# منفذ خادم API لاستقبال طلبات الزوار من الموقع (اختياري)
+EXPOSE 8080
 
 # تشغيل البوت مباشرة
 # python-telegram-bot يعيد التشغيل تلقائياً عند الأخطاء

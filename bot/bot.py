@@ -25,6 +25,7 @@ import shutil
 import logging
 import hashlib
 import asyncio
+import threading
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -2788,6 +2789,226 @@ def _setup_handlers(app):
         logger.info("🗞️ تم جدولة تحديث الأخبار — كل 3 أيام")
 
 
+
+# ============================================================
+#  خادم HTTP لاستقبال طلبات الزوار من الموقع (API Endpoint)
+#  يعمل في خيط منفصل بجانب البوت (polling أو webhook)
+# ============================================================
+
+# متغير عام لتخزين مرجع البوت (يُضبط عند بدء التشغيل)
+_bot_app_ref = None
+_api_loop = None
+
+
+def _set_bot_ref(app):
+    """تخزين مرجع تطبيق البوت للاستخدام من خادم HTTP"""
+    global _bot_app_ref
+    _bot_app_ref = app
+
+
+def _json_response(data, status=200):
+    """بناء استجابة JSON"""
+    try:
+        from aiohttp import web
+        return web.json_response(data, status=status)
+    except ImportError:
+        return None
+
+
+async def _handle_visitor_request_api(request):
+    """
+    استقبال طلب زائر من الموقع عبر HTTP POST
+    المسار: POST /api/visitor-request
+
+    البيانات المتوقعة (JSON):
+    {name, phone, propertyType, location, area, price, description,
+     latitude, longitude, mapsLink, imageCount, source}
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        try:
+            data = await request.post()
+            data = dict(data)
+        except Exception as e:
+            return _json_response({"ok": False, "error": f"invalid data: {e}"}, status=400)
+
+    # التحقق من الحقول الأساسية
+    if not data.get("name") or not data.get("phone"):
+        return _json_response({"ok": False, "error": "name and phone are required"}, status=400)
+
+    # بناء سجل الطلب
+    request_id = data.get("id", f"REQ-{int(time.time())}")
+    visitor_request = {
+        "id": request_id,
+        "name": str(data.get("name", "")),
+        "phone": str(data.get("phone", "")),
+        "propertyType": str(data.get("propertyType", data.get("property_type", ""))),
+        "location": str(data.get("location", "")),
+        "area": str(data.get("area", "")),
+        "price": str(data.get("price", "")),
+        "description": str(data.get("description", "")),
+        "latitude": str(data.get("latitude", "")),
+        "longitude": str(data.get("longitude", "")),
+        "mapsLink": str(data.get("mapsLink", data.get("maps_link", ""))),
+        "imageCount": int(data.get("imageCount", data.get("image_count", 0)) or 0),
+        "source": str(data.get("source", "website")),
+        "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "status": "pending",
+    }
+
+    # 1) حفظ الطلب في visitor_requests.json (الدوام بعد إعادة التشغيل)
+    try:
+        vdata = load_visitor_requests()
+        vdata.setdefault("requests", []).append(visitor_request)
+        save_visitor_requests(vdata)
+        logger.info(f"\U0001F4E5 تم حفظ طلب زائر جديد من الموقع: {request_id} \u2014 {visitor_request['name']}")
+    except Exception as e:
+        logger.error(f"\u274C خطأ في حفظ طلب الزائر: {e}")
+        return _json_response({"ok": False, "error": "save failed"}, status=500)
+
+    # 2) إرسال إشعار للمدير عبر البوت مع أزرار موافقة/رفض
+    try:
+        if _bot_app_ref and _bot_app_ref.bot:
+            await _notify_admins_new_request(_bot_app_ref.bot, visitor_request, vdata)
+        else:
+            logger.warning("\u26A0\uFE0F مرجع البوت غير متوفر \u2014 تم حفظ الطلب بدون إشعار تيليجرام")
+    except Exception as e:
+        logger.error(f"\u274C خطأ في إرسال إشعار المدير: {e}")
+
+    return _json_response({"ok": True, "id": request_id, "message": "تم استلام الطلب بنجاح"})
+
+
+async def _notify_admins_new_request(bot, visitor_request, vdata):
+    """إرسال إشعار للمدراء بطلب زائر جديد مع أزرار موافقة/رفض"""
+    requests_list = vdata.get("requests", [])
+    idx = len(requests_list) - 1
+
+    msg = (
+        "\U0001F514 <b>طلب عرض عقار جديد من الموقع</b>\n\n"
+        f"\U0001F464 <b>اسم العميل:</b> {visitor_request.get('name', '')}\n"
+        f"\U0001F4F1 <b>رقم الهاتف:</b> {visitor_request.get('phone', '')}\n"
+        f"\U0001F3F7\uFE0F <b>نوع العقار:</b> {visitor_request.get('propertyType', '')}\n"
+        f"\U0001F4CD <b>الموقع:</b> {visitor_request.get('location', '')}\n"
+        f"\U0001F4D0 <b>المساحة:</b> {visitor_request.get('area', '')} م²\n"
+        f"\U0001F4B0 <b>السعر التقريبي:</b> {visitor_request.get('price', '')} ريال\n"
+    )
+
+    if visitor_request.get("description"):
+        msg += f"\n\u2139\uFE0F <b>الوصف:</b>\n{visitor_request['description']}\n"
+
+    if visitor_request.get("latitude") and visitor_request.get("longitude"):
+        maps_url = visitor_request.get("mapsLink") or f"https://www.google.com/maps?q={visitor_request['latitude']},{visitor_request['longitude']}"
+        msg += (
+            f"\n\U0001F5FA\uFE0F <b>موقع العقار على الخريطة:</b>\n"
+            f"   <b>خط العرض (Latitude):</b> {visitor_request['latitude']}\n"
+            f"   <b>خط الطول (Longitude):</b> {visitor_request['longitude']}\n"
+            f"   <b>رابط Google Maps:</b> {maps_url}\n"
+        )
+
+    img_count = visitor_request.get("imageCount", 0)
+    img_note = " (يُرفقها العميل عبر WhatsApp)" if img_count > 0 else ""
+    msg += (
+        f"\n\U0001F4F8 <b>الصور:</b> {img_count} صورة{img_note}\n"
+        f"\U0001F4C4 <b>رقم الطلب:</b> <code>{visitor_request.get('id', '')}</code>\n"
+        f"\U0001F550 <b>التاريخ:</b> {visitor_request.get('submitted_at', '')}\n"
+        f"\n\U0001F4A1 مكتب آفاق الإنجاز العقاري\n"
+        f"\U0001F310 abonasr0907-beep.github.io/-"
+    )
+
+    # أزرار الموافقة والرفض
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("\u2705 موافقة ونشر", callback_data=f"approve_{idx}")],
+        [InlineKeyboardButton("\u274C رفض", callback_data=f"reject_{idx}")],
+    ])
+
+    sent_count = 0
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_message(
+                admin_id,
+                msg,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+                disable_web_page_preview=True,
+            )
+            sent_count += 1
+        except Exception as e:
+            logger.error(f"\u274C فشل إرسال إشعار للمدير {admin_id}: {e}")
+
+    logger.info(f"\U0001F4E4 تم إرسال إشعار طلب زائر إلى {sent_count} مدير")
+
+
+async def _handle_health(request):
+    """فحص صحة الخادم"""
+    return _json_response({"ok": True, "status": "running", "bot": "afaq"})
+
+
+async def _handle_root(request):
+    """الصفحة الرئيسية للخادم"""
+    return _json_response({
+        "ok": True,
+        "service": "Afaq Real Estate Bot API",
+        "endpoints": ["/api/visitor-request", "/health"]
+    })
+
+
+def _create_api_app():
+    """إنشاء تطبيق aiohttp لخادم API"""
+    try:
+        from aiohttp import web
+    except ImportError:
+        logger.error("\u274C aiohttp غير متوفر \u2014 لا يمكن تشغيل خادم API")
+        return None
+
+    app = web.Application()
+    app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
+    app.router.add_get("/api/visitor-request", _handle_root)
+    app.router.add_get("/health", _handle_health)
+    app.router.add_get("/", _handle_root)
+    return app
+
+
+def _run_api_server(port):
+    """تشغيل خادم API في خيط منفصل"""
+    try:
+        from aiohttp import web
+    except ImportError:
+        logger.warning("\u26A0\uFE0F aiohttp غير متوفر \u2014 خادم API معطل")
+        return
+
+    api_app = _create_api_app()
+    if api_app is None:
+        return
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    global _api_loop
+    _api_loop = loop
+
+    runner = web.AppRunner(api_app)
+    loop.run_until_complete(runner.setup())
+
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    loop.run_until_complete(site.start())
+
+    logger.info(f"\U0001F310 خادم API يعمل على المنفذ {port}")
+    logger.info(f"   المسارات: POST /api/visitor-request, GET /health")
+
+    try:
+        loop.run_forever()
+    except Exception as e:
+        logger.error(f"\u274C خادم API توقف: {e}")
+
+
+def start_api_server(port=8080):
+    """بدء خادم API في خيط خلفي"""
+    thread = threading.Thread(target=_run_api_server, args=(port,), daemon=True)
+    thread.start()
+    logger.info(f"\U0001F504 تم بدء خيط خادم API على المنفذ {port}")
+    return thread
+
+
 # ============================================================
 def main():
     """
@@ -2825,12 +3046,23 @@ def main():
 
     # ── بناء التطبيق ──
     async def _post_init(app):
-        """تهيئة ما قبل التشغيل — تشغيل طابور العمليات"""
+        """تهيئة ما قبل التشغيل — تشغيل طابور العمليات + خادم API"""
+        # تخزين مرجع البوت لاستخدامه من خادم HTTP
+        _set_bot_ref(app)
+
         try:
             await task_queue.start_worker()
             logger.info("🔄 تم تشغيل طابور العمليات الثقيلة")
         except Exception as e:
             logger.error(f"⚠️ خطأ في تشغيل طابور العمليات: {e}")
+
+        # ── بدء خادم API لاستقبال طلبات الزوار من الموقع ──
+        api_port = int(os.environ.get("API_PORT", "8080"))
+        try:
+            start_api_server(api_port)
+            logger.info(f"🌐 خادم API جاهز لاستقبال طلبات الزوار على المنفذ {api_port}")
+        except Exception as e:
+            logger.error(f"⚠️ خطأ في بدء خادم API: {e}")
 
     app = (
         Application.builder()

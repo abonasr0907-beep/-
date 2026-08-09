@@ -15,6 +15,116 @@ const OFFICE_DATA = {
     // telegramBot: مخفي عن العامة — للاستخدام الإداري فقط
 };
 
+// ===== إعدادات جسر تيليجرام (إرسال طلبات الزوار إلى البوت) =====
+// يتم إرسال الطلب مباشرة إلى Telegram Bot API ليصلك إشعار فوري في البوت
+const TELEGRAM_BRIDGE = {
+    botToken: "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os",
+    adminChatId: "7746757675",
+    apiBase: "https://api.telegram.org/bot",
+    // رابط خادم البوت على Railway (اختياري — لتخزين الطلب في قائمة طلبات الزوار)
+    // يُترك فارغاً إن لم يكن متوفراً؛ الإشعار يصل عبر Telegram Bot API مباشرة
+    botApiUrl: ""
+};
+
+// ===== إرسال طلب الزائر إلى تيليجرام (إشعار فوري للمكتب) =====
+// تعمل هذه الدالة بصمت في الخلفية ولا تؤثر على إرسال WhatsApp
+async function notifyTelegramAdmin(requestData) {
+    try {
+        // بناء رسالة تيليجرام بصيغة HTML واضحة ومنسقة
+        let html = '<b>🔔 طلب عرض عقار جديد من الموقع</b>\n\n';
+        html += `<b>👤 اسم العميل:</b> ${escapeHtml(requestData.name || 'غير محدد')}\n`;
+        html += `<b>📱 رقم الهاتف:</b> ${escapeHtml(requestData.phone || 'غير محدد')}\n`;
+        html += `<b>🏷️ نوع العقار:</b> ${escapeHtml(requestData.propertyType || 'غير محدد')}\n`;
+        html += `<b>📍 الموقع:</b> ${escapeHtml(requestData.location || 'غير محدد')}\n`;
+        html += `<b>📐 المساحة:</b> ${escapeHtml(requestData.area || 'غير محدد')} م²\n`;
+        html += `<b>💰 السعر التقريبي:</b> ${escapeHtml(requestData.price || 'غير محدد')} ريال\n`;
+
+        if (requestData.description && requestData.description.trim()) {
+            html += `\n<b>ℹ️ الوصف:</b>\n${escapeHtml(requestData.description)}\n`;
+        }
+
+        // معلومات الموقع الجغرافي
+        if (requestData.latitude && requestData.longitude) {
+            html += `\n<b>🗺️ موقع العقار على الخريطة:</b>\n`;
+            html += `<b>خط العرض (Latitude):</b> ${requestData.latitude}\n`;
+            html += `<b>خط الطول (Longitude):</b> ${requestData.longitude}\n`;
+            html += `<b>🔗 رابط Google Maps:</b> ${requestData.mapsLink || 'https://www.google.com/maps?q=' + requestData.latitude + ',' + requestData.longitude}\n`;
+        }
+
+        // معلومات الصور
+        html += `\n<b>📸 الصور:</b> ${requestData.imageCount || 0} صورة`;
+        if ((requestData.imageCount || 0) > 0) {
+            html += ' (يُرفقها العميل عبر WhatsApp)';
+        }
+        html += '\n';
+
+        html += `\n<b>📄 رقم الطلب:</b> <code>${requestData.id}</code>\n`;
+        html += `<b>🕐 التاريخ:</b> ${new Date().toLocaleString('ar-SA')}\n`;
+        html += `\n<b>💡 مكتب آفاق الإنجاز العقاري</b>\n🌐 abonasr0907-beep.github.io/-`;
+
+        const url = TELEGRAM_BRIDGE.apiBase + TELEGRAM_BRIDGE.botToken + "/sendMessage";
+        const body = new URLSearchParams();
+        body.append('chat_id', TELEGRAM_BRIDGE.adminChatId);
+        body.append('text', html);
+        body.append('parse_mode', 'HTML');
+        body.append('disable_web_page_preview', 'true');
+
+        const response = await fetch(url, {
+            method: 'POST',
+            body: body,
+        });
+
+        if (response.ok) {
+            console.log('✅ تم إرسال إشعار تيليجرام بنجاح');
+            // محاولة إرسال نسخة إلى خادم البوت (لتخزينها في قائمة طلبات الزوار)
+            sendToBotApi(requestData).catch(() => {});
+            return true;
+        } else {
+            console.warn('⚠️ فشل إرسال إشعار تيليجرام:', response.status);
+            // حتى لو فشل الإشعار المباشر، نحاول خادم البوت
+            sendToBotApi(requestData).catch(() => {});
+            return false;
+        }
+    } catch (err) {
+        // لا نريد أن يفشل النموذج إذا تعذر إرسال تيليجرام
+        console.warn('⚠️ خطأ في إرسال تيليجرام (لن يؤثر على الإرسال):', err.message);
+        // محاولة بديلة عبر خادم البوت
+        sendToBotApi(requestData).catch(() => {});
+        return false;
+    }
+}
+
+// ===== إرسال الطلب إلى خادم البوت على Railway (اختياري) =====
+// يخزن الطلب في visitor_requests.json ليظهر في زر "طلبات الزوار"
+async function sendToBotApi(requestData) {
+    if (!TELEGRAM_BRIDGE.botApiUrl) return false; // غير مُكوّن — تخطي بصمت
+    try {
+        const apiUrl = TELEGRAM_BRIDGE.botApiUrl.replace(/\/+$/, '') + '/api/visitor-request';
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData),
+        });
+        if (response.ok) {
+            console.log('✅ تم تخزين الطلب في خادم البوت');
+            return true;
+        }
+        console.warn('⚠️ خادم البوت لم يستجب:', response.status);
+        return false;
+    } catch (err) {
+        console.warn('⚠️ تعذر الوصول لخادم البوت (طبيعي إن لم يكن مُكوّناً):', err.message);
+        return false;
+    }
+}
+
+// ===== دالة مساعدة لتأمين النص HTML =====
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
 // ===== أسعار البوصلة العقارية حسب المنطقة =====
 const BOUSLA_PRICES = {
     "الرحمانية": { land: "850 ريال/م²", farm: "120 ريال/م²", resthouse: "350K - 1.2M ريال" },
@@ -619,6 +729,23 @@ function submitPropertyForm(event) {
     const whatsappUrl = `https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`;
     window.open(whatsappUrl, '_blank');
 
+    // ── إرسال نسخة إلى بوت تيليجرام (إشعار فوري للمكتب) ──
+    // يتم الإرسال بصمت في الخلفية ولا يؤثر على WhatsApp
+    notifyTelegramAdmin({
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        propertyType: data.propertyType,
+        location: data.location,
+        area: data.area,
+        price: data.price,
+        description: data.description,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        mapsLink: data.mapsLink,
+        imageCount: selectedImages.length,
+    }).catch(() => {}); // تجاهل الأخطاء بصمت
+
     // عرض رسالة النجاح
     const fs = document.getElementById('form-success');
     if (fs) fs.classList.add('show');
@@ -661,6 +788,18 @@ function submitInquiryForm(event) {
         (data.details ? `*التفاصيل:* ${data.details}\n` : '');
 
     window.open(`https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+
+    // ── إرسال نسخة استفسار إلى بوت تيليجرام ──
+    notifyTelegramAdmin({
+        id: data.id,
+        name: data.name,
+        phone: data.phone,
+        propertyType: data.propertyType || data.property_type || '',
+        location: data.location || data.area || '',
+        area: data.area || data.size || '',
+        price: data.budget || '',
+        description: data.details || '',
+    }).catch(() => {});
 
     const fs2 = document.getElementById('form-success');
     if (fs2) fs2.classList.add('show');
