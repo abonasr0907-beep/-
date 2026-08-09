@@ -47,6 +47,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardRemove,
+    InputMediaPhoto,
 )
 from telegram.ext import (
     Application,
@@ -490,6 +491,12 @@ VISITOR_CANCEL_KEYBOARD = ReplyKeyboardMarkup(
     resize_keyboard=True,
 )
 
+ADMIN_CANCEL_KEYBOARD = ReplyKeyboardMarkup(
+    [["❌ إلغء العملية"]],
+    one_time_keyboard=True,
+    resize_keyboard=True,
+)
+
 # ============================================================
 #  لوحة المفاتيح الرئيسية
 # ============================================================
@@ -651,7 +658,9 @@ async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "عند الانتهاء أرسل الكلمة: تم ✅\n\n"
         f"الحد الأقصى: {CONFIG['max_images']} صور.\n\n"
         "💡 ملاحظة: يمكنك إرسال الصور بالتتابع. إذا انقطع الاتصال، "
-        "يمكنك استئناف العرض لاحقاً بكتابة /add مرة أخرى."
+        "يمكنك استئناف العرض لاحقاً بكتابة /add مرة أخرى.\n\n"
+        "❌ للإلغاء اضغط: إلغاء العملية",
+        reply_markup=ADMIN_CANCEL_KEYBOARD,
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -824,6 +833,17 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
     session = get_session(uid)
     text = update.message.text.strip()
 
+    # Task 6: إلغاء العملية في أي مرحلة
+    if text == "❌ إلغاء العملية" or text == "❌ إلغاء":
+        reset_session(uid)
+        await update.message.reply_text(
+            "❌ تم إلغاء عملية إضافة العرض.\n"
+            "لم يتم حفظ أي بيانات.\n\n"
+            "للبدء من جديد اضغط: ➕ إضافة عرض جديد",
+            reply_markup=MAIN_KEYBOARD,
+        )
+        return
+
     # خلال انتظار الصور
     if session["state"] == "awaiting_images":
         if text in ["تم", "تم ✅", "✅", "انتهيت"]:
@@ -834,7 +854,8 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
             save_session(uid)  # حفظ الحالة على القرص
             await update.message.reply_text(
                 f"📸 تم استلام {len(session['images'])} صورة.\n\n"
-                "الآن أرسل عنوان العرض (مثال: مزرعة زراعية كاملة بمخطط الرحمانية):"
+                "الآن أرسل عنوان العرض (مثال: مزرعة زراعية كاملة بمخطط الرحمانية):",
+                reply_markup=ADMIN_CANCEL_KEYBOARD,
             )
         else:
             await update.message.reply_text("أرسل صورة أو اكتب: تم ✅")
@@ -852,7 +873,8 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         save_session(uid)  # حفظ الحالة على القرص
         await update.message.reply_text(
             f"🏷️ تم التصنيف تلقائياً: {session['offer']['category']}\n\n"
-            "الآن أرسل المنطقة (مثال: الرحمانية / الهياثم / الدلم / الضبيعة / العفجة):"
+            "الآن أرسل المنطقة (مثال: الرحمانية / الهياثم / الدلم / الضبيعة / العفجة):",
+            reply_markup=ADMIN_CANCEL_KEYBOARD,
         )
         return
 
@@ -861,7 +883,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         session["offer"]["area"] = text
         session["state"] = "awaiting_size"
         save_session(uid)  # حفظ الحالة على القرص
-        await update.message.reply_text("📐 أرسل المساحة بالمتر المربع (رقم فقط):")
+        await update.message.reply_text("📐 أرسل المساحة بالمتر المربع (رقم فقط):", reply_markup=ADMIN_CANCEL_KEYBOARD)
         return
 
     # المساحة
@@ -874,7 +896,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
             return
         session["state"] = "awaiting_price"
         save_session(uid)  # حفظ الحالة على القرص
-        await update.message.reply_text("💰 أرسل السعر (مثال: 1,200,000 رياال أو قابل للتفاوض):")
+        await update.message.reply_text("💰 أرسل السعر (مثال: 1,200,000 رياال أو قابل للتفاوض):", reply_markup=ADMIN_CANCEL_KEYBOARD)
         return
 
     # السعر
@@ -1001,7 +1023,8 @@ async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session["state"] = "awaiting_map"
         await update.message.reply_text(
             "🗺️ أرسل رابط Google Maps للعقار.\n"
-            "أو أرسل «لا» لاستخدام موقع المكتب الافتراضي."
+            "أو أرسل «لا» لاستخدام موقع المكتب الافتراضي.",
+            reply_markup=ADMIN_CANCEL_KEYBOARD,
         )
 
 # ============================================================
@@ -1491,7 +1514,15 @@ async def _finalize_offer(update, uid, query=None):
     site_data["offers"].append(offer)
     save_offers_json(site_data)
 
+    # Task 4: المرحلة 1 — إظهار "جارٍ النشر..."
+    if query:
+        try:
+            await query.edit_message_text("⏳ جارٍ نشر العرض...", reply_markup=None)
+        except Exception:
+            pass
+
     # رفع العرض والصور إلى GitHub → إعادة نشر تلقائية على الموقع العام
+    # Task 5: تنفيذ غير متزامن (non-blocking) باستخدام asyncio.to_thread
     try:
         sync_pairs = []
         for rel in offer["images"]:
@@ -1499,8 +1530,9 @@ async def _finalize_offer(update, uid, query=None):
             if local_full.exists():
                 sync_pairs.append((str(local_full), rel))
         if sync_pairs:
-            ok = github_sync.sync_offer_to_github(offer, sync_pairs)
             if github_sync.is_enabled():
+                # Task 5: تشغيل المزامنة في خيط منفصل لعدم تعطيل البوت
+                ok = await asyncio.to_thread(github_sync.sync_offer_to_github, offer, sync_pairs)
                 sync_note = " ✅ ورفعت على الموقع العام" if ok else " (تحذير: لم تكتمل المزامنة)"
             else:
                 sync_note = " (محلياً — اضبط GITHUB_TOKEN للنشر العام)"
@@ -1508,8 +1540,21 @@ async def _finalize_offer(update, uid, query=None):
             sync_note = ""
     except Exception as e:
         logger.error(f"خطأ في المزامنة مع GitHub: {e}")
-        sync_note = " (تعذّرت المزامنة)"
+        sync_note = f" (تعذّرت المزامنة: {e})"
 
+    # Task 4: التحقق من نجاح النشر — تأكد أن العرض موجود في offers.json
+    verify_data = load_offers_json()
+    verify_ok = any(o.get("id") == offer["id"] for o in verify_data.get("offers", []))
+    if not verify_ok:
+        err_msg = "❌ فشل النشر\n\nالسبب: العرض غير موجود في بيانات الموقع بعد الحفظ"
+        if query:
+            await query.edit_message_text(err_msg)
+        else:
+            await update.message.reply_text(err_msg)
+        return
+
+    # Task 4: المرحلة 2 — نجاح النشر
+    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
@@ -1518,7 +1563,7 @@ async def _finalize_offer(update, uid, query=None):
         f"📐 المساحة: {offer['size_sqm']} م²\n"
         f"💰 السعر: {offer['price_text']}\n"
         f"📸 عدد الصور: {len(offer['images'])}\n\n"
-        f"🌐 تم النشر مباشرة على الموقع."
+        f"🌐 رابط العرض على الموقع:\n{site_url}"
     )
     if query:
         await query.edit_message_text(msg)
@@ -1920,27 +1965,71 @@ async def _approve_visitor_request(update, req_ref, query=None):
     if item.get("description"):
         offer["description"] += f"\n\n\U0001F4DD {item['description']}"
 
+    # Task 4: المرحلة 1 — إظهار "جارٍ النشر..." فوراً
+    if query:
+        try:
+            await query.edit_message_text(
+                "⏳ جارٍ نشر العرض على الموقع...",
+                reply_markup=None,
+            )
+        except Exception:
+            pass
+
     # 4) حفظ في عروض البوت
-    bot_data = load_bot_offers()
-    bot_data["offers"].append(offer)
-    save_bot_offers(bot_data)
+    try:
+        bot_data = load_bot_offers()
+        bot_data["offers"].append(offer)
+        save_bot_offers(bot_data)
+    except Exception as e:
+        # Task 4: المرحلة 3 — فشل النشر
+        err_msg = f"❌ فشل النشر\n\nالسبب: خطأ في حفظ بيانات العرض\n{e}"
+        if query:
+            await query.edit_message_text(err_msg)
+        else:
+            await update.message.reply_text(err_msg)
+        return
 
     # 5) نشر مباشر على الموقع
-    site_data = load_offers_json()
-    site_data["offers"].append(offer)
-    save_offers_json(site_data)
+    try:
+        site_data = load_offers_json()
+        site_data["offers"].append(offer)
+        save_offers_json(site_data)
+    except Exception as e:
+        err_msg = f"❌ فشل النشر\n\nالسبب: خطأ في حفظ العرض على الموقع\n{e}"
+        if query:
+            await query.edit_message_text(err_msg)
+        else:
+            await update.message.reply_text(err_msg)
+        return
 
-    # 6) مزامنة مع GitHub
+    # Task 4: التحقق من نجاح النشر — تأكد أن العرض موجود في offers.json
+    verify_data = load_offers_json()
+    verify_ok = any(o.get("id") == offer_id for o in verify_data.get("offers", []))
+    if not verify_ok:
+        err_msg = "❌ فشل النشر\n\nالسبب: العرض غير موجود في بيانات الموقع بعد الحفظ"
+        if query:
+            await query.edit_message_text(err_msg)
+        else:
+            await update.message.reply_text(err_msg)
+        return
+
+    # 6) مزامنة مع GitHub — Task 5: تنفيذ غير متزامن (non-blocking) باستخدام asyncio.to_thread
     sync_note = ""
+    sync_ok = True
     try:
         if github_sync.is_enabled():
-            ok = github_sync.sync_offer_to_github(offer, [])
-            sync_note = " \u2705 \u0648\u0631\u0641\u0639\u062a \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0642\u0639" if ok else " (\u062a\u062d\u0630\u064a\u0631: \u0644\u0645 \u062a\u0643\u062a\u0645\u0644 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629)"
+            # Task 5: تشغيل المزامنة في خيط منفصل لعدم تعطيل البوت
+            sync_ok = await asyncio.to_thread(github_sync.sync_offer_to_github, offer, [])
+            if sync_ok:
+                sync_note = " ✅ ورفعت على الموقع"
+            else:
+                sync_note = " (تحذير: لم تكتمل المزامنة مع GitHub)"
         else:
-            sync_note = " (\u0645\u062d\u0644\u064a\u0627\u064b \u2014 \u0627\u0636\u0628\u0637 GITHUB_TOKEN \u0644\u0644\u0646\u0634\u0631 \u0627\u0644\u0639\u0627\u0645)"
+            sync_note = " (محلياً — اضبط GITHUB_TOKEN للنشر العام)"
     except Exception as e:
-        logger.error(f"\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629: {e}")
-        sync_note = " (\u062a\u0639\u0630\u0651\u0631\u062a \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629)"
+        logger.error(f"خطأ في المزامنة: {e}")
+        sync_note = f" (تعذّرت المزامنة: {e})"
+        sync_ok = False
 
     # 7) تحديث حالة الطلب إلى approved (لا يحذف)
     item["status"] = "approved"
@@ -1952,23 +2041,34 @@ async def _approve_visitor_request(update, req_ref, query=None):
     try:
         _do_price_update()
     except Exception as e:
-        logger.error(f"\u062e\u0637\u0623 \u0641\u064a \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0628\u0648\u0635\u0644\u0629: {e}")
+        logger.error(f"خطأ في تحديث البوصلة: {e}")
 
+    # Task 4: المرحلة 2 — نجاح النشر
+    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
     msg = (
-        f"\u2705 \u062a\u0645\u062a \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0648\u0646\u0634\u0631 \u0627\u0644\u0639\u0631\u0636!{sync_note}\n\n"
-        f"\U0001F194 \u0627\u0644\u0645\u0639\u0631\u0641: {offer_id}\n"
-        f"\U0001F3F7\ufe0f \u0627\u0644\u0646\u0648\u0639: {offer['category']}\n"
-        f"\U0001F4CD \u0627\u0644\u0645\u0646\u0637\u0642\u0629: {offer['area']}\n"
-        f"\U0001F4D0 \u0627\u0644\u0645\u0633\u0627\u062d\u0629: {offer['size_sqm']} \u0645\u00b2\n"
-        f"\U0001F4B0 \u0627\u0644\u0645\u0639\u0631\u0648\u0636: {offer['price_text']}\n"
-        f"\U0001F5FA\ufe0f \u0627\u0644\u0645\u0648\u0642\u0639: \u062a\u0645 \u0627\u0633\u062a\u0628\u062f\u0627\u0644\u0647 \u0628\u0645\u0648\u0642\u0639 \u0627\u0644\u0645\u0643\u062a\u0628 \u0627\u0644\u062b\u0627\u0628\u062a\n"
-        f"\U0001F4F8 \u0627\u0644\u0635\u0648\u0631: {len(offer.get('images', []))} \u0635\u0648\u0631\u0629\n\n"
-        f"\U0001F310 \u062a\u0645 \u0627\u0644\u0646\u0634\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0642\u0639."
+        f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
+        f"🆔 المعرف: {offer_id}\n"
+        f"🏷️ النوع: {offer['category']}\n"
+        f"📍 المنطقة: {offer['area']}\n"
+        f"📐 المساحة: {offer['size_sqm']} م²\n"
+        f"💰 المعروض: {offer['price_text']}\n"
+        f"🗺️ الموقع: تم استبداله بموقع المكتب الثابت\n"
+        f"📸 الصور: {len(offer.get('images', []))} صورة\n\n"
+        f"🌐 رابط العرض على الموقع:\n{site_url}"
     )
     if query:
         await query.edit_message_text(msg)
     else:
         await update.message.reply_text(msg)
+
+    # Task 4: حذف رسالة الطلب الأصلية بعد نجاح النشر
+    if query and query.message:
+        try:
+            await query.message.delete()
+        except Exception as de:
+            logger.warning(f"⚠️ تعذّر حذف رسالة الطلب الأصلية: {de}")
+
+    reset_session(str(uid))
 
 
 async def _reject_visitor_request(update, req_ref, query=None):
@@ -3320,8 +3420,38 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
     ])
 
     sent_count = 0
+    # Task 2: إرسال الصور الفعلية كمجموعة وسائط (media group) إن وُجدت
+    image_paths_local = []
+    for img_rel in visitor_request.get("images", []):
+        local_p = WEBSITE_DIR / img_rel
+        if local_p.exists():
+            image_paths_local.append(str(local_p))
+    # إذا لم توجد مسارات في الطلب، ابحث في مجلد images/visitor/{id}/
+    if not image_paths_local:
+        req_id_imgs = visitor_request.get("id", "")
+        if req_id_imgs:
+            visitor_img_folder = WEBSITE_DIR / "images" / "visitor" / req_id_imgs
+            if visitor_img_folder.exists():
+                for p in sorted(visitor_img_folder.glob("*")):
+                    if p.suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+                        image_paths_local.append(str(p))
+
     for admin_id in ADMIN_IDS:
         try:
+            # إرسال الصور كمجموعة وسائط إن وُجدت (حتى 10 صور لكل مجموعة)
+            if image_paths_local:
+                media_group = []
+                for img_path in image_paths_local[:10]:
+                    try:
+                        media_group.append(InputMediaPhoto(open(img_path, "rb")))
+                    except Exception as ie:
+                        logger.warning(f"\u26a0\ufe0f تعذّر فتح الصورة {img_path}: {ie}")
+                if media_group:
+                    try:
+                        await bot.send_media_group(admin_id, media=media_group)
+                    except Exception as mge:
+                        logger.warning(f"\u26a0\ufe0f فشل إرسال مجموعة الصور: {mge}")
+            # إرسال الرسالة النصية مع أزرار الموافقة/الرفض
             await bot.send_message(
                 admin_id,
                 msg,
@@ -3331,7 +3461,7 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
             )
             sent_count += 1
         except Exception as e:
-            logger.error(f"\u274C فشل إرسال إشعار للمدير {admin_id}: {e}")
+            logger.error(f"\u274c فشل إرسال إشعار للمدير {admin_id}: {e}")
 
     logger.info(f"\U0001F4E4 تم إرسال إشعار طلب زائر إلى {sent_count} مدير")
 
@@ -3451,6 +3581,25 @@ async def _handle_visitor_images_api(request):
                 logger.info(f"☁️ تم رفع {gh_uploaded}/{len(image_paths)} صورة على GitHub")
         except Exception as e:
             logger.error(f"❌ خطأ في رفع الصور على GitHub: {e}")
+
+
+        # Task 2: إرسال الصور الفعلية للمديرين عبر البوت (media group)
+        try:
+            if _bot_app_ref and _bot_app_ref.bot:
+                media_group = []
+                for img_rel in image_paths[:10]:
+                    local_full = WEBSITE_DIR / img_rel
+                    if local_full.exists():
+                        media_group.append(InputMediaPhoto(open(str(local_full), "rb")))
+                if media_group:
+                    for admin_id in ADMIN_IDS:
+                        try:
+                            await _bot_app_ref.bot.send_media_group(admin_id, media=media_group)
+                        except Exception as mge:
+                            logger.warning(f"\u26a0\ufe0f فشل إرسال صور الطلب {request_id} للمدير: {mge}")
+                    logger.info(f"\U0001F4F8 تم إرسال {len(media_group)} صورة لطلب {request_id} للمديرين")
+        except Exception as e:
+            logger.error(f"\u274c خطأ في إرسال صور الطلب للمديرين: {e}")
 
         return web.json_response({
             "ok": True,

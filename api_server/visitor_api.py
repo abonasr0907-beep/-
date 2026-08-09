@@ -151,6 +151,56 @@ async def send_telegram_notification(req):
                 print(f"[API] ❌ فشل إرسال الإشعار: {result}")
                 return False
 
+async def send_telegram_images(request_id, image_data_list):
+    """
+    إرسال صور الطلب للمدير عبر Telegram sendMediaGroup API
+    image_data_list: قائمة من (filename, bytes)
+    """
+    if not image_data_list:
+        return True
+
+    url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendMediaGroup"
+
+    # بناء حقل media كـ JSON يحتوي على مراجع attach:// للصور
+    import json as _json
+    media = []
+    for idx, (filename, data) in enumerate(image_data_list[:10]):
+        media.append({
+            "type": "photo",
+            "media": f"attach://photo_{idx}",
+        })
+
+    # إضافة عنوان تشتيلي على أول صورة
+    if media:
+        media[0]["caption"] = f"📸 صور طلب زائر: {request_id}"
+
+    form = aiohttp.FormData()
+    form.add_field("chat_id", ADMIN_CHAT_ID)
+    form.add_field("media", _json.dumps(media))
+
+    for idx, (filename, data) in enumerate(image_data_list[:10]):
+        form.add_field(
+            f"photo_{idx}",
+            data,
+            filename=filename,
+            content_type="image/jpeg",
+        )
+
+    try:
+        async with ClientSession() as session:
+            async with session.post(url, data=form) as resp:
+                result = await resp.json()
+                if result.get("ok"):
+                    print(f"[API] ✅ تم إرسال {len(image_data_list[:10])} صورة للمدير: {request_id}")
+                    return True
+                else:
+                    print(f"[API] ❌ فشل إرسال الصور: {result}")
+                    return False
+    except Exception as e:
+        print(f"[API] ❌ خطأ في إرسال الصور: {e}")
+        return False
+
+
 # ===== معالج API =====
 
 async def handle_visitor_request(request):
@@ -257,6 +307,11 @@ async def handle_visitor_images(request):
             return web.json_response({"ok": False, "error": "failed to upload images"}, status=500)
 
         updated = await github_update_request_images(request_id, image_paths)
+        # Task 2: إرسال الصور الفعلية للمدير عبر Telegram
+        try:
+            await send_telegram_images(request_id, image_files)
+        except Exception as e:
+            print(f"[API] ⚠️ تعذّر إرسال الصور للمدير: {e}")
         return web.json_response({"ok": True, "requestId": request_id, "images": image_paths, "count": len(image_paths), "updated": updated})
     except Exception as e:
         print(f"[API] ❌ خطأ في رفع الصور: {e}")

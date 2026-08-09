@@ -162,6 +162,27 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ===== Task 3: فتح WhatsApp بطريقة أسرع =====
+// استخدام عنصر <a> مخفي مع target=_blank بدل window.open المتزامن
+// هذا أسرع ولا يعطل الصفحة
+function openWhatsAppFast(url) {
+    try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        // تنظيف العنصر بعد فتح الرابط
+        setTimeout(() => { try { document.body.removeChild(a); } catch(e) {} }, 100);
+    } catch (e) {
+        // احتياط: إذا فشلت الطريقة السريعة، استخدم location.href
+        console.warn('⚠️ استخدام location.href كاحتياط:', e.message);
+        window.location.href = url;
+    }
+}
+
 // ===== أسعار البوصلة العقارية حسب المنطقة =====
 const BOUSLA_PRICES = {
     "الرحمانية": { land: "850 ريال/م²", farm: "120 ريال/م²", resthouse: "350K - 1.2M ريال" },
@@ -542,6 +563,51 @@ let mapMarker = null;
 let selectedImages = [];
 const MAX_IMAGES = 5;
 
+// ===== تنسيق الأرقام بفواصل آلاف أثناء الكتابة (Task 7) =====
+// تأخذ القيمة الخام وتعيدها مع فواصل آلاف للعرض
+// وتحفظ على القيمة الأصلية (بدون فواصل) في data-raw
+function formatPriceInput(input) {
+    if (!input) return;
+    // استخراج الأرقام فقط من القيمة الحالية
+    let raw = (input.value || '').replace(/[^0-9]/g, '');
+    // إزالة الأصفار البادئة
+    raw = raw.replace(/^0+/, '') || '';
+    // حفظ القيمة الخام في data-raw
+    input.setAttribute('data-raw', raw);
+    // تنسيق بالفواصل للعرض
+    if (raw) {
+        input.value = formatNumber(raw);
+    } else {
+        input.value = '';
+    }
+    // تحديث تلميح السعر إن وجد
+    const hint = document.getElementById('price-formatted-hint');
+    if (hint && input.id === 'price-input') {
+        if (raw && parseInt(raw) > 0) {
+            hint.textContent = 'سيظهر للزوار: ' + formatNumber(raw) + ' ريال';
+            hint.style.display = 'block';
+        } else {
+            hint.style.display = 'none';
+        }
+    }
+}
+
+// دالة مساعد: تنسيق رقم بفواصل آلاف
+function formatNumber(num) {
+    if (!num && num !== 0) return '';
+    const n = parseInt(String(num).replace(/[^0-9]/g, ''), 10);
+    if (isNaN(n)) return '';
+    return n.toLocaleString('en-US');
+}
+
+// دالة مساعد: استرجاع القيمة الخام من حقل (من data-raw أو من القيمة المنسقة)
+function getRawNumber(input) {
+    if (!input) return '';
+    const raw = input.getAttribute('data-raw');
+    if (raw !== null && raw !== '') return raw;
+    return (input.value || '').replace(/[^0-9]/g, '');
+}
+
 // ===== تبديل حقول السعر حسب النوع (محدد/قابل للتفاوض/على السوم) =====
 function togglePriceFields() {
     const sel = document.getElementById('price-type-select');
@@ -813,6 +879,14 @@ function submitPropertyForm(event) {
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData);
 
+    // Task 7: استرجاع القيم الخام (بدون فواصل) للحفظ والنشر
+    const priceInput = document.getElementById('price-input');
+    const hbInput = document.getElementById('highest-bid-input');
+    const areaInput = document.querySelector('input[name="area"]');
+    if (priceInput) data.price = getRawNumber(priceInput);
+    if (areaInput) data.area = getRawNumber(areaInput);
+    const priceDisplay = formatNumber(data.price); // النسخة المنسقة للعرض
+
     // التحقق من الحقول المطلوبة
     if (!data.name || !data.phone || !data.location || !data.propertyType || !data.area || !data.price) {
         showToast('يرجى تعبئة جميع الحقول المطلوبة', 'error');
@@ -825,15 +899,16 @@ function submitPropertyForm(event) {
     // التحقق من أعلى سوم عند اختيار "على السوم"
     if (data.priceType === 'auction') {
         const hb = document.getElementById('highest-bid-input');
-        if (hb && (!hb.value || hb.value === '')) {
+        const hbRaw = hb ? getRawNumber(hb) : '';
+        if (!hbRaw) {
             showToast('يرجى إدخال أعلى سوم حالي', 'error');
-            hb.focus();
+            if (hb) hb.focus();
             return false;
         }
-        const hbVal = parseFloat(hb.value);
+        const hbVal = parseFloat(hbRaw);
         if (isNaN(hbVal) || hbVal < 0 || hbVal > 50000000) {
-            showToast('أعلى سوم يجب أن يكون بين 0 و 50,000,000 ريال', 'error');
-            hb.focus();
+            showToast('أعلى سوم تجب أن تكون بين 0 و 50,000,000 ريال', 'error');
+            if (hb) hb.focus();
             return false;
         }
         data.highestBid = hbVal;
@@ -863,9 +938,9 @@ function submitPropertyForm(event) {
     msg += `*\u{1F3F7}\u{FE0F} نوع العقار:* ${data.propertyType || 'غير محدد'}\n`;
     msg += `*\u{1F4CD} الموقع:* ${data.location || 'غير محدد'}\n`;
     msg += `*\u{1F4D0} المساحة:* ${data.area || 'غير محدد'} م\u{00B2}\n`;
-    msg += `*\u{1F4B0} السعر:* ${data.price || 'غير محدد'} ريال (${priceTypeLabel})\n`;
+    msg += `*\u{1F4B0} السعر:* ${priceDisplay || data.price || 'غير محدد'} ريال (${priceTypeLabel})\n`;
     if (data.priceType === 'auction' && data.highestBid) {
-        msg += `*\u{1FA99} أعلى سوم حالي:* ${data.highestBid} ريال\n`;
+        msg += `*\u{1FA99} أعلى سوم حالي:* ${formatNumber(data.highestBid)} ريال\n`;
     }
 
     // إضافة الوصف إن وجد
@@ -892,33 +967,42 @@ function submitPropertyForm(event) {
     msg += `\n*\u{1F4A1} مكتب آفاق الإنجاز العقاري*\n`;
     msg += `\u{1F310} abonasr0907-beep.github.io/-`;
 
-    // فتح واتساب بالرسالة
+    // تجهيز رابط WhatsApp
     const whatsappUrl = `https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`;
-    window.open(whatsappUrl, '_blank');
 
-    // ── إرسال نسخة إلى بوت تيليجرام (إشعار فوري للمكتب) ──
-    // يتم الإرسال بصمت في الخلفية ولا يؤثر على WhatsApp
-    notifyTelegramAdmin({
-        id: data.id,
-        name: data.name,
-        phone: data.phone,
-        propertyType: data.propertyType,
-        location: data.location,
-        area: data.area,
-        price: data.price,
-        priceType: data.priceType,
-        highestBid: data.highestBid || '',
-        description: data.description,
-        latitude: data.latitude,
-        longitude: data.longitude,
-        mapsLink: data.mapsLink,
-        imageCount: selectedImages.length,
-    }).catch(() => {}); // تجاهل الأخطاء بصمت
+    // Task 1: إرسال الطلب إلى البوت أولاً (إشعار فوري للمكتب) ثم فتح WhatsApp
+    // هذا يضمن وصول الإشعار للبوت أسرع ما تكون
+    (async () => {
+        try {
+            // 1) إرسال الطلب + الصور إلى البوت أولاً
+            await notifyTelegramAdmin({
+                id: data.id,
+                name: data.name,
+                phone: data.phone,
+                propertyType: data.propertyType,
+                location: data.location,
+                area: data.area,
+                price: data.price,
+                priceDisplay: priceDisplay,
+                priceType: data.priceType,
+                highestBid: data.highestBid || '',
+                description: data.description,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                mapsLink: data.mapsLink,
+                imageCount: selectedImages.length,
+            });
+            // 2) رفع الصور إن وجدت (في الخلفية بعد إرسال الإشعار)
+            if (selectedImages.length > 0) {
+                uploadVisitorImages(data.id, selectedImages).catch(() => {});
+            }
+        } catch (e) {
+            console.warn('⚠️ خطأ غير مهم في إرسال الطلب:', e.message);
+        }
 
-    // ── رفع الصور فعلياً إلى خادم البوت (اختياري — بصمت) ──
-    if (selectedImages.length > 0) {
-        uploadVisitorImages(data.id, selectedImages).catch(() => {});
-    }
+        // 3) Task 3: فتح WhatsApp بطريقة أسرع (بدون window.open المتزامن)
+        openWhatsAppFast(whatsappUrl);
+    })();
 
     // عرض رسالة النجاح
     const fs = document.getElementById('form-success');
@@ -961,7 +1045,8 @@ function submitInquiryForm(event) {
         `*رقم الجوال:* ${data.phone}\n` +
         (data.details ? `*التفاصيل:* ${data.details}\n` : '');
 
-    window.open(`https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+    // Task 3: فتح WhatsApp بطريقة أسرع
+    openWhatsAppFast(`https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`);
 
     // ── إرسال نسخة استفسار إلى بوت تيليجرام ──
     notifyTelegramAdmin({

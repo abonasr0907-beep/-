@@ -163,7 +163,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label><i class="fas fa-ruler-combined"></i> المساحة (م²) *</label>
-                            <input type="number" name="area" required placeholder="أدخل المساحة بالمتر المربع" min="50">
+                            <input type="text" name="area" required placeholder="أدخل المساحة بالمتر المربع" inputmode="numeric" oninput="formatPriceInput(this)" data-raw="" min="50" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-money-bill-wave"></i> نوع السعر *</label>
@@ -178,13 +178,14 @@
                     <div class="form-row" id="price-amount-row">
                         <div class="form-group">
                             <label><i class="fas fa-tag"></i> المبلغ (ريال) *</label>
-                            <input type="number" name="price" id="price-input" required placeholder="المبلغ المطلوب" min="0" max="50000000">
+                            <input type="text" name="price" id="price-input" required placeholder="المبلغ المطلوب" inputmode="numeric" oninput="formatPriceInput(this)" data-raw="" autocomplete="off">
+                            <small id="price-formatted-hint" style="color:#666; display:none; margin-top:6px;">سيظهر للزوار كما هو</small>
                         </div>
                     </div>
                     <div class="form-row" id="auction-row" style="display:none;">
                         <div class="form-group">
                             <label><i class="fas fa-gavel"></i> أعلى سوم حالي (ريال) *</label>
-                            <input type="number" name="highestBid" id="highest-bid-input" placeholder="أعلى سوم يبدأ به المزاد (0 إلى 50 مليون)" min="0" max="50000000" step="1000">
+                            <input type="text" name="highestBid" id="highest-bid-input" placeholder="أعلى سوم يبدأ به المزاد (0 إلى 50 مليون)" inputmode="numeric" oninput="formatPriceInput(this)" data-raw="" autocomplete="off">
                             <small style="color:#666; display:block; margin-top:6px;">يدخل المبلغ من 0 إلى 50,000,000 ريال. يظهر للزوار كما هو عند النشر.</small>
                         </div>
                     </div>
