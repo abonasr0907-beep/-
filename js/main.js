@@ -23,44 +23,54 @@ const TELEGRAM_BRIDGE = {
     apiBase: "https://api.telegram.org/bot",
     // رابط خادم البوت على Railway (اختياري — لتخزين الطلب في قائمة طلبات الزوار)
     // يُترك فارغاً إن لم يكن متوفراً؛ الإشعار يصل عبر Telegram Bot API مباشرة
-    botApiUrl: ""
+    botApiUrl: "https://worker-production-7713.up.railway.app"
 };
 
 // ===== إرسال طلب الزائر إلى تيليجرام (إشعار فوري للمكتب) =====
 // تعمل هذه الدالة بصمت في الخلفية ولا تؤثر على إرسال WhatsApp
 async function notifyTelegramAdmin(requestData) {
+    // الترتيب الجديد:
+    // 1) إرسال الطلب إلى خادم البوت أولاً (تخزين + إشعار بالأزرار)
+    // 2) إذا فشل خادم البوت: إرسال مباشر عبر Telegram Bot API (مع أزرار)
+
+    // 1) محاولة إرسال إلى خادم البوت (يخزن + يشعر بالأزرار)
+    const botApiOk = await sendToBotApi(requestData);
+    if (botApiOk) {
+        console.log('\u2705 تم إرسال الطلب إلى خادم البوت (تخزين + إشعار)');
+        return true;
+    }
+
+    // 2) الاحتياط: إرسال مباشر عبر Telegram Bot API مع أزرار
+    console.warn('\u26a0\ufe0f خادم البوت غير متوفر \u2014 إرسال مباشر عبر Telegram API');
     try {
-        // بناء رسالة تيليجرام بصيغة HTML واضحة ومنسقة
-        let html = '<b>🔔 طلب عرض عقار جديد من الموقع</b>\n\n';
-        html += `<b>👤 اسم العميل:</b> ${escapeHtml(requestData.name || 'غير محدد')}\n`;
-        html += `<b>📱 رقم الهاتف:</b> ${escapeHtml(requestData.phone || 'غير محدد')}\n`;
-        html += `<b>🏷️ نوع العقار:</b> ${escapeHtml(requestData.propertyType || 'غير محدد')}\n`;
-        html += `<b>📍 الموقع:</b> ${escapeHtml(requestData.location || 'غير محدد')}\n`;
-        html += `<b>📐 المساحة:</b> ${escapeHtml(requestData.area || 'غير محدد')} م²\n`;
-        html += `<b>💰 السعر التقريبي:</b> ${escapeHtml(requestData.price || 'غير محدد')} ريال\n`;
+        let html = '<b>\U0001F514 طلب عرض عقار جديد من الموقع</b>\n\n';
+        html += `<b>\U0001F464 اسم العميل:</b> ${escapeHtml(requestData.name || 'غير محدد')}\n`;
+        html += `<b>\U0001F4F1 رقم الهاتف:</b> ${escapeHtml(requestData.phone || 'غير محدد')}\n`;
+        html += `<b>\U0001F3F7\ufe0f نوع العقار:</b> ${escapeHtml(requestData.propertyType || 'غير محدد')}\n`;
+        html += `<b>\U0001F4CD الموقع:</b> ${escapeHtml(requestData.location || 'غير محدد')}\n`;
+        html += `<b>\U0001F4D0 المساحة:</b> ${escapeHtml(requestData.area || 'غير محدد')} م\u00b2\n`;
+        html += `<b>\U0001F4B0 السعر التقريبي:</b> ${escapeHtml(requestData.price || 'غير محدد')} ريال\n`;
 
         if (requestData.description && requestData.description.trim()) {
-            html += `\n<b>ℹ️ الوصف:</b>\n${escapeHtml(requestData.description)}\n`;
+            html += `\n<b>\u2139\ufe0f الوصف:</b>\n${escapeHtml(requestData.description)}\n`;
         }
 
-        // معلومات الموقع الجغرافي
         if (requestData.latitude && requestData.longitude) {
-            html += `\n<b>🗺️ موقع العقار على الخريطة:</b>\n`;
+            html += `\n<b>\U0001F5FA\ufe0f موقع العقار على الخريطة:</b>\n`;
             html += `<b>خط العرض (Latitude):</b> ${requestData.latitude}\n`;
             html += `<b>خط الطول (Longitude):</b> ${requestData.longitude}\n`;
-            html += `<b>🔗 رابط Google Maps:</b> ${requestData.mapsLink || 'https://www.google.com/maps?q=' + requestData.latitude + ',' + requestData.longitude}\n`;
+            html += `<b>\U0001F517 رابط Google Maps:</b> ${requestData.mapsLink || 'https://www.google.com/maps?q=' + requestData.latitude + ',' + requestData.longitude}\n`;
         }
 
-        // معلومات الصور
-        html += `\n<b>📸 الصور:</b> ${requestData.imageCount || 0} صورة`;
+        html += `\n<b>\U0001F4F8 الصور:</b> ${requestData.imageCount || 0} صورة`;
         if ((requestData.imageCount || 0) > 0) {
-            html += ' (يُرفقها العميل عبر WhatsApp)';
+            html += ' (ي\u064fرفقها العميل عبر WhatsApp)';
         }
         html += '\n';
 
-        html += `\n<b>📄 رقم الطلب:</b> <code>${requestData.id}</code>\n`;
-        html += `<b>🕐 التاريخ:</b> ${new Date().toLocaleString('ar-SA')}\n`;
-        html += `\n<b>💡 مكتب آفاق الإنجاز العقاري</b>\n🌐 abonasr0907-beep.github.io/-`;
+        html += `\n<b>\U0001F4C4 رقم الطلب:</b> <code>${requestData.id}</code>\n`;
+        html += `<b>\U0001F550 التاريخ:</b> ${new Date().toLocaleString('ar-SA')}\n`;
+        html += `\n<b>\U0001F4A1 مكتب آفاق الإنجاز العقاري</b>\n\U0001F310 abonasr0907-beep.github.io/-`;
 
         const url = TELEGRAM_BRIDGE.apiBase + TELEGRAM_BRIDGE.botToken + "/sendMessage";
         const body = new URLSearchParams();
@@ -69,27 +79,30 @@ async function notifyTelegramAdmin(requestData) {
         body.append('parse_mode', 'HTML');
         body.append('disable_web_page_preview', 'true');
 
+        // إضافة أزرار الموافقة والرفض مباشرة مع الرسالة
+        const reqId = requestData.id || '';
+        const replyMarkup = {
+            inline_keyboard: [
+                [{ text: "\u2705 \u0645\u0648\u0627\u0641\u0642\u0629 \u0648\u0646\u0634\u0631", callback_data: "vreq_approve_" + reqId }],
+                [{ text: "\u274C \u0631\u0641\u0636", callback_data: "vreq_reject_" + reqId }]
+            ]
+        };
+        body.append('reply_markup', JSON.stringify(replyMarkup));
+
         const response = await fetch(url, {
             method: 'POST',
             body: body,
         });
 
         if (response.ok) {
-            console.log('✅ تم إرسال إشعار تيليجرام بنجاح');
-            // محاولة إرسال نسخة إلى خادم البوت (لتخزينها في قائمة طلبات الزوار)
-            sendToBotApi(requestData).catch(() => {});
+            console.log('\u2705 تم إرسال إشعار تيليجرام مباشر (احتياطي)');
             return true;
         } else {
-            console.warn('⚠️ فشل إرسال إشعار تيليجرام:', response.status);
-            // حتى لو فشل الإشعار المباشر، نحاول خادم البوت
-            sendToBotApi(requestData).catch(() => {});
+            console.warn('\u26a0\ufe0f فشل إرسال إشعار تيليجرام:', response.status);
             return false;
         }
     } catch (err) {
-        // لا نريد أن يفشل النموذج إذا تعذر إرسال تيليجرام
-        console.warn('⚠️ خطأ في إرسال تيليجرام (لن يؤثر على الإرسال):', err.message);
-        // محاولة بديلة عبر خادم البوت
-        sendToBotApi(requestData).catch(() => {});
+        console.warn('\u26a0\ufe0f خطأ في إرسال تيليجرام:', err.message);
         return false;
     }
 }

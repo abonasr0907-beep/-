@@ -961,6 +961,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         offer_id = data[4:]
         await _delete_offer_by_id(update, offer_id, query=query)
 
+    elif data.startswith("vreq_approve_"):
+        req_id = data[len("vreq_approve_"):]
+        await _approve_visitor_request(update, req_id, query=query)
+
+    elif data.startswith("vreq_reject_"):
+        req_id = data[len("vreq_reject_"):]
+        await _reject_visitor_request(update, req_id, query=query)
+
     elif data.startswith("approve_"):
         idx = int(data[7:])
         await _approve_visitor_request(update, idx, query=query)
@@ -1668,53 +1676,247 @@ async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         all_items.append(("inquiry", i))
 
     keyboard = []
+    # عرض آخر 10 طلبات مع أزرار موافقة ورفض لكل طلب
     for idx, (typ, item) in enumerate(all_items[-10:]):
-        label = "🏠 عرض" if typ == "request" else "🔍 استفسار"
+        label = "\U0001F3E0 عرض" if typ == "request" else "\U0001F50D استفسار"
         name = item.get("name", "غير معروف")
-        msg += f"{label} [{idx}] — {name} — {item.get('phone','')}\n"
-        keyboard.append([InlineKeyboardButton(
-            f"{label} {idx} — {name}",
-            callback_data=f"approve_{idx}",
-        )])
+        status = item.get("status", "")
+        status_icon = ""
+        if status == "approved":
+            status_icon = " \u2705"
+        elif status == "rejected":
+            status_icon = " \u274C"
+        elif status == "pending":
+            status_icon = " \u23F3"
+        msg += f"{label} [{idx}] \u2014 {name} \u2014 {item.get('phone','')}{status_icon}\n"
+        req_id = item.get("id", f"idx_{idx}")
+        row = [
+            InlineKeyboardButton(
+                f"\u2705 موافقة [{idx}]",
+                callback_data=f"vreq_approve_{req_id}",
+            ),
+            InlineKeyboardButton(
+                f"\u274C رفض [{idx}]",
+                callback_data=f"vreq_reject_{req_id}",
+            ),
+        ]
+        keyboard.append(row)
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
 
-async def _approve_visitor_request(update, idx, query=None):
+async def _approve_visitor_request(update, req_ref, query=None):
+    """
+    الموافقة على طلب زائر ونشره كعرض على الموقع:
+       - البحث عن الطلب بواسطة ID أو index
+       - إنشاء عرض جديد بمعرف فريد
+       - إخفاء السعر (عرض متوسط البوصلة)
+       - استبدال موقع الزائر بموقع المكتب الثابت
+       - توليد نص تسويقي
+       - حفظ في offers.json + bot_offers.json
+       - مزامنة الموقع (GitHub)
+       - تحديث حالة الطلب إلى approved
+    """
     data = load_visitor_requests()
-    all_items = data.get("requests", []) + data.get("inquiries", [])
-    if idx >= len(all_items):
-        msg = "⚠️ طلب غير موجود."
-    else:
-        item = all_items[idx]
-        msg = (
-            f"✅ مراجعة الطلب:\n\n"
-            f"الاسم: {item.get('name','')}\n"
-            f"الجوال: {item.get('phone','')}\n"
-            f"النوع: {item.get('propertyType', item.get('property_type',''))}\n"
-            f"الموقع: {item.get('location','')}\n"
-            f"المساحة: {item.get('area', item.get('size',''))}\n"
-            f"السعر/الميزانية: {item.get('price', item.get('budget',''))}\n\n"
-            f"يمكنك التواصل مع العميل مباشرة، أو إضافة عرض جديد بناءً على هذا الطلب."
-        )
+    requests_list = data.get("requests", [])
+    inquiries = data.get("inquiries", [])
+    all_items = [("request", r) for r in requests_list] + [("inquiry", i) for i in inquiries]
+
+    # البحث عن الطلب: إما بـ ID (string) أو index (int)
+    target = None
+    target_idx = -1
+    if isinstance(req_ref, str):
+        # البحث بالـ ID
+        if req_ref.startswith("idx_"):
+            # تنسيق idx_N (للتوافق مع القديم)
+            try:
+                target_idx = int(req_ref[4:])
+                if 0 <= target_idx < len(all_items):
+                    target = all_items[target_idx]
+            except ValueError:
+                pass
+        else:
+            # البحث بالـ ID المباشر
+            for i, (typ, item) in enumerate(all_items):
+                if item.get("id") == req_ref:
+                    target = (typ, item)
+                    target_idx = i
+                    break
+    elif isinstance(req_ref, int):
+        # تنسيق index القديم
+        if 0 <= req_ref < len(all_items):
+            target = all_items[req_ref]
+            target_idx = req_ref
+
+    if target is None:
+        msg = "\u26a0\ufe0f \u0637\u0644\u0628 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    typ, item = target
+    item_type = item.get("propertyType", item.get("property_type", "land"))
+    item_area = item.get("location", item.get("area", ""))
+    item_size = item.get("area", item.get("size_sqm", ""))
+    item_price = item.get("price", "")
+
+    # تحويل نوع العقار إلى نوع إنجليزي للمعرف
+    type_map = {
+        "\u0634\u0642\u0629": "APT", "\u0634\u0642\u0647": "APT", "apartment": "APT", "apt": "APT",
+        "\u0641\u064a\u0644\u0627": "VLA", "villa": "VLA",
+        "\u0645\u0632\u0631\u0639\u0629": "FRM", "farm": "FRM",
+        "\u0623\u0631\u0636": "LND", "\u0627\u0631\u0636": "LND", "land": "LND",
+        "\u0627\u0633\u062a\u0631\u0627\u062d\u0629": "RST", "resthouse": "RST",
+        "\u0645\u062d\u0644": "STO", "store": "STO",
+    }
+    type_prefix = "LND"
+    for k, v in type_map.items():
+        if k.lower() in item_type.lower():
+            type_prefix = v
+            break
+
+    # 1) توليد معرف فريد للعرض
+    offer_id = f"{type_prefix}-{uuid.uuid4().hex[:6].upper()}"
+
+    # 2) إخفاء السعر — استخدام متوسط البوصلة
+    bousla_price = get_bousla_avg_price(item_area, item_type.lower() if item_type.lower() in ["farm", "land", "resthouse", "villa", "apartment"] else "land")
+    if not bousla_price or "غير" in str(bousla_price):
+        bousla_price = "\u0633\u0639\u0631 \u0639\u0642\u0627\u0631\u064a \u0645\u0646\u0627\u0633\u0628 \u0627\u0644\u0633\u0648\u0642"
+
+    # 3) بناء كائن العرض
+    offer = {
+        "id": offer_id,
+        "type": item_type.lower() if item_type.lower() in ["farm", "land", "resthouse", "villa", "apartment"] else "land",
+        "category": item_type,
+        "title": f"{item_type} \u2014 {item_area}",
+        "area": item_area,
+        "area_en": "",
+        "size_sqm": item_size,
+        "price": item_price,
+        "price_text": bousla_price,
+        "original_price": item_price,
+        "description": generate_marketing_text(
+            "land" if item_type.lower() not in ["farm", "land", "resthouse", "villa", "apartment"] else item_type.lower(),
+            item_area,
+            str(item_size),
+        ),
+        "features": [],
+        "images": [],
+        # إخفاء الموقع الحقيقي — استخدام موقع المكتب
+        "map_link": CONFIG.get("office_location", ""),
+        "visitor_map_link": item.get("mapsLink", item.get("maps_link", "")),
+        "visitor_lat": item.get("latitude", ""),
+        "visitor_lng": item.get("longitude", ""),
+        "date_added": datetime.now().strftime("%Y-%m-%d"),
+        "featured": False,
+        "source": "visitor_request",
+        "visitor_name": item.get("name", ""),
+        "visitor_phone": item.get("phone", ""),
+    }
+
+    # إضافة وصف الزائر إذا وجد
+    if item.get("description"):
+        offer["description"] += f"\n\n\U0001F4DD {item['description']}"
+
+    # 4) حفظ في عروض البوت
+    bot_data = load_bot_offers()
+    bot_data["offers"].append(offer)
+    save_bot_offers(bot_data)
+
+    # 5) نشر مباشر على الموقع
+    site_data = load_offers_json()
+    site_data["offers"].append(offer)
+    save_offers_json(site_data)
+
+    # 6) مزامنة مع GitHub
+    sync_note = ""
+    try:
+        if github_sync.is_enabled():
+            ok = github_sync.sync_offer_to_github(offer, [])
+            sync_note = " \u2705 \u0648\u0631\u0641\u0639\u062a \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0642\u0639" if ok else " (\u062a\u062d\u0630\u064a\u0631: \u0644\u0645 \u062a\u0643\u062a\u0645\u0644 \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629)"
+        else:
+            sync_note = " (\u0645\u062d\u0644\u064a\u0627\u064b \u2014 \u0627\u0636\u0628\u0637 GITHUB_TOKEN \u0644\u0644\u0646\u0634\u0631 \u0627\u0644\u0639\u0627\u0645)"
+    except Exception as e:
+        logger.error(f"\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629: {e}")
+        sync_note = " (\u062a\u0639\u0630\u0651\u0631\u062a \u0627\u0644\u0645\u0632\u0627\u0645\u0646\u0629)"
+
+    # 7) تحديث حالة الطلب إلى approved (لا يحذف)
+    item["status"] = "approved"
+    item["published_offer_id"] = offer_id
+    item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    save_visitor_requests(data)
+
+    # 8) تحديث البوصلة تلقائياً
+    try:
+        _do_price_update()
+    except Exception as e:
+        logger.error(f"\u062e\u0637\u0623 \u0641\u064a \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0628\u0648\u0635\u0644\u0629: {e}")
+
+    msg = (
+        f"\u2705 \u062a\u0645\u062a \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0648\u0646\u0634\u0631 \u0627\u0644\u0639\u0631\u0636!{sync_note}\n\n"
+        f"\U0001F194 \u0627\u0644\u0645\u0639\u0631\u0641: {offer_id}\n"
+        f"\U0001F3F7\ufe0f \u0627\u0644\u0646\u0648\u0639: {offer['category']}\n"
+        f"\U0001F4CD \u0627\u0644\u0645\u0646\u0637\u0642\u0629: {offer['area']}\n"
+        f"\U0001F4D0 \u0627\u0644\u0645\u0633\u0627\u062d\u0629: {offer['size_sqm']} \u0645\u00b2\n"
+        f"\U0001F4B0 \u0627\u0644\u0645\u0639\u0631\u0648\u0636: {offer['price_text']}\n"
+        f"\U0001F5FA\ufe0f \u0627\u0644\u0645\u0648\u0642\u0639: \u062a\u0645 \u0627\u0633\u062a\u0628\u062f\u0627\u0644\u0647 \u0628\u0645\u0648\u0642\u0639 \u0627\u0644\u0645\u0643\u062a\u0628 \u0627\u0644\u062b\u0627\u0628\u062a\n"
+        f"\U0001F4F8 \u0627\u0644\u0635\u0648\u0631: \u0633\u064a\u062a\u0645 \u0625\u0636\u0627\u0641\u062a\u0647\u0627 \u0644\u0627\u062d\u0642\u0627\u064b\n\n"
+        f"\U0001F310 \u062a\u0645 \u0627\u0644\u0646\u0634\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0642\u0639."
+    )
     if query:
         await query.edit_message_text(msg)
     else:
         await update.message.reply_text(msg)
 
-async def _reject_visitor_request(update, idx, query=None):
+
+async def _reject_visitor_request(update, req_ref, query=None):
+    """
+    رفض طلب زائر — تحديث الحالة إلى rejected فقط (لا حذف)
+    """
     data = load_visitor_requests()
-    # حذف الطلب
-    if idx < len(data.get("requests", [])):
-        data["requests"].pop(idx)
-    else:
-        inq_idx = idx - len(data.get("requests", []))
-        if inq_idx < len(data.get("inquiries", [])):
-            data["inquiries"].pop(inq_idx)
+    requests_list = data.get("requests", [])
+    inquiries = data.get("inquiries", [])
+    all_items = [("request", r) for r in requests_list] + [("inquiry", i) for i in inquiries]
+
+    # البحث عن الطلب
+    target = None
+    if isinstance(req_ref, str):
+        if req_ref.startswith("idx_"):
+            try:
+                idx = int(req_ref[4:])
+                if 0 <= idx < len(all_items):
+                    target = all_items[idx]
+            except ValueError:
+                pass
+        else:
+            for typ, item in all_items:
+                if item.get("id") == req_ref:
+                    target = (typ, item)
+                    break
+    elif isinstance(req_ref, int):
+        if 0 <= req_ref < len(all_items):
+            target = all_items[req_ref]
+
+    if target is None:
+        msg = "\u26a0\ufe0f \u0637\u0644\u0628 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    typ, item = target
+    # تحديث الحالة إلى rejected فقط — لا حذف
+    item["status"] = "rejected"
+    item["rejected_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     save_visitor_requests(data)
-    msg = "🗑️ تم حذف الطلب."
+
+    msg = "\u274c \u062a\u0645 \u0631\u0641\u0636 \u0627\u0644\u0637\u0644\u0628. \u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062d\u0627\u0644\u0629 \u0625\u0644\u0649 \u0645\u0631\u0641\u0648\u0636 (\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u062a\u0633\u062c\u064a\u0644 \u0644\u0644\u0646\u0634\u0631)."
     if query:
         await query.edit_message_text(msg)
     else:
         await update.message.reply_text(msg)
+
 
 # ============================================================
 #  فلترة العروض
@@ -2917,9 +3119,10 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
     )
 
     # أزرار الموافقة والرفض
+    req_id = visitor_request.get("id", f"idx_{idx}")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\u2705 موافقة ونشر", callback_data=f"approve_{idx}")],
-        [InlineKeyboardButton("\u274C رفض", callback_data=f"reject_{idx}")],
+        [InlineKeyboardButton("\u2705 موافقة ونشر", callback_data=f"vreq_approve_{req_id}")],
+        [InlineKeyboardButton("\u274C رفض", callback_data=f"vreq_reject_{req_id}")],
     ])
 
     sent_count = 0
@@ -3010,6 +3213,66 @@ def start_api_server(port=8080):
 
 
 # ============================================================
+
+async def _run_custom_webhook(app, webhook_url, port):
+    """
+    تشغيل خادم webhook مخصص يخدم مسار الـ webhook ومسارات API على نفس المنفذ.
+    هذا يحل مشكلة Railway التي تسمح بمنفذ عام واحد فقط.
+
+    المسارات:
+      POST /bot/{BOT_TOKEN}  -> استقبال تحديثات Telegram
+      POST /api/visitor-request -> استقبال طلبات الزوار من الموقع
+      GET  /health           -> فحص الصحة
+      GET  /                 -> معلومات الخادم
+    """
+    from aiohttp import web
+
+    webhook_path = f"/bot/{BOT_TOKEN}"
+    full_webhook_url = f"{webhook_url}{webhook_path}"
+
+    # بناء خادم aiohttp مخصص
+    web_app = web.Application()
+
+    # مسار الـ webhook الخاص بـ Telegram
+    async def telegram_webhook_handler(request):
+        """استقبال تحديثات Telegram وإدخالها في معالج البوت"""
+        try:
+            data = await request.json()
+            update = Update.de_json(data, app.bot)
+            await app.process_update(update)
+            return web.Response(status=200)
+        except Exception as e:
+            logger.error(f"\u274C خطأ في معالجة webhook: {e}")
+            return web.Response(status=500)
+
+    web_app.router.add_post(webhook_path, telegram_webhook_handler)
+    # إضافة مسارات API على نفس الخادم
+    web_app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
+    web_app.router.add_get("/api/visitor-request", _handle_root)
+    web_app.router.add_get("/health", _handle_health)
+    web_app.router.add_get("/", _handle_root)
+
+    # تعيين الـ webhook مع Telegram
+    await app.bot.set_webhook(url=full_webhook_url, allowed_updates=Update.ALL_TYPES)
+    logger.info(f"\U0001F517 تم تعيين webhook: {full_webhook_url}")
+
+    # تشغيل الخادم
+    runner = web.AppRunner(web_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"\U0001F310 خادم webhook+API يعمل على المنفذ {port}")
+    logger.info(f"   المسارات: POST {webhook_path}, POST /api/visitor-request, GET /health, GET /")
+
+    # تشغيل البوت (بدون updater لأننا ندير الـ webhook يدوياً)
+    await app.start()
+    logger.info("\u2705 البوت يعمل في وضع webhook المخصص")
+
+    # انتظار indefinite
+    import asyncio
+    await asyncio.Event().wait()  # يعمل للأبد
+
+
 def main():
     """
     تشغيل البوت في وضع webhook أو polling حسب متغيرات البيئة.
@@ -3057,12 +3320,18 @@ def main():
             logger.error(f"⚠️ خطأ في تشغيل طابور العمليات: {e}")
 
         # ── بدء خادم API لاستقبال طلبات الزوار من الموقع ──
-        api_port = int(os.environ.get("API_PORT", "8080"))
-        try:
-            start_api_server(api_port)
-            logger.info(f"🌐 خادم API جاهز لاستقبال طلبات الزوار على المنفذ {api_port}")
-        except Exception as e:
-            logger.error(f"⚠️ خطأ في بدء خادم API: {e}")
+        # في وضع webhook: API يعمل على نفس المنفذ عبر الخادم المخصص (لا حاجة لمنفذ منفصل)
+        # في وضع polling: نحتاج لخادم API منفصل على منفذ 8080
+        webhook_url_check = os.environ.get("WEBHOOK_URL", "").strip()
+        if not webhook_url_check:
+            api_port = int(os.environ.get("API_PORT", "8080"))
+            try:
+                start_api_server(api_port)
+                logger.info(f"🌐 خادم API جاهز لاستقبال طلبات الزوار على المنفذ {api_port}")
+            except Exception as e:
+                logger.error(f"⚠️ خطأ في بدء خادم API: {e}")
+        else:
+            logger.info("ℹ️ وضع webhook: API يعمل على نفس المنفذ عبر الخادم المخصص")
 
     app = (
         Application.builder()
@@ -3086,23 +3355,20 @@ def main():
     port = int(os.environ.get("PORT", "10000"))
 
     if webhook_url:
-        # ─── وضع webhook (للاستضافة السحابية) ───
-        webhook_path = f"/bot/{BOT_TOKEN}"
-        full_webhook_url = f"{webhook_url}{webhook_path}"
-
-        logger.info("🚀 تشغيل البوت في وضع WEBHOOK")
+        # ─── وضع webhook مخصص (للاستضافة السحابية - Railway) ───
+        # استخدام خادم مخصص يخدم webhook + API على نفس المنفذ
+        # لأن Railway يسمح بمنفذ عام واحد فقط
+        logger.info("\U0001F680 تشغيل البوت في وضع WEBHOOK المخصص")
         logger.info(f"   الرابط العام: {webhook_url}")
         logger.info(f"   منفذ الخادم: {port}")
-        logger.info(f"   webhook URL: {full_webhook_url}")
 
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path=webhook_path,
-            webhook_url=full_webhook_url,
-            allowed_updates=Update.ALL_TYPES,
-            drop_pending_updates=False,
-        )
+        try:
+            asyncio.run(_run_custom_webhook(app, webhook_url, port))
+        except KeyboardInterrupt:
+            logger.info("\u26A0\uFE0F تم إيقاف البوت")
+        except Exception as e:
+            logger.error(f"\u274C خطأ في خادم webhook: {e}")
+            raise
     else:
         # ─── وضع polling (للتشغيل المحلي) ───
         logger.info("🚀 تشغيل البوت في وضع POLLING (محلي)")

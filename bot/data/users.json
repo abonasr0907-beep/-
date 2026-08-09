@@ -9,5 +9,14 @@
       "added_date": "2026-08-09",
       "last_active": null
     }
-  ]
+  ],
+  "7746757675": {
+    "user_id": "7746757675",
+    "name": "Admin 7746757675",
+    "role": "admin",
+    "status": "active",
+    "added_by": "system (config.json)",
+    "added_at": "2026-08-09 13:28:05",
+    "last_active": null
+  }
 }
