@@ -328,6 +328,27 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
       "featured": false
+    },
+    {
+      "id": "AFQ-2026-0002",
+      "type": "resthouse",
+      "category": "استراحة",
+      "title": "استراحة في مخطط الرحمانية",
+      "area": "الرحمانية",
+      "size_sqm": 5000,
+      "price_text": "1_150000",
+      "description": "🏖️ استراحة للبيع — الرحمانية\n\nمساحة 5000 م²، جاهزة للاستمتاع. قريبة من الخدمات والطرق الرئيسية.\n\nللاستفسار: 0561610748",
+      "features": [],
+      "images": [
+        "images/bot/draft_0_1786267279.webp",
+        "images/bot/draft_1_1786267280.webp",
+        "images/bot/draft_2_1786267280.webp",
+        "images/bot/draft_3_1786267281.webp",
+        "images/bot/draft_4_1786267281.webp"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-09",
+      "featured": false
     }
   ]
 }
