@@ -20,12 +20,14 @@ COPY . .
 WORKDIR /app/bot
 
 # إنشاء مجلد البيانات (يتم الكتابة عليه في وقت التشغيل للجلسات/المسودات/النسخ الاحتياطية)
-# تأكد من وجود المجلد حتى لو لم يكن مُلَحَّقاً في git
+# في Railway، يمكن ربط Volume بمسار /app/bot/data للتخزين الدائم
 RUN mkdir -p /app/bot/data /app/bot/data/backups
 
-# المنفذ الذي يستمع عليه البوت في وضع webhook
-# Render وغيرها تحدد PORT تلقائياً عبر متغير البيئة
+# Railway يوفر PORT تلقائياً عبر متغير البيئة
+# البوت يستخدم PORT في وضع webhook، أو polling إذا لم يوجد WEBHOOK_URL
 EXPOSE 10000
 
-# تشغيل البوت مباشرة (python-telegram-bot يعيد التشغيل تلقائياً عند الأخطاء)
+# تشغيل البوت مباشرة
+# python-telegram-bot يعيد التشغيل تلقائياً عند الأخطاء
+# Railway يعيد التشغيل عند التعطل (restartPolicyType = ON_FAILURE)
 CMD ["python3", "bot.py"]

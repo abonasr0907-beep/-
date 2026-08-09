@@ -1,0 +1,22 @@
+# railway.toml — تكوين نشر البوت على Railway
+# https://docs.railway.app/deploy/config-as-code
+#
+# مهم: البوت يعمل في وضع webhook إذا وُجد WEBHOOK_URL، وإلا في وضع polling.
+# Railway يوفر PORT تلقائياً.
+#
+# القرص الدائم (Volume): لمنع فقدان الجلسات والمسودات والنسخ الاحتياطية
+# يجب إضافة Volume في لوحة تحكم Railway مربوط بمسار /app/bot/data
+
+[deploy]
+# Railway سيستخدم Dockerfile تلقائياً
+startCommand = "cd bot && python3 bot.py"
+# إعادة التشغيل التلقائي عند التعطل
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[deploy.healthcheck]
+# فحص صحي بسيط — البوت يستمع على PORT في وضع webhook
+# إذا تعطل البوت، Railway يعيد تشغيله تلقائياً
+httpPath = "/"
+initialDelaySeconds = 30
+timeoutSeconds = 10
