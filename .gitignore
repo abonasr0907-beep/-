@@ -5,3 +5,15 @@ bot/data/__pycache__/
 todo.md
 bot.log
 *.log
+
+# Persistent runtime data (regenerated on first run; kept out of git to avoid conflicts)
+bot/data/sessions.json
+bot/data/drafts.json
+bot/data/error_log.json
+bot/data/sync_log.json
+bot/data/offer_counter.json
+bot/data/backups/
+
+# Keep these tracked (they are the initial seed files, NOT ignored):
+# bot/data/users.json
+# bot/data/audit_log.json

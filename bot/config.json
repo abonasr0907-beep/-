@@ -6,5 +6,15 @@
     "auto_renew": true,
     "max_images": 5,
     "weekly_report": true,
-    "auto_prices_update": true
+    "auto_prices_update": true,
+    "offer_id_prefix": "AFQ",
+    "image_format": "webp",
+    "image_quality": 88,
+    "max_image_width": 3840,
+    "thumbnail_width": 400,
+    "enable_drafts": true,
+    "enable_backups": true,
+    "max_backups": 20,
+    "enable_audit_log": true,
+    "multi_user": true
 }

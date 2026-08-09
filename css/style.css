@@ -485,6 +485,28 @@ body {
     color: var(--white);
 }
 
+.offer-photos-count {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+}
+
+.offer-card-img {
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.offer-card:hover .offer-card-img {
+    transform: scale(1.03);
+}
+
 .offer-card-body {
     padding: 18px;
 }

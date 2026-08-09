@@ -92,11 +92,14 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
         const featuredBadge = offer.featured ? '<span class="offer-badge featured">مميز ⭐</span>' : `<span class="offer-badge">${offer.category}</span>`;
         const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
         const mapLink = offer.map_link || OFFICE_DATA.defaultMap;
+        const imgCount = (offer.images && offer.images.length) ? offer.images.length : 0;
+        const morePhotosBadge = imgCount > 1 ? `<span class="offer-photos-count"><i class="fas fa-images"></i> ${imgCount} صور</span>` : '';
 
         return `
             <div class="offer-card">
-                <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy">
+                <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
                 ${featuredBadge}
+                ${morePhotosBadge}
                 <div class="offer-card-body">
                     <h3>${offer.title}</h3>
                     <div class="offer-location">
@@ -510,4 +513,91 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // ===== معرض الصور (Lightbox) لعرض صور العرض بدقة عالية =====
+    initLightbox();
 });
+
+// ============================================================
+//  نظام معرض الصور (Lightbox) — يدعم صور WebP و JPEG
+// ============================================================
+function initLightbox() {
+    if (document.getElementById('afaq-lightbox')) return;
+
+    const lightbox = document.createElement('div');
+    lightbox.id = 'afaq-lightbox';
+    lightbox.style.cssText = 'display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:99999;justify-content:center;align-items:center;flex-direction:column;';
+    lightbox.innerHTML = `
+        <span id="afaq-lb-close" style="position:absolute;top:20px;right:30px;color:#fff;font-size:36px;cursor:pointer;z-index:100001;">&times;</span>
+        <span id="afaq-lb-prev" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);color:#fff;font-size:48px;cursor:pointer;z-index:100001;">&#10094;</span>
+        <span id="afaq-lb-next" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);color:#fff;font-size:48px;cursor:pointer;z-index:100001;">&#10095;</span>
+        <img id="afaq-lb-img" style="max-width:90%;max-height:85%;object-fit:contain;border-radius:8px;" alt="">
+        <div id="afaq-lb-caption" style="color:#fff;margin-top:12px;font-size:15px;text-align:center;max-width:80%;"></div>
+    `;
+    document.body.appendChild(lightbox);
+
+    let currentImages = [];
+    let currentIdx = 0;
+
+    function showLightbox(images, idx, caption) {
+        currentImages = images;
+        currentIdx = idx;
+        updateLightbox(caption);
+        lightbox.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function updateLightbox(caption) {
+        const imgEl = document.getElementById('afaq-lb-img');
+        const capEl = document.getElementById('afaq-lb-caption');
+        imgEl.src = currentImages[currentIdx];
+        imgEl.alt = caption || '';
+        capEl.textContent = caption ? caption + ' (' + (currentIdx + 1) + '/' + currentImages.length + ')' : (currentIdx + 1) + '/' + currentImages.length;
+        document.getElementById('afaq-lb-prev').style.display = currentImages.length > 1 ? 'block' : 'none';
+        document.getElementById('afaq-lb-next').style.display = currentImages.length > 1 ? 'block' : 'none';
+    }
+
+    function closeLightbox() {
+        lightbox.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    function nextImg() {
+        currentIdx = (currentIdx + 1) % currentImages.length;
+        updateLightbox(document.getElementById('afaq-lb-img').alt);
+    }
+
+    function prevImg() {
+        currentIdx = (currentIdx - 1 + currentImages.length) % currentImages.length;
+        updateLightbox(document.getElementById('afaq-lb-img').alt);
+    }
+
+    document.getElementById('afaq-lb-close').addEventListener('click', closeLightbox);
+    document.getElementById('afaq-lb-next').addEventListener('click', nextImg);
+    document.getElementById('afaq-lb-prev').addEventListener('click', prevImg);
+    lightbox.addEventListener('click', function(e) {
+        if (e.target === lightbox) closeLightbox();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (lightbox.style.display === 'flex') {
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowRight') nextImg();
+            if (e.key === 'ArrowLeft') prevImg();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const cardImg = e.target.closest('.offer-card-img');
+        if (cardImg) {
+            const card = cardImg.closest('.offer-card');
+            if (!card) return;
+            const title = card.querySelector('h3') ? card.querySelector('h3').textContent.trim() : '';
+            const offer = OFFERS.find(o => o.title === title);
+            if (offer && offer.images && offer.images.length > 0) {
+                showLightbox(offer.images, 0, offer.title);
+            } else {
+                showLightbox([cardImg.src], 0, title);
+            }
+        }
+    });
+}

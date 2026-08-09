@@ -2,16 +2,26 @@
 # -*- coding: utf-8 -*-
 """
 مزامنة GitHub — رفع العروض والصور تلقائياً إلى المستودع
-عند رفع أي ملف، يُعاد نشر GitHub Pages تلقائياً فتظهر الوسائط على الموقع العام.
+عند رفع أي ملف، تُعاد نشر GitHub Pages تلقائياً فتظهر الوسائط على الموقع العام.
 
 يعتمد على متغير البيئة GITHUB_TOKEN (يُضبط في خدمة الاستضافة).
-إن لم يكن موجوداً، يعمل البوت بشكل محلي فقط (للتطوير).
+إن لم تكن موجودة، يعمل البوت بشكل محلي فقط (للتطوير).
+
+التحسينات:
+- إعادة المحاولة (retry) عند فشل الرفع (3 محاولات)
+- مهلات أطول (timeouts) للتعامل مع الاتصال الضعيف
+- سجل المزامنة (sync_log) للعرض في لوحة التحكم
+- معالجة أخطاء أفضل
 """
+
 import os
 import base64
 import json
+import time
 import logging
 import requests
+from pathlib import Path
+from datetime import datetime
 
 logger = logging.getLogger("afaq_bot.github_sync")
 
@@ -21,13 +31,75 @@ GITHUB_REPO = "-"
 GITHUB_BRANCH = "main"
 GITHUB_API = "https://api.github.com"
 
-# جلب التوكن من البيئة (أو من ملف اختياري للتشغيل المحلي)
+# إعدادات إعادة المحاولة
+MAX_RETRIES = 3
+RETRY_DELAY = 2  # ثوانٍ
+CONNECT_TIMEOUT = 30
+READ_TIMEOUT = 60
+
+# مسار سجل المزامنة
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+SYNC_LOG_FILE = DATA_DIR / "sync_log.json"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ============================================================
+#  سجل المزامنة
+# ============================================================
+def _load_sync_log():
+    if SYNC_LOG_FILE.exists():
+        try:
+            with open(SYNC_LOG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"syncs": []}
+
+
+def _save_sync_log(data):
+    try:
+        if len(data["syncs"]) > 200:
+            data["syncs"] = data["syncs"][-200:]
+        tmp = SYNC_LOG_FILE.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        tmp.replace(SYNC_LOG_FILE)
+    except Exception as e:
+        logger.error(f"خطأ في حفظ سجل المزامنة: {e}")
+
+
+def log_sync(operation, status, detail=""):
+    """تسجيل عملية مزامنة في السجل"""
+    try:
+        data = _load_sync_log()
+        entry = {
+            "operation": operation,
+            "status": status,  # success, failed, skipped
+            "detail": str(detail)[:300],
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        data["syncs"].append(entry)
+        _save_sync_log(data)
+    except Exception:
+        pass
+
+
+def get_recent_syncs(limit=5):
+    """جلب آخر عمليات المزامنة"""
+    data = _load_sync_log()
+    syncs = data.get("syncs", [])
+    return syncs[-limit:][::-1]
+
+
+# ============================================================
+#  التوكن والإعدادات
+# ============================================================
 def _get_token():
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token:
         # محاولة قراءة من ملف محلي اختياري
         try:
-            from pathlib import Path
             tok_file = Path(__file__).resolve().parent / "github_token.txt"
             if tok_file.exists():
                 token = tok_file.read_text(encoding="utf-8").strip()
@@ -48,20 +120,55 @@ def _headers():
     }
 
 
+# ============================================================
+#  دوال مساعدة مع إعادة المحاولة
+# ============================================================
+def _retry_request(method, url, **kwargs):
+    """
+    تنفيذ طلب HTTP مع إعادة المحاولة.
+    method: 'get' أو 'put'
+    """
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            kwargs.setdefault("timeout", (CONNECT_TIMEOUT, READ_TIMEOUT))
+            r = getattr(requests, method)(url, **kwargs)
+            return r
+        except requests.exceptions.Timeout as e:
+            last_error = f"انتهت المهلة (attempt {attempt+1}/{MAX_RETRIES})"
+            logger.warning(f"github_sync: مهلة في الطلب ({attempt+1}/{MAX_RETRIES}): {e}")
+        except requests.exceptions.ConnectionError as e:
+            last_error = f"خطأ اتصال (attempt {attempt+1}/{MAX_RETRIES})"
+            logger.warning(f"github_sync: خطأ اتصال ({attempt+1}/{MAX_RETRIES}): {e}")
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"github_sync: خطأ ({attempt+1}/{MAX_RETRIES}): {e}")
+
+        if attempt < MAX_RETRIES - 1:
+            time.sleep(RETRY_DELAY * (attempt + 1))
+
+    logger.error(f"github_sync: فشل بعد {MAX_RETRIES} محاولات: {last_error}")
+    return None
+
+
 def _get_file_sha(path_in_repo):
     """جلب sha لملف موجود (مطلوب للتحديث، وليس للإنشاء)."""
     url = f"{GITHUB_API}/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{path_in_repo}"
-    r = requests.get(url, headers=_headers(), params={"ref": GITHUB_BRANCH}, timeout=20)
-    if r.status_code == 200:
+    r = _retry_request("get", url, headers=_headers(), params={"ref": GITHUB_BRANCH})
+    if r and r.status_code == 200:
         return r.json().get("sha")
     return None
 
 
+# ============================================================
+#  رفع الملفات
+# ============================================================
 def upload_text_file(path_in_repo, text_content, commit_message):
     """رفع/تحديث ملف نصي (مثل offers.json) إلى المستودع."""
     token = _get_token()
     if not token:
         logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي الرفع (وضع محلي)")
+        log_sync(f"upload_text:{path_in_repo}", "skipped", "GITHUB_TOKEN غير مضبوط")
         return False
     try:
         sha = _get_file_sha(path_in_repo)
@@ -75,14 +182,19 @@ def upload_text_file(path_in_repo, text_content, commit_message):
         if sha:
             payload["sha"] = sha
         url = f"{GITHUB_API}/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{path_in_repo}"
-        r = requests.put(url, headers=_headers(), json=payload, timeout=30)
-        if r.status_code in (200, 201):
+        r = _retry_request("put", url, headers=_headers(), json=payload)
+        if r and r.status_code in (200, 201):
             logger.info(f"github_sync: تم رفع {path_in_repo} ✓ (sha={'update' if sha else 'new'})")
+            log_sync(f"upload_text:{path_in_repo}", "success")
             return True
-        logger.error(f"github_sync: فشل رفع {path_in_repo}: {r.status_code} {r.text[:200]}")
+        status = r.status_code if r else "no_response"
+        err_text = r.text[:200] if r else last_error if 'last_error' in dir() else "unknown"
+        logger.error(f"github_sync: فشل رفع {path_in_repo}: {status} {err_text}")
+        log_sync(f"upload_text:{path_in_repo}", "failed", f"{status}: {err_text}")
         return False
     except Exception as e:
         logger.error(f"github_sync: استثناء عند رفع {path_in_repo}: {e}")
+        log_sync(f"upload_text:{path_in_repo}", "failed", str(e))
         return False
 
 
@@ -91,6 +203,7 @@ def upload_binary_file(path_in_repo, file_path, commit_message):
     token = _get_token()
     if not token:
         logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي رفع الصورة (وضع محلي)")
+        log_sync(f"upload_image:{path_in_repo}", "skipped", "GITHUB_TOKEN غير مضبوط")
         return False
     try:
         with open(file_path, "rb") as f:
@@ -104,29 +217,38 @@ def upload_binary_file(path_in_repo, file_path, commit_message):
         if sha:
             payload["sha"] = sha
         url = f"{GITHUB_API}/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{path_in_repo}"
-        r = requests.put(url, headers=_headers(), json=payload, timeout=60)
-        if r.status_code in (200, 201):
+        r = _retry_request("put", url, headers=_headers(), json=payload)
+        if r and r.status_code in (200, 201):
             logger.info(f"github_sync: تم رفع الصورة {path_in_repo} ✓")
+            log_sync(f"upload_image:{path_in_repo}", "success")
             return True
-        logger.error(f"github_sync: فشل رفع الصورة {path_in_repo}: {r.status_code} {r.text[:200]}")
+        status = r.status_code if r else "no_response"
+        err_text = r.text[:200] if r else "unknown"
+        logger.error(f"github_sync: فشل رفع الصورة {path_in_repo}: {status} {err_text}")
+        log_sync(f"upload_image:{path_in_repo}", "failed", f"{status}: {err_text}")
         return False
     except Exception as e:
         logger.error(f"github_sync: استثناء عند رفع الصورة {path_in_repo}: {e}")
+        log_sync(f"upload_image:{path_in_repo}", "failed", str(e))
         return False
 
 
+# ============================================================
+#  مزامنة الملفات الخاصة
+# ============================================================
 def sync_office_data_to_github():
-    """مزامنة ملف بوصلة الأسعار (office-data.json) إلى GitHub لتحديث الموقع."""
+    """مزامنة ملف بوصلة الأسعار (office-data.json) إلى GitHub."""
     token = _get_token()
     if not token:
         logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي مزامنة البوصلة")
+        log_sync("office_data", "skipped", "GITHUB_TOKEN غير مضبوط")
         return False
     try:
-        from pathlib import Path
         base = Path(__file__).resolve().parent
         office_file = base.parent / "offers-data" / "office-data.json"
         if not office_file.exists():
             logger.warning("github_sync: office-data.json غير موجود محلياً")
+            log_sync("office_data", "failed", "الملف غير موجود")
             return False
         text = office_file.read_text(encoding="utf-8")
         ok = upload_text_file(
@@ -139,6 +261,7 @@ def sync_office_data_to_github():
         return ok
     except Exception as e:
         logger.error(f"github_sync: فشل مزامنة office-data.json: {e}")
+        log_sync("office_data", "failed", str(e))
         return False
 
 
@@ -147,13 +270,14 @@ def sync_news_to_github():
     token = _get_token()
     if not token:
         logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي مزامنة الأخبار")
+        log_sync("news", "skipped", "GITHUB_TOKEN غير مضبوط")
         return False
     try:
-        from pathlib import Path
         base = Path(__file__).resolve().parent
         news_file = base.parent / "offers-data" / "news.json"
         if not news_file.exists():
             logger.warning("github_sync: news.json غير موجود محلياً")
+            log_sync("news", "failed", "الملف غير موجود")
             return False
         text = news_file.read_text(encoding="utf-8")
         ok = upload_text_file(
@@ -166,6 +290,7 @@ def sync_news_to_github():
         return ok
     except Exception as e:
         logger.error(f"github_sync: فشل مزامنة news.json: {e}")
+        log_sync("news", "failed", str(e))
         return False
 
 
@@ -174,27 +299,45 @@ def sync_offer_to_github(offer, local_image_paths):
     رفع عرض جديد بالكامل: الصور + offers.json.
     local_image_paths: قائمة المسارات المحلية الكاملة للصور.
     """
+    offer_id = offer.get("id", "")
+    offer_category = offer.get("category", "")
+    offer_area = offer.get("area", "")
+
     # 1) رفع الصور
+    images_uploaded = 0
+    images_failed = 0
     for local_path, rel_repo_path in local_image_paths:
-        upload_binary_file(
+        ok = upload_binary_file(
             rel_repo_path,
             local_path,
-            f"صورة عرض جديد: {offer.get('id', '')} ({offer.get('category', '')})"
+            f"صورة عرض جديد: {offer_id} ({offer_category})"
         )
+        if ok:
+            images_uploaded += 1
+        else:
+            images_failed += 1
 
-    # 2) رفع offers.json (نُمرّر المحتوى من الملف المحلي المُحدّث)
+    # 2) رفع offers.json
     try:
-        from pathlib import Path
         base = Path(__file__).resolve().parent
         offers_file = base.parent / "offers-data" / "offers.json"
         if offers_file.exists():
             text = offers_file.read_text(encoding="utf-8")
-            upload_text_file(
+            ok = upload_text_file(
                 "offers-data/offers.json",
                 text,
-                f"عرض جديد: {offer.get('id', '')} — {offer.get('category', '')} — {offer.get('area', '')}"
+                f"عرض جديد: {offer_id} — {offer_category} — {offer_area}"
             )
-        return True
+            log_sync(
+                f"offer:{offer_id}",
+                "success" if ok else "partial",
+                f"صور: {images_uploaded} نجحت, {images_failed} فشلت"
+            )
+            return ok and images_failed == 0
+        else:
+            log_sync(f"offer:{offer_id}", "failed", "offers.json غير موجود")
+            return False
     except Exception as e:
         logger.error(f"github_sync: فشل مزامنة offers.json: {e}")
+        log_sync(f"offer:{offer_id}", "failed", str(e))
         return False

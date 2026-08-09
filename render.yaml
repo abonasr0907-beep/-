@@ -27,3 +27,9 @@ services:
         # ضع هنا توكن GitHub (Personal Access Token) لرفع الوسائط للموقع
         # بدونه، البوت يعمل لكن الوسائط لا تصل للموقع العام
         sync: false
+    disk:
+      # تخزين دائم لملفات البيانات (sessions, drafts, backups, offer counter)
+      # هذا يمنع فقدان الجلسات والمسودات عند إعادة تشغيل البوت
+      name: afaq-bot-data
+      mountPath: /app/bot/data
+      sizeGB: 1

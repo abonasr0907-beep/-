@@ -23,6 +23,9 @@ import time
 import uuid
 import shutil
 import logging
+import hashlib
+import asyncio
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -30,6 +33,12 @@ import requests
 from PIL import Image, ImageEnhance, ImageFilter
 
 import github_sync
+import persistence
+import task_queue
+import image_utils
+import offer_id
+import backup
+import user_manager
 
 from telegram import (
     Update,
@@ -72,6 +81,97 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger("afaq_bot")
+
+# ============================================================
+#  سجل الأخطاء — حفظ الأخطاء على القرص للعرض في لوحة التحكم
+# ============================================================
+ERROR_LOG = DATA_DIR / "error_log.json"
+SYNC_LOG = DATA_DIR / "sync_log.json"
+
+def _load_error_log():
+    if ERROR_LOG.exists():
+        try:
+            with open(ERROR_LOG, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"errors": []}
+
+def _save_error_log(data):
+    try:
+        if len(data["errors"]) > 200:
+            data["errors"] = data["errors"][-200:]
+        tmp = ERROR_LOG.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        tmp.replace(ERROR_LOG)
+    except Exception as e:
+        logger.error(f"خطأ في حفظ سجل الأخطاء: {e}")
+
+def log_error(error_type, detail, user_id=None):
+    """تسجيل خطأ في السجل الدائم"""
+    try:
+        data = _load_error_log()
+        entry = {
+            "type": error_type,
+            "detail": str(detail)[:500],
+            "user_id": user_id,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        data["errors"].append(entry)
+        _save_error_log(data)
+    except Exception:
+        pass
+
+def get_recent_errors(limit=5):
+    """جلب آخر الأخطاء"""
+    data = _load_error_log()
+    errors = data.get("errors", [])
+    return errors[-limit:][::-1]
+
+def get_error_count():
+    """عدد الأخطاء"""
+    return len(_load_error_log().get("errors", []))
+
+def _load_sync_log():
+    if SYNC_LOG.exists():
+        try:
+            with open(SYNC_LOG, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {"operations": []}
+
+def _save_sync_log(data):
+    try:
+        if len(data["operations"]) > 200:
+            data["operations"] = data["operations"][-200:]
+        tmp = SYNC_LOG.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        tmp.replace(SYNC_LOG)
+    except Exception as e:
+        logger.error(f"خطأ في حفظ سجل المزامنة: {e}")
+
+def log_sync(operation, status, detail=""):
+    """تسجيل عملية مزامنة"""
+    try:
+        data = _load_sync_log()
+        data["operations"].append({
+            "operation": operation,
+            "status": status,
+            "detail": str(detail)[:200],
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        })
+        _save_sync_log(data)
+    except Exception:
+        pass
+
+def get_recent_syncs(limit=5):
+    """جلب آخر عمليات المزامنة"""
+    data = _load_sync_log()
+    ops = data.get("operations", [])
+    return ops[-limit:][::-1]
 
 # ============================================================
 #  تحميل الإعدادات
@@ -253,28 +353,67 @@ def generate_marketing_text(ptype, area, size, extra=""):
     return text
 
 # ============================================================
-#  إدارة الجلسات (حالة المستخدم أثناء إضافة عرض)
+#  إدارة الجلسات (حالة المستخدم أثناء إضافة عرض) — حفظ دائم
 # ============================================================
 # user_id -> {"state": ..., "offer": {...}, "images": [...]}
-user_sessions = {}
+# تم نقل الجلسات إلى persistence.py للحفظ الدائم على القرص
+# هذا يحلّ مشكلة فقدان الحالة عند إعادة تشغيل السيرفر / إعادة النشر
 
 def get_session(user_id):
-    if user_id not in user_sessions:
-        user_sessions[user_id] = {
-            "state": "idle",
-            "offer": {},
-            "images": [],
-        }
-    return user_sessions[user_id]
+    """جلب جلسة مستخدم من الذاكرة الدائمة (تُحمَّل من القرص)"""
+    return persistence.get_session(user_id)
 
 def reset_session(user_id):
-    user_sessions[user_id] = {"state": "idle", "offer": {}, "images": []}
+    """إعادة تعيين جلسة مستخدم وحفظها على القرص"""
+    persistence.reset_session(user_id)
+
+def save_session(user_id):
+    """حفظ حالة الجلسة على القرص فوراً (بعد كل تغيير)"""
+    persistence.save_session(user_id)
+
+def save_draft(user_id):
+    """حفظ عرض كمسودة (للاستئناف لاحقاً)"""
+    session = get_session(user_id)
+    persistence.save_draft(user_id, session)
 
 # ============================================================
-#  التحقق من الصلاحيات
+#  التحقق من الصلاحيات — نظام المستخدمين (Admin / Editor)
 # ============================================================
 def is_admin(user_id):
-    return user_id in ADMIN_IDS
+    """
+    التحقق إن كان المستخدم مديراً.
+    يتكامل مع نظام المستخدمين (user_manager) مع الحفاظ على
+    التوافق مع config.json (ADMIN_IDS).
+    """
+    # أولاً: التحقق من config.json (توافق مع النظام القديم)
+    if user_id in ADMIN_IDS:
+        return True
+    # ثانياً: التحقق من نظام المستخدمين الجديد
+    return user_manager.is_admin(user_id)
+
+def is_editor(user_id):
+    """
+    التحقق إن كان المستخدم محرراً (editor أو admin).
+    المحرر يمكنه: إضافة، تعديل، تصفية العروض.
+    """
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.is_editor(user_id)
+
+def is_authorized(user_id):
+    """
+    التحقق من الترخيص العام (admin أو editor).
+    البوت ليس عاماً — كل مستخدم يجب أن يكون مصرّحاً له.
+    """
+    return is_editor(user_id)
+
+def add_admin(user_id):
+    """إضافة مدير — يحفظ في config.json و user_manager"""
+    ADMIN_IDS.add(user_id)
+    CONFIG["admin_ids"] = list(ADMIN_IDS)
+    save_config(CONFIG)
+    # أيضاً الإضافة إلى نظام المستخدمين
+    user_manager.add_user(user_id, f"Admin {user_id}", role="admin", added_by="system")
 
 
 # ============================================================
@@ -349,11 +488,6 @@ VISITOR_CANCEL_KEYBOARD = ReplyKeyboardMarkup(
     one_time_keyboard=True,
     resize_keyboard=True,
 )
-
-def add_admin(user_id):
-    ADMIN_IDS.add(user_id)
-    CONFIG["admin_ids"] = list(ADMIN_IDS)
-    save_config(CONFIG)
 
 # ============================================================
 #  لوحة المفاتيح الرئيسية
@@ -457,10 +591,35 @@ async def set_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #  إضافة عرض جديد — العملية التفاعلية
 # ============================================================
 async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("هذا الأمر للمدير فقط.")
+    if not is_authorized(update.effective_user.id):
+        await update.message.reply_text("هذا الأمر للمصرّح لهم فقط. تواصل مع مدير المكتب.")
         return
     uid = update.effective_user.id
+
+    # ── التحقق من وجود مسودة غير مكتملة ──
+    if persistence.has_incomplete_offer(uid):
+        draft = persistence.get_draft(uid)
+        draft_session = draft.get("session", {})
+        img_count = len(draft_session.get("images", []))
+        offer = draft_session.get("offer", {})
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ استئناف العرض المحفوظ", callback_data="resume_draft")],
+            [InlineKeyboardButton("🗑️ بدء عرض جديد (حذف المسودة)", callback_data="new_offer_discard")],
+        ])
+        title = offer.get("title", "غير محدد")
+        area = offer.get("area", "غير محدد")
+        await update.message.reply_text(
+            f"📝 يوجد عرض غير مكتمل محفوظ!\n\n"
+            f"🏷️ العنوان: {title}\n"
+            f"📍 المنطقة: {area}\n"
+            f"📷 الصور المحفوظة: {img_count}\n"
+            f"🕒 حفظ في: {draft.get('saved_at', 'غير معروف')}\n\n"
+            f"هل تريد استئنافه أم بدء عرض جديد؟",
+            reply_markup=keyboard,
+        )
+        return
+
+    # ── بدء عرض جديد ──
     session = get_session(uid)
     reset_session(uid)
     session = get_session(uid)
@@ -480,76 +639,160 @@ async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "date_added": datetime.now().strftime("%Y-%m-%d"),
         "featured": False,
     }
+    save_session(uid)  # حفظ الحالة على القرص فوراً
+
+    # تحديث آخر نشاط للمستخدم
+    user_manager.update_last_active(uid)
+
     await update.message.reply_text(
         "➕ إضافة عرض جديد\n\n"
         "أرسل صور العقار (1 إلى 5 صور).\n"
         "عند الانتهاء أرسل الكلمة: تم ✅\n\n"
-        f"الحد الأقصى: {CONFIG['max_images']} صور."
+        f"الحد الأقصى: {CONFIG['max_images']} صور.\n\n"
+        "💡 ملاحظة: يمكنك إرسال الصور بالتتابع. إذا انقطع الاتصال، "
+        "يمكنك استئناف العرض لاحقاً بكتابة /add مرة أخرى."
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     session = get_session(uid)
-    is_admin_user = is_admin(uid)
+    is_admin_user = is_authorized(uid)
 
-    # الزوار في وضع تقديم عرض — استلام الصور
+    # تحديث آخر نشاط
+    if is_admin_user:
+        user_manager.update_last_active(uid)
+
+    # ── الزوار في وضع تقديم عرض — استلام الصور ──
     if not is_admin_user and session.get("state") == "v_awaiting_images":
         if len(session["images"]) >= CONFIG["max_images"]:
             await update.message.reply_text(f"وصلت للحد الأقصى ({CONFIG['max_images']} صور). أرسل: تم ✅")
             return
-        photo = update.message.photo[-1]
-        file = await context.bot.get_file(photo.file_id)
-        tmp_path = BASE_DIR / f"tmp_{uid}_{len(session['images'])}.jpg"
-        await file.download_to_drive(str(tmp_path))
-        img_name = f"offer_{int(time.time())}_{len(session['images'])}.jpg"
-        out_path = IMAGES_DIR / img_name
-        enhance_image(str(tmp_path), str(out_path))
-        try:
-            tmp_path.unlink()
-        except Exception:
-            pass
-        rel_path = f"images/bot/{img_name}"
-        session["images"].append(rel_path)
-        await update.message.reply_text(
-            f"✅ تم استلام وتحسين الصورة {len(session['images'])}/{CONFIG['max_images']}\n"
-            f"أرسل المزيد أو اكتب: تم ✅"
-        )
+        success, result = await _download_and_enhance_photo(update, context, uid, session, is_visitor=True)
+        if success:
+            save_session(uid)  # حفظ الجلسة على القرص
+            await update.message.reply_text(
+                f"✅ تم استلام وتحسين الصورة {len(session['images'])}/{CONFIG['max_images']}\n"
+                f"أرسل المزيد أو اكتب: تم ✅"
+            )
+        else:
+            await update.message.reply_text(
+                f"⚠️ تعذّر استلام الصورة: {result}\n"
+                f"أعد إرسال الصورة من فضلك."
+            )
         return
 
     if not is_admin_user:
         return
+
+    # ── المصرّح لهم (admin/editor) — استلام الصور للعرض ──
+    # التحقق من الحالة المحفوظة على القرص
     if session["state"] != "awaiting_images":
-        await update.message.reply_text("استخدم زر «إضافة عرض جديد» أولاً.")
+        await update.message.reply_text(
+            "استخدم زر «إضافة عرض جديد» أولاً.\n"
+            "إذا كنت في منتصف إضافة عرض وتم قطع الاتصال، "
+            "اكتب /add لاستئناف العرض المحفوظ."
+        )
         return
 
     if len(session["images"]) >= CONFIG["max_images"]:
         await update.message.reply_text(f"وصلت للحد الأقصى ({CONFIG['max_images']} صور). أرسل: تم ✅")
         return
 
-    # تحميل الصورة بأعلى دقة
+    success, result = await _download_and_enhance_photo(update, context, uid, session, is_visitor=False)
+    if success:
+        save_session(uid)  # حفظ الجلسة على القرص فوراً بعد كل صورة
+        # حفظ مسودة تلقائياً (للاستئناف في حالة انقطاع)
+        save_draft(uid)
+        await update.message.reply_text(
+            f"✅ تم استلام وتحسين الصورة {len(session['images'])}/{CONFIG['max_images']}\n"
+            f"أرسل المزيد أو اكتب: تم ✅"
+        )
+    else:
+        log_error("photo_download", result, user_id=uid)
+        await update.message.reply_text(
+            f"⚠️ تعذّر استلام الصورة: {result}\n"
+            f"أعد إرسال الصورة من فضلك. (يمكنك المحاولة مرة أخرى)"
+        )
+
+
+async def _download_and_enhance_photo(update, context, uid, session, is_visitor=False):
+    """
+    تحميل وتحسين صورة مع آلية إعادة المحاولة.
+    يُعيد: (True, None) عند النجاح، (False, error_msg) عند الفشل.
+    """
     photo = update.message.photo[-1]  # أكبر حجم
-    file = await context.bot.get_file(photo.file_id)
-    tmp_path = BASE_DIR / f"tmp_{uid}_{len(session['images'])}.jpg"
-    await file.download_to_drive(str(tmp_path))
+    max_retries = 3
+    last_error = ""
 
-    # معالجة الصورة بالذكاء الاصطناعي (تحسين الجودة)
-    img_name = f"offer_{int(time.time())}_{len(session['images'])}.jpg"
-    out_path = IMAGES_DIR / img_name
-    enhance_image(str(tmp_path), str(out_path))
+    for attempt in range(max_retries):
+        try:
+            # ── تحميل الصورة من خوادم تيليجرام ──
+            # زيادة المهلة (timeout) لتقليل الفشل عند الاتصال الضعيف
+            file = await context.bot.get_file(photo.file_id, read_timeout=60, write_timeout=60, connect_timeout=30)
+            tmp_path = BASE_DIR / f"tmp_{uid}_{len(session['images'])}_{attempt}.jpg"
 
-    # تنظيف الملف المؤقت
-    try:
-        tmp_path.unlink()
-    except Exception:
-        pass
+            # تحميل إلى القرص مع إعادة المحاولة
+            await file.download_to_drive(str(tmp_path), read_timeout=60, write_timeout=60, connect_timeout=30)
 
-    # تخزين المسار النسبي للموقع
-    rel_path = f"images/bot/{img_name}"
-    session["images"].append(rel_path)
-    await update.message.reply_text(
-        f"✅ تم استلام وتحسين الصورة {len(session['images'])}/{CONFIG['max_images']}\n"
-        f"أرسل المزيد أو اكتب: تم ✅"
-    )
+            # ── التحقق من أن الملف ليس فارغاً ──
+            if not tmp_path.exists() or tmp_path.stat().st_size == 0:
+                raise ValueError("الملف المحمّل فارغ")
+
+            # ── الكشف عن الصور المكررة ──
+            existing_hashes = image_utils.get_existing_image_hashes(IMAGES_DIR)
+            is_dup, fhash = image_utils._is_duplicate(str(tmp_path), existing_hashes)
+            if is_dup:
+                try:
+                    tmp_path.unlink()
+                except Exception:
+                    pass
+                return False, "الصورة مكررة — تم رفضها لمنع التكرار"
+
+            # ── تحسين وضغط الصورة ──
+            # استخدام معرف العرض إذا كان متوفراً، وإلا "draft"
+            offer_id_val = session.get("offer", {}).get("id", "") or "draft"
+            img_base_name = image_utils.generate_image_name(
+                offer_id_val, len(session["images"])
+            )
+            out_base = IMAGES_DIR / img_base_name
+
+            # تحويل إلى WebP (أصغر حجماً) أو JPEG
+            fmt = "webp"  # WebP يعطي أحجاماً أصغر بنفس الجودة
+            main_path, thumb_path = image_utils.enhance_and_compress(
+                str(tmp_path), str(out_base), fmt=fmt
+            )
+
+            # ── تنظيف الملف المؤقت ──
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+            # ── تخزين المسار النسبي للموقع ──
+            # تحويل الامتداد إلى ما تم إنتاجه فعلياً
+            main_name = Path(main_path).name
+            rel_path = f"images/bot/{main_name}"
+            session["images"].append(rel_path)
+
+            logger.info(f"✅ تم استلام وتحسين صورة للمستخدم {uid} (محاولة {attempt+1})")
+            return True, None
+
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"⚠️ فشل تحميل الصورة (محاولة {attempt+1}/{max_retries}): {e}")
+            # تنظيف الملف المؤقت
+            try:
+                tmp_path = BASE_DIR / f"tmp_{uid}_{len(session['images'])}_{attempt}.jpg"
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception:
+                pass
+            # انتظار قبل إعادة المحاولة (backoff)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 * (attempt + 1))
+            continue
+
+    return False, f"فشل بعد {max_retries} محاولات: {last_error}"
 
 async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """استلام موقع الزائر على الخريطة عبر زر الموقع في تيليجرام"""
@@ -573,9 +816,10 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("⚠️ تعذر استلام الموقع. أرسل رابط Google Maps نصياً.")
 
 async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not is_authorized(update.effective_user.id):
         return
     uid = update.effective_user.id
+    user_manager.update_last_active(uid)
     session = get_session(uid)
     text = update.message.text.strip()
 
@@ -586,6 +830,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
                 await update.message.reply_text("⚠️ لم ترسل أي صورة. أرسل صورة واحدة على الأقل.")
                 return
             session["state"] = "awaiting_title"
+            save_session(uid)  # حفظ الحالة على القرص
             await update.message.reply_text(
                 f"📸 تم استلام {len(session['images'])} صورة.\n\n"
                 "الآن أرسل عنوان العرض (مثال: مزرعة زراعية كاملة بمخطط الرحمانية):"
@@ -603,6 +848,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         category_map = {"farm": "مزرعة", "resthouse": "استراحة", "land": "أرض سكنية"}
         session["offer"]["category"] = category_map.get(ptype, "أرض سكنية")
         session["state"] = "awaiting_area"
+        save_session(uid)  # حفظ الحالة على القرص
         await update.message.reply_text(
             f"🏷️ تم التصنيف تلقائياً: {session['offer']['category']}\n\n"
             "الآن أرسل المنطقة (مثال: الرحمانية / الهياثم / الدلم / الضبيعة / العفجة):"
@@ -613,6 +859,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
     if session["state"] == "awaiting_area":
         session["offer"]["area"] = text
         session["state"] = "awaiting_size"
+        save_session(uid)  # حفظ الحالة على القرص
         await update.message.reply_text("📐 أرسل المساحة بالمتر المربع (رقم فقط):")
         return
 
@@ -625,6 +872,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text("⚠️ أرسل رقماً صحيحاً للمساحة:")
             return
         session["state"] = "awaiting_price"
+        save_session(uid)  # حفظ الحالة على القرص
         await update.message.reply_text("💰 أرسل السعر (مثال: 1,200,000 رياال أو قابل للتفاوض):")
         return
 
@@ -639,6 +887,7 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         )
         session["offer"]["description"] = auto_desc
         session["state"] = "awaiting_desc_confirm"
+        save_session(uid)  # حفظ الحالة على القرص
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ نشر بهذا النص", callback_data="publish_auto")],
             [InlineKeyboardButton("✏️ كتابة نص مخصص", callback_data="custom_desc")],
@@ -666,13 +915,39 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         return
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not is_authorized(update.effective_user.id):
         return
     query = update.callback_query
     await query.answer()
     uid = update.effective_user.id
     session = get_session(uid)
     data = query.data
+
+    # ── استئناف مسودة عرض غير مكتمل ──
+    if data == "resume_draft":
+        restored = persistence.restore_draft(uid)
+        if restored:
+            img_count = len(restored.get("images", []))
+            state = restored.get("state", "awaiting_images")
+            if state == "awaiting_images":
+                msg = (
+                    f"✅ تم استئناف العرض!\n\n"
+                    f"📸 الصور المحفوظة: {img_count}\n"
+                    f"أرسل المزيد من الصور أو اكتب: تم ✅ للانتقال للخطوة التالية."
+                )
+            else:
+                msg = f"✅ تم استئناف العرض! الحالة الحالية: {state}\nأكمل الإدخال من حيث توقفت."
+            await query.edit_message_text(msg)
+        else:
+            await query.edit_message_text("⚠️ تعذّر استئناف المسودة. ابدأ عرضاً جديداً بـ /add")
+        return
+
+    # ── تجاهل المسودة وبدء عرض جديد ──
+    if data == "new_offer_discard":
+        persistence.delete_draft(uid)
+        reset_session(uid)
+        await query.edit_message_text("🗑️ تم حذف المسودة. ابدأ عرضاً جديداً بـ /add")
+        return
 
     if data == "publish_auto":
         await _finalize_offer(update, uid, query=query)
@@ -1176,8 +1451,26 @@ async def _finalize_offer(update, uid, query=None):
     session = get_session(uid)
     offer = session["offer"]
     offer["images"] = session["images"]
-    offer["id"] = f"{offer['type'][:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+
+    # ── توليد معرف تسلسلي فريد (AFQ-2026-0001) ──
+    offer["id"] = offer_id.generate_offer_id()
+
+    # ── منع نشر عرض بلا صور ──
+    if not offer["images"]:
+        msg = "⚠️ لا يمكن نشر عرض بدون صور. أرسل صورة واحدة على الأقل ثم أعد المحاولة."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
     offer["map_link"] = CONFIG["office_location"]  # موقع المكتب افتراضياً
+
+    # ── نسخة احتياطية قبل النشر ──
+    try:
+        backup.create_backup("publish")
+    except Exception as e:
+        logger.warning(f"⚠️ تعذّر إنشاء نسخة احتياطية قبل النشر: {e}")
 
     # حفظ في عروض البوت
     bot_data = load_bot_offers()
@@ -1740,8 +2033,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = get_session(uid)
     text = update.message.text.strip()
 
-    # ── توجيه الزوار (غير المدير) ──
-    if not is_admin(uid):
+    # ── توجيه الزوار (غير المصرفين) ──
+    if not is_authorized(uid):
         # إذا كان الزائر في عملية تقديم عرض
         if session["state"] in [
             "v_awaiting_type", "v_awaiting_area", "v_awaiting_size",
@@ -2216,6 +2509,231 @@ def _do_price_update():
 
 
 # ============================================================
+#  لوحة التحكم / إدارة المستخدمين — أوامر جديدة
+# ============================================================
+async def dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """لوحة تحكم المدير — إحصائيات شاملة"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+
+    try:
+        # ── إحصائيات العروض ──
+        site_data = load_offers_json()
+        offers = site_data.get("offers", [])
+        offers_count = len(offers)
+
+        # آخر عرض
+        last_offer = offers[-1] if offers else None
+        last_offer_str = "لا يوجد"
+        if last_offer:
+            last_offer_str = f"{last_offer.get('id', '—')} | {last_offer.get('category', '')} | {last_offer.get('area', '')}"
+
+        # ── طلبات الزوار ──
+        visitor_data = load_visitor_requests()
+        visitor_requests_list = visitor_data.get("requests", [])
+        pending_requests = sum(1 for r in visitor_requests_list if r.get("status") == "pending")
+
+        # ── عروض الزوار ──
+        bot_data = load_bot_offers()
+        visitor_offers = bot_data.get("offers", [])
+        pending_visitor_offers = sum(1 for o in visitor_offers if o.get("source") == "visitor" and o.get("status") == "pending")
+
+        # ── إحصائيات المستخدمين ──
+        user_stats = user_manager.get_stats()
+
+        # ── حالة الطابور ──
+        tq_stats = task_queue.get_stats()
+
+        # ── آخر الأخطاء ──
+        error_count = get_error_count()
+        recent_errors = get_recent_errors(limit=3)
+
+        # ── النسخ الاحتياطية ──
+        backup_count = backup.get_backup_count()
+
+        # ── آخر المزامنات ──
+        recent_syncs = get_recent_syncs(limit=3)
+
+        # ── الجلسات النشطة ──
+        active_sessions = persistence.get_active_sessions_count()
+
+        # ── بناء الرسالة ──
+        msg = (
+            "📊 ═══ لوحة التحكم ═══\n\n"
+            f"🏠 العروض المنشورة: {offers_count}\n"
+            f"📝 آخر عرض: {last_offer_str}\n"
+            f"📨 طلبات الزوار: {len(visitor_requests_list)} (منتظرة: {pending_requests})\n"
+            f"🏡 عروض الزوار: {pending_visitor_offers} منتظرة\n\n"
+            f"👥 المستخدمون: {user_stats['total']} (مدراء: {user_stats['admins']}, محررون: {user_stats['editors']})\n"
+            f"   نشطون: {user_stats['active']}, موقوفون: {user_stats['suspended']}\n\n"
+            f"🔄 طابور العمليات: {tq_stats['completed']} منجزة, {tq_stats['failed']} فاشلة, {tq_stats['queue_size']} في الانتظار\n"
+            f"🔌 جلسات نشطة: {active_sessions}\n\n"
+            f"💾 نسخ احتياطية: {backup_count}\n"
+            f"⚠️ أخطاء: {error_count}\n"
+        )
+
+        if recent_errors:
+            msg += "\n📌 آخر الأخطاء:\n"
+            for err in recent_errors:
+                msg += f"   • {err.get('type', '')}: {err.get('detail', '')[:60]}\n"
+
+        if recent_syncs:
+            msg += "\n🔄 آخر المزامنات:\n"
+            for sync in recent_syncs:
+                status_icon = "✅" if sync.get("status") == "success" else "❌"
+                msg += f"   {status_icon} {sync.get('operation', '')} — {sync.get('timestamp', '')}\n"
+
+        msg += f"\n🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        await update.message.reply_text(msg)
+        user_manager.update_last_active(uid)
+
+    except Exception as e:
+        logger.error(f"خطأ في لوحة التحكم: {e}")
+        log_error("dashboard", str(e), uid)
+        await update.message.reply_text(f"❌ خطأ في عرض لوحة التحكم: {e}")
+
+
+async def cmd_add_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إضافة مستخدم جديد — /add_user <user_id> <role> <name>"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ إدارة المستخدمين للمدير فقط.")
+        return
+
+    args = context.args
+    if len(args) < 2:
+        await update.message.reply_text(
+            "📋 إضافة مستخدم جديد\n\n"
+            "الصيغة: /add_user <user_id> <role> [الاسم]\n"
+            "role: admin أو editor\n\n"
+            "مثال:\n"
+            "/add_user 123456789 editor أحمد\n"
+            "/add_user 987654321 admin"
+        )
+        return
+
+    try:
+        new_uid = int(args[0])
+        role = args[1].lower()
+        name = " ".join(args[2:]) if len(args) > 2 else f"User {new_uid}"
+
+        if role not in ("admin", "editor"):
+            await update.message.reply_text("⚠️ الدور يجب أن يكون: admin أو editor")
+            return
+
+        user_manager.add_user(new_uid, name, role=role, added_by=uid)
+        user_manager.log_audit("add_user", uid, f"أضاف مستخدم {new_uid} ({name}) بدور {role}")
+        await update.message.reply_text(
+            f"✅ تم إضافة المستخدم بنجاح!\n\n"
+            f"🆔 ID: {new_uid}\n"
+            f"👤 الاسم: {name}\n"
+            f"🔑 الدور: {role}\n"
+            f"📊 الحالة: نشط"
+        )
+    except ValueError:
+        await update.message.reply_text("⚠️ معرف المستخدم يجب أن يكون رقماً.")
+    except Exception as e:
+        logger.error(f"خطأ في إضافة مستخدم: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+async def cmd_myid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض معرف المستخدم الحالي — /myid"""
+    uid = update.effective_user.id
+    user = update.effective_user
+    role = user_manager.get_user_role(uid)
+    role_str = {"admin": "مدير", "editor": "محرر"}.get(role, "غير مصرّح")
+
+    await update.message.reply_text(
+        f"🆔 معلوماتك:\n\n"
+        f"   Telegram ID: {uid}\n"
+        f"   الاسم: {user.full_name}\n"
+        f"   اسم المستخدم: @{user.username}\n"
+        f"   الدور: {role_str}\n\n"
+        f"💡 لإضافتك كمستخدم، أرسل هذا المعرّف للمدير."
+    )
+
+
+async def cmd_list_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة المستخدمين — /users"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+
+    users = user_manager.get_all_users()
+    if not users:
+        await update.message.reply_text("📋 لا يوجد مستخدمون مسجلون.")
+        return
+
+    msg = f"📋 قائمة المستخدمين ({len(users)}):\n\n"
+    for u in users:
+        role_icon = "👑" if u.get("role") == "admin" else "✏️"
+        status_icon = "✅" if u.get("status") == "active" else "🚫"
+        last_active = u.get("last_active", "—")
+        msg += (
+            f"{role_icon} {status_icon} ID: {u.get('user_id')}\n"
+            f"   الاسم: {u.get('name')}\n"
+            f"   الدور: {u.get('role')}\n"
+            f"   آخر نشاط: {last_active}\n\n"
+        )
+    await update.message.reply_text(msg)
+
+
+async def cmd_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """حذف مستخدم — /remove_user <user_id>"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ إدارة المستخدمين للمدير فقط.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text("الصيغة: /remove_user <user_id>")
+        return
+
+    try:
+        target_uid = int(args[0])
+        if target_uid == uid:
+            await update.message.reply_text("⚠️ لا يمكنك حذف نفسك!")
+            return
+        # منع حذف آخر مدير
+        if user_manager.is_admin(target_uid):
+            admins = [u for u in user_manager.get_all_users() if u.get("role") == "admin" and u.get("status") == "active"]
+            if len(admins) <= 1:
+                await update.message.reply_text("⚠️ لا يمكن حذف آخر مدير! يجب أن يبقى مدير واحد على الأقل.")
+                return
+
+        if user_manager.remove_user(target_uid, removed_by=uid):
+            user_manager.log_audit("remove_user", uid, f"حذف مستخدم {target_uid}")
+            await update.message.reply_text(f"✅ تم حذف المستخدم {target_uid}")
+        else:
+            await update.message.reply_text(f"⚠️ المستخدم {target_uid} غير موجود.")
+    except ValueError:
+        await update.message.reply_text("⚠️ معرف المستخدم يجب أن يكون رقماً.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+# ============================================================
+#  معالج الأخطاء العام
+# ============================================================
+async def error_handler(update, context):
+    """معالج الأخطاء العام — يسجل الأخطاء ويمنع توقف البوت"""
+    error = context.error
+    logger.error(f"❌ خطأ غير معالج: {error}\n{traceback.format_exc()}")
+    log_error("unhandled", str(error), update.effective_user.id if update and update.effective_user else None)
+    try:
+        if update and update.effective_message:
+            await update.effective_message.reply_text("⚠️ حدث خطأ غير متوقع. تم تسجيله وسيتم معالجته.")
+    except Exception:
+        pass
+
+
+# ============================================================
 def _setup_handlers(app):
     """تسجيل جميع معالجات البوت — مشترك بين وضعي polling و webhook."""
     # الأوامر
@@ -2237,6 +2755,13 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("visitor_offers", visitor_offers_cmd))
     app.add_handler(CommandHandler("update_news", update_news_cmd))
     app.add_handler(CommandHandler("news", update_news_cmd))
+
+    # ── أوامر جديدة: لوحة التحكم وإدارة المستخدمين ──
+    app.add_handler(CommandHandler("dashboard", dashboard))
+    app.add_handler(CommandHandler("add_user", cmd_add_user))
+    app.add_handler(CommandHandler("myid", cmd_myid))
+    app.add_handler(CommandHandler("users", cmd_list_users))
+    app.add_handler(CommandHandler("remove_user", cmd_remove_user))
 
     # الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
@@ -2275,7 +2800,49 @@ def main():
     وضع polling (للتشغيل المحلي / على جهازك):
       لا تضع WEBHOOK_URL — سيعمل البوت بـ polling تلقائياً
     """
-    app = Application.builder().token(BOT_TOKEN).build()
+    # ── تهيئة الأنظمة الدائمة ──
+    try:
+        persistence.init()
+        logger.info("📦 تم تهيئة نظام الحفظ الدائم (persistence)")
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في تهيئة persistence: {e}")
+
+    try:
+        user_manager.init()
+        user_manager.init_from_config(CONFIG)
+        logger.info("👥 تم تهيئة نظام إدارة المستخدمين")
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في تهيئة user_manager: {e}")
+
+    try:
+        offer_id.init()
+        # مزامنة العدّاد مع العروض الموجودة
+        site_data = load_offers_json()
+        offer_id.sync_with_existing_offers(site_data.get("offers", []))
+        logger.info(f"🔢 تم تهيئة مولّد المعرفات — آخر معرف: {offer_id.get_last_id()}")
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في تهيئة offer_id: {e}")
+
+    # ── بناء التطبيق ──
+    async def _post_init(app):
+        """تهيئة ما قبل التشغيل — تشغيل طابور العمليات"""
+        try:
+            await task_queue.start_worker()
+            logger.info("🔄 تم تشغيل طابور العمليات الثقيلة")
+        except Exception as e:
+            logger.error(f"⚠️ خطأ في تشغيل طابور العمليات: {e}")
+
+    app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .post_init(_post_init)
+        .build()
+    )
+
+    # ── تسجيل معالج الأخطاء العام ──
+    app.add_error_handler(error_handler)
+    logger.info("🛡️ تم تفعيل معالج الأخطاء العام")
+
     _setup_handlers(app)
 
     webhook_url = os.environ.get("WEBHOOK_URL", "").strip().rstrip("/")

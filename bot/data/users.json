@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "telegram_id": "7746757675",
+      "name": "المدير",
+      "role": "admin",
+      "status": "active",
+      "added_by": "system",
+      "added_date": "2026-08-09",
+      "last_active": null
+    }
+  ]
+}
