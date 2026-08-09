@@ -213,6 +213,84 @@ async def handle_visitor_request(request):
         "message": "تم استلام الطلب وحفظه بنجاح"
     })
 
+async def handle_visitor_images(request):
+    """
+    استقبال صور طلب الزائر (multipart/form-data)
+    المسار: POST /api/visitor-images
+    الحقول: requestId (نص) + images (ملفات صور)
+    يرفع الصور إلى GitHub في images/visitor/{requestId}/ ثم يحدّث الطلب
+    """
+    if not GITHUB_TOKEN:
+        return web.json_response({"ok": False, "error": "GITHUB_TOKEN not configured"}, status=500)
+
+    try:
+        reader = await request.multipart()
+        request_id = None
+        image_files = []
+        async for part in reader:
+            if part.name == "requestId":
+                request_id = (await part.text()).strip()
+            elif part.name == "images":
+                data = await part.read()
+                filename = part.filename or f"img_{len(image_files)}.jpg"
+                image_files.append((filename, data))
+
+        if not request_id:
+            return web.json_response({"ok": False, "error": "requestId is required"}, status=400)
+        if not image_files:
+            return web.json_response({"ok": False, "error": "no images provided"}, status=400)
+
+        print(f"[API] 📷 رفع {len(image_files)} صورة للطلب {request_id}")
+
+        image_paths = []
+        for idx, (filename, data) in enumerate(image_files):
+            safe_name = f"img_{idx}_" + "".join(ch for ch in filename if ch.isalnum() or ch in "._-")
+            if not safe_name.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                safe_name += ".jpg"
+            gh_path = f"images/visitor/{request_id}/{safe_name}"
+            web_path = gh_path
+            ok = await github_upload_image(gh_path, data, f"visitor image: {request_id} - {safe_name}")
+            if ok:
+                image_paths.append(web_path)
+
+        if not image_paths:
+            return web.json_response({"ok": False, "error": "failed to upload images"}, status=500)
+
+        updated = await github_update_request_images(request_id, image_paths)
+        return web.json_response({"ok": True, "requestId": request_id, "images": image_paths, "count": len(image_paths), "updated": updated})
+    except Exception as e:
+        print(f"[API] ❌ خطأ في رفع الصور: {e}")
+        return web.json_response({"ok": False, "error": str(e)}, status=500)
+
+
+async def github_upload_image(path, data, commit_msg):
+    """رفع صورة (binary) إلى GitHub"""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+    encoded = base64.b64encode(data).decode("ascii")
+    payload = {"message": commit_msg, "content": encoded}
+    async with ClientSession() as session:
+        async with session.put(url, headers=headers, json=payload) as resp:
+            return resp.status in (200, 201)
+
+
+async def github_update_request_images(request_id, image_paths):
+    """تحديث طلب زائر في visitor_requests.json بإضافة مسارات الصور"""
+    async with ClientSession() as session:
+        vdata, sha = await github_get_file_content(session)
+        updated = False
+        for r in vdata.get("requests", []):
+            if r.get("id") == request_id:
+                r["images"] = image_paths
+                r["imageCount"] = len(image_paths)
+                updated = True
+                break
+        if updated:
+            success, _ = await github_update_file(session, vdata, sha, f"add images to visitor request {request_id}")
+            return success
+        return False
+
+
 async def handle_health(request):
     """فحص صحة الخادم"""
     return web.json_response({"ok": True, "status": "running", "service": "visitor-api"})
@@ -231,6 +309,7 @@ def create_app():
     """إنشاء تطبيق aiohttp"""
     app = web.Application()
     app.router.add_post("/api/visitor-request", handle_visitor_request)
+    app.router.add_post("/api/visitor-images", handle_visitor_images)
     app.router.add_get("/health", handle_health)
     app.router.add_get("/", handle_root)
     return app

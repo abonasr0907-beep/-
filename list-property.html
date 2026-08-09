@@ -166,8 +166,26 @@
                             <input type="number" name="area" required placeholder="أدخل المساحة بالمتر المربع" min="50">
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-money-bill-wave"></i> السعر التقريبي (ريال) *</label>
-                            <input type="number" name="price" required placeholder="السعر التقريبي المطلوب" min="0">
+                            <label><i class="fas fa-money-bill-wave"></i> نوع السعر *</label>
+                            <select name="priceType" id="price-type-select" required onchange="togglePriceFields()">
+                                <option value="">— اختر نوع السعر —</option>
+                                <option value="fixed">سعر محدد</option>
+                                <option value="negotiable">قابل للتفاوض</option>
+                                <option value="auction">على السوم</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row" id="price-amount-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-tag"></i> المبلغ (ريال) *</label>
+                            <input type="number" name="price" id="price-input" required placeholder="المبلغ المطلوب" min="0" max="50000000">
+                        </div>
+                    </div>
+                    <div class="form-row" id="auction-row" style="display:none;">
+                        <div class="form-group">
+                            <label><i class="fas fa-gavel"></i> أعلى سوم حالي (ريال) *</label>
+                            <input type="number" name="highestBid" id="highest-bid-input" placeholder="أعلى سوم يبدأ به المزاد (0 إلى 50 مليون)" min="0" max="50000000" step="1000">
+                            <small style="color:#666; display:block; margin-top:6px;">يدخل المبلغ من 0 إلى 50,000,000 ريال. يظهر للزوار كما هو عند النشر.</small>
                         </div>
                     </div>
                     <div class="form-group">

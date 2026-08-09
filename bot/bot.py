@@ -1865,10 +1865,23 @@ async def _approve_visitor_request(update, req_ref, query=None):
     # 1) توليد معرف فريد للعرض
     offer_id = f"{type_prefix}-{uuid.uuid4().hex[:6].upper()}"
 
-    # 2) إخفاء السعر — استخدام متوسط البوصلة
+    # 2) تحديد سعر العرض حسب نوع السعر
+    _req_price_type = item.get("priceType", "fixed")
+    _req_highest_bid = item.get("highestBid", "")
     bousla_price = get_bousla_avg_price(item_area, item_type.lower() if item_type.lower() in ["farm", "land", "resthouse", "villa", "apartment"] else "land")
     if not bousla_price or "غير" in str(bousla_price):
         bousla_price = "\u0633\u0639\u0631 \u0639\u0642\u0627\u0631\u064a \u0645\u0646\u0627\u0633\u0628 \u0627\u0644\u0633\u0648\u0642"
+
+    # إعداد نص السعر للنشر حسب نوع السعر
+    if _req_price_type == "auction":
+        bousla_price = f"على السوم — أعلى سوم: {_req_highest_bid} ريال" if _req_highest_bid else "على السوم"
+    elif _req_price_type == "negotiable":
+        bousla_price = f"{item_price} ريال (قابل للتفاوض)" if item_price else "قابل للتفاوض"
+    else:
+        # fixed price — إظهار السعر المحدد إذا وجد، خلافًا متوسط البوصلة
+        if item_price:
+            bousla_price = f"{item_price} ريال"
+        # وإلا تبقى متوسط البوصلة (bousla_price الذي تم حسابه)
 
     # 3) بناء كائن العرض
     offer = {
@@ -1888,7 +1901,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
             str(item_size),
         ),
         "features": [],
-        "images": [],
+        "images": list(item.get("images", [])),
         # إخفاء الموقع الحقيقي — استخدام موقع المكتب
         "map_link": CONFIG.get("office_location", ""),
         "visitor_map_link": item.get("mapsLink", item.get("maps_link", "")),
@@ -1897,6 +1910,8 @@ async def _approve_visitor_request(update, req_ref, query=None):
         "date_added": datetime.now().strftime("%Y-%m-%d"),
         "featured": False,
         "source": "visitor_request",
+        "priceType": _req_price_type,
+        "highestBid": _req_highest_bid,
         "visitor_name": item.get("name", ""),
         "visitor_phone": item.get("phone", ""),
     }
@@ -1947,7 +1962,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
         f"\U0001F4D0 \u0627\u0644\u0645\u0633\u0627\u062d\u0629: {offer['size_sqm']} \u0645\u00b2\n"
         f"\U0001F4B0 \u0627\u0644\u0645\u0639\u0631\u0648\u0636: {offer['price_text']}\n"
         f"\U0001F5FA\ufe0f \u0627\u0644\u0645\u0648\u0642\u0639: \u062a\u0645 \u0627\u0633\u062a\u0628\u062f\u0627\u0644\u0647 \u0628\u0645\u0648\u0642\u0639 \u0627\u0644\u0645\u0643\u062a\u0628 \u0627\u0644\u062b\u0627\u0628\u062a\n"
-        f"\U0001F4F8 \u0627\u0644\u0635\u0648\u0631: \u0633\u064a\u062a\u0645 \u0625\u0636\u0627\u0641\u062a\u0647\u0627 \u0644\u0627\u062d\u0642\u0627\u064b\n\n"
+        f"\U0001F4F8 \u0627\u0644\u0635\u0648\u0631: {len(offer.get('images', []))} \u0635\u0648\u0631\u0629\n\n"
         f"\U0001F310 \u062a\u0645 \u0627\u0644\u0646\u0634\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u0642\u0639."
     )
     if query:
@@ -3216,6 +3231,9 @@ async def _handle_visitor_request_api(request):
         "longitude": str(data.get("longitude", "")),
         "mapsLink": str(data.get("mapsLink", data.get("maps_link", ""))),
         "imageCount": int(data.get("imageCount", data.get("image_count", 0)) or 0),
+        "images": list(data.get("images", [])),
+        "priceType": str(data.get("priceType", data.get("price_type", "fixed"))),
+        "highestBid": str(data.get("highestBid", data.get("highest_bid", ""))),
         "source": str(data.get("source", "website")),
         "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "status": "pending",
@@ -3248,6 +3266,20 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
     requests_list = vdata.get("requests", [])
     idx = len(requests_list) - 1
 
+    # تحديد نص السعر حسب النوع
+    _ptype = visitor_request.get("priceType", "fixed")
+    _price_val = visitor_request.get("price", "")
+    _highest_bid = visitor_request.get("highestBid", "")
+    if _ptype == "auction":
+        _price_label = "السوم"
+        _price_display = f"أعلى سوم: {_highest_bid} ريال" if _highest_bid else "تبدأ من 0"
+    elif _ptype == "negotiable":
+        _price_label = "السعر (قابل للتفاوض)"
+        _price_display = f"{_price_val} ريال"
+    else:
+        _price_label = "السعر"
+        _price_display = f"{_price_val} ريال"
+
     msg = (
         "\U0001F514 <b>طلب عرض عقار جديد من الموقع</b>\n\n"
         f"\U0001F464 <b>اسم العميل:</b> {visitor_request.get('name', '')}\n"
@@ -3255,7 +3287,7 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
         f"\U0001F3F7\uFE0F <b>نوع العقار:</b> {visitor_request.get('propertyType', '')}\n"
         f"\U0001F4CD <b>الموقع:</b> {visitor_request.get('location', '')}\n"
         f"\U0001F4D0 <b>المساحة:</b> {visitor_request.get('area', '')} م²\n"
-        f"\U0001F4B0 <b>السعر التقريبي:</b> {visitor_request.get('price', '')} ريال\n"
+        f"\U0001F4B0 <b>{_price_label}:</b> {_price_display}\n"
     )
 
     if visitor_request.get("description"):
@@ -3318,6 +3350,123 @@ async def _handle_root(request):
     })
 
 
+
+
+async def _handle_visitor_images_api(request):
+    """
+    استقبال صور طلب زائر (multipart/form-data)
+    المسار: POST /api/visitor-images
+
+    الحقول: requestId (نص) + images (ملفات صور)
+
+    يحفظ الصور محليًا في images/visitor/{requestId}/
+    ثم يحدّث الطلب في visitor_requests.json بمسارات الصور
+    ويرفعها على GitHub إذا كانت المزامنة مفعّلة.
+    """
+    try:
+        from aiohttp import web
+    except ImportError:
+        return _json_response({"ok": False, "error": "aiohttp not available"}, status=500)
+
+    try:
+        reader = await request.multipart()
+        request_id = None
+        image_files = []
+        async for part in reader:
+            if part.name == "requestId":
+                request_id = (await part.text()).strip()
+            elif part.name == "images":
+                data = await part.read()
+                filename = part.filename or f"img_{len(image_files)}.jpg"
+                image_files.append((filename, data))
+
+        if not request_id:
+            return web.json_response({"ok": False, "error": "requestId is required"}, status=400)
+        if not image_files:
+            return web.json_response({"ok": False, "error": "no images provided"}, status=400)
+
+        logger.info(f"📷 تلقي {len(image_files)} صورة لطلب {request_id}")
+
+        # 1) حفظ الصور محليًا
+        visitor_img_dir = WEBSITE_DIR / "images" / "visitor" / request_id
+        visitor_img_dir.mkdir(parents=True, exist_ok=True)
+
+        image_paths = []
+        for idx, (filename, data) in enumerate(image_files):
+            safe_name = f"img_{idx}_" + "".join(ch for ch in filename if ch.isalnum() or ch in "._-")
+            if not safe_name.endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                safe_name += ".jpg"
+            local_path = visitor_img_dir / safe_name
+            with open(local_path, "wb") as f:
+                f.write(data)
+            rel_path = f"images/visitor/{request_id}/{safe_name}"
+            image_paths.append(rel_path)
+
+        # 2) تحديث visitor_requests.json بمسارات الصور
+        try:
+            vdata = load_visitor_requests()
+            updated = False
+            for r in vdata.get("requests", []):
+                if r.get("id") == request_id:
+                    existing = r.get("images", [])
+                    existing = existing if isinstance(existing, list) else []
+                    for p in image_paths:
+                        if p not in existing:
+                            existing.append(p)
+                    r["images"] = existing
+                    r["imageCount"] = len(existing)
+                    updated = True
+                    break
+            if updated:
+                save_visitor_requests(vdata)
+                logger.info(f"💾 تم تحديث طلب {request_id} بـ {len(image_paths)} صورة")
+            else:
+                logger.warning(f"⚠️ لم يتم إتباع طلب {request_id} — تم حفظ الصور محليًا فقط")
+        except Exception as e:
+            logger.error(f"❌ خطأ في تحديث visitor_requests.json: {e}")
+
+        # 3) رفع الصور على GitHub إذا كانت المزامنة مفعّلة
+        gh_uploaded = 0
+        try:
+            if github_sync.is_enabled():
+                for rel_path in image_paths:
+                    local_full = WEBSITE_DIR / rel_path
+                    ok = github_sync.upload_binary_file(
+                        rel_path,
+                        str(local_full),
+                        f"صورة طلب زائر: {request_id}"
+                    )
+                    if ok:
+                        gh_uploaded += 1
+                # رفع visitor_requests.json محدّث
+                try:
+                    vjson_text = VISITOR_REQUESTS.read_text(encoding="utf-8")
+                    github_sync.upload_text_file(
+                        "bot/data/visitor_requests.json",
+                        vjson_text,
+                        f"تحديث صور طلب {request_id}"
+                    )
+                except Exception as e:
+                    logger.error(f"خطأ رفع visitor_requests.json: {e}")
+                logger.info(f"☁️ تم رفع {gh_uploaded}/{len(image_paths)} صورة على GitHub")
+        except Exception as e:
+            logger.error(f"❌ خطأ في رفع الصور على GitHub: {e}")
+
+        return web.json_response({
+            "ok": True,
+            "requestId": request_id,
+            "images": image_paths,
+            "count": len(image_paths),
+            "githubUploaded": gh_uploaded,
+        })
+    except Exception as e:
+        logger.error(f"❌ خطأ في استقبال صور الطلب: {e}")
+        try:
+            from aiohttp import web
+            return web.json_response({"ok": False, "error": str(e)}, status=500)
+        except Exception:
+            return _json_response({"ok": False, "error": str(e)}, status=500)
+
 def _create_api_app():
     """إنشاء تطبيق aiohttp لخادم API"""
     try:
@@ -3328,6 +3477,7 @@ def _create_api_app():
 
     app = web.Application()
     app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
+    app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
     app.router.add_get("/api/visitor-request", _handle_root)
     app.router.add_get("/health", _handle_health)
     app.router.add_get("/", _handle_root)
@@ -3410,6 +3560,7 @@ async def _run_custom_webhook(app, webhook_url, port):
     web_app.router.add_post(webhook_path, telegram_webhook_handler)
     # إضافة مسارات API على نفس الخادم
     web_app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
+    web_app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
     web_app.router.add_get("/api/visitor-request", _handle_root)
     web_app.router.add_get("/health", _handle_health)
     web_app.router.add_get("/", _handle_root)

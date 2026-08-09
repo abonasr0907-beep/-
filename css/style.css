@@ -301,6 +301,16 @@ body {
     gap: 8px;
 }
 
+a.hero-feature {
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s, background 0.2s;
+}
+a.hero-feature:hover {
+    transform: translateY(-2px);
+    background: rgba(255,255,255,0.25);
+}
+
 .hero-feature i {
     color: var(--gold-light);
 }
@@ -632,6 +642,57 @@ body {
 .offer-btn-contact:hover {
     background: var(--gold-light);
 }
+
+/* ===== معلومات المزايدة والسوم ===== */
+.offer-auction-info {
+    background: linear-gradient(135deg, rgba(196,169,86,0.12), rgba(196,169,86,0.05));
+    border: 1px solid rgba(196,169,86,0.4);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    font-size: 14px;
+    color: #8a6d2a;
+}
+.offer-auction-info i { margin-left: 4px; }
+
+.offer-price-tag {
+    display: inline-block;
+    background: rgba(42,80,80,0.08);
+    color: var(--primary);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    margin-top: 6px;
+}
+.offer-price-tag i { margin-left: 4px; }
+
+.offer-btn-bid {
+    display: block;
+    width: 100%;
+    text-align: center;
+    background: linear-gradient(135deg, var(--gold), var(--gold-light));
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.offer-btn-bid:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(196,169,86,0.4);
+}
+
+/* زر تبديل الأقمار الصناعية في الخريطة */
+.afaq-sat-toggle {
+    user-select: none;
+    transition: background 0.2s;
+}
+.afaq-sat-toggle:hover { background: #1f3b3b !important; }
 
 /* ===== الفلاتر ===== */
 .offers-filters {

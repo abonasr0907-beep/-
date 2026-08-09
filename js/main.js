@@ -130,6 +130,30 @@ async function sendToBotApi(requestData) {
     }
 }
 
+// ===== رفع صور طلب الزائر إلى خادم البوت =====
+// ترسل الصور فعلياً عبر FormData إلى /api/visitor-images
+async function uploadVisitorImages(requestId, images) {
+    if (!TELEGRAM_BRIDGE.botApiUrl) return false;
+    try {
+        const apiUrl = TELEGRAM_BRIDGE.botApiUrl.replace(/\/+$/, '') + '/api/visitor-images';
+        const fd = new FormData();
+        fd.append('requestId', requestId);
+        images.forEach((file, idx) => {
+            fd.append('images', file, `img_${idx}_${file.name || 'photo.jpg'}`);
+        });
+        const response = await fetch(apiUrl, { method: 'POST', body: fd });
+        if (response.ok) {
+            console.log('✅ تم رفع صور طلب الزائر إلى البوت');
+            return true;
+        }
+        console.warn('⚠️ خادم البوت لم يقبل رفع الصور:', response.status);
+        return false;
+    } catch (err) {
+        console.warn('⚠️ تعذر رفع الصور للبوت:', err.message);
+        return false;
+    }
+}
+
 // ===== دالة مساعدة لتأمين النص HTML =====
 function escapeHtml(text) {
     if (!text) return '';
@@ -219,7 +243,7 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
         const morePhotosBadge = imgCount > 1 ? `<span class="offer-photos-count"><i class="fas fa-images"></i> ${imgCount} صور</span>` : '';
 
         return `
-            <div class="offer-card">
+            <div class="offer-card" data-offer-id="${offer.id}">
                 <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
                 ${featuredBadge}
                 ${morePhotosBadge}
@@ -233,6 +257,9 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
                         <span><i class="fas fa-tag"></i> ${offer.category}</span>
                     </div>
                     <div class="offer-price">${offer.price_text}</div>
+                    ${(offer.priceType === 'auction' || offer.price_type === 'auction') ? `<div class="offer-auction-info"><i class="fas fa-gavel"></i> على السوم — أعلى سوم: <strong>${(offer.highestBid || offer.highest_bid || 0).toLocaleString('en-US')} ريال</strong></div>` : ''}
+                    ${(offer.priceType === 'negotiable' || offer.price_type === 'negotiable') ? `<div class="offer-price-tag"><i class="fas fa-handshake"></i> قابل للتفاوض</div>` : ''}
+                    ${(offer.priceType === 'auction' || offer.price_type === 'auction') ? `<button class="offer-btn offer-btn-bid" onclick="submitBid('${offer.id}'); return false;"><i class="fas fa-gavel"></i> طلب مزايدة</button>` : ''}
                     <div class="offer-features">${featuresHtml}</div>
                     <div class="offer-bousla">
                         <div class="offer-bousla-title">
@@ -515,6 +542,34 @@ let mapMarker = null;
 let selectedImages = [];
 const MAX_IMAGES = 5;
 
+// ===== تبديل حقول السعر حسب النوع (محدد/قابل للتفاوض/على السوم) =====
+function togglePriceFields() {
+    const sel = document.getElementById('price-type-select');
+    if (!sel) return;
+    const type = sel.value;
+    const auctionRow = document.getElementById('auction-row');
+    const priceInput = document.getElementById('price-input');
+    const priceLabel = priceInput ? priceInput.closest('.form-group').querySelector('label') : null;
+
+    if (type === 'auction') {
+        if (auctionRow) auctionRow.style.display = '';
+        if (priceLabel) priceLabel.innerHTML = '<i class="fas fa-gavel"></i> سعر البدء / الحد الأدنى للمزاد (ريال) *';
+        if (priceInput) priceInput.placeholder = 'السعر الذي يبدأ به المزاد';
+    } else {
+        if (auctionRow) auctionRow.style.display = 'none';
+        const hb = document.getElementById('highest-bid-input');
+        if (hb) hb.value = '';
+        if (priceLabel) {
+            if (type === 'negotiable') {
+                priceLabel.innerHTML = '<i class="fas fa-money-bill-wave"></i> السعر المطلوب (قابل للتفاوض) (ريال) *';
+            } else {
+                priceLabel.innerHTML = '<i class="fas fa-tag"></i> السعر المحدد (ريال) *';
+            }
+        }
+        if (priceInput) priceInput.placeholder = 'المبلغ المطلوب';
+    }
+}
+
 // ===== تهيئة الخريطة التفاعلية =====
 function initPropertyMap() {
     const mapEl = document.getElementById('property-map');
@@ -524,17 +579,89 @@ function initPropertyMap() {
     const defaultLat = 24.1554;
     const defaultLng = 47.3068;
 
-    propertyMap = L.map('property-map').setView([defaultLat, defaultLng], 11);
+    propertyMap = L.map('property-map', { zoomControl: true, attributionControl: true }).setView([defaultLat, defaultLng], 11);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // طبقة الخريطة العادية
+    const standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap',
         maxZoom: 19
-    }).addTo(propertyMap);
+    });
+
+    // طبقة الأقمار الصناعية (Esri World Imagery)
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+        maxZoom: 19
+    });
+
+    // طبقة تسميات الأماكن فوق الأقمار الصناعية
+    const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO',
+        maxZoom: 19,
+        pane: 'shadowPane'
+    });
+
+    // الطبقة الافتراضية
+    standardLayer.addTo(propertyMap);
+    let isSatellite = false;
+    window.__afaqSatLabels = labelsLayer;
+
+    // زر تبديل الأقمار الصناعية
+    L.control({ position: 'topright' }).addTo(propertyMap);
+    const satelliteBtn = L.DomUtil.create('div', 'afaq-sat-toggle');
+    satelliteBtn.innerHTML = '🛰️ أقمار صناعية';
+    satelliteBtn.style.cssText = 'background:#2A5050;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;box-shadow:0 2px 6px rgba(0,0,0,0.3);z-index:1000;';
+    const ctrl = L.control({ position: 'topright' });
+    ctrl.onAdd = function() {
+        const div = L.DomUtil.create('div');
+        div.appendChild(satelliteBtn);
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+    };
+    ctrl.addTo(propertyMap);
+
+    satelliteBtn.addEventListener('click', function() {
+        if (!isSatellite) {
+            propertyMap.removeLayer(standardLayer);
+            satelliteLayer.addTo(propertyMap);
+            labelsLayer.addTo(propertyMap);
+            satelliteBtn.innerHTML = '🗺️ خريطة عادية';
+            isSatellite = true;
+        } else {
+            propertyMap.removeLayer(satelliteLayer);
+            propertyMap.removeLayer(labelsLayer);
+            standardLayer.addTo(propertyMap);
+            satelliteBtn.innerHTML = '🛰️ أقمار صناعية';
+            isSatellite = false;
+        }
+    });
 
     // النقر على الخريطة لتحديد موقع العقار
     propertyMap.on('click', function(e) {
         setMapLocation(e.latlng.lat, e.latlng.lng);
     });
+
+    // الضغط المطول لنسخ رابط Google Maps
+    let pressTimer = null;
+    propertyMap.on('mousedown', function(e) {
+        pressTimer = setTimeout(function() {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            const mapsUrl = 'https://www.google.com/maps?q=' + lat + ',' + lng;
+            // نسخ الرابط
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(mapsUrl).then(function() {
+                    showToast('تم نسخ رابط Google Maps: ' + mapsUrl, 'success');
+                }).catch(function() {
+                    showToast('رابط الموقع: ' + mapsUrl, '');
+                });
+            } else {
+                showToast('رابط الموقع: ' + mapsUrl, '');
+            }
+        }, 800);
+    });
+    propertyMap.on('mouseup', function() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+    propertyMap.on('dragstart', function() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+    propertyMap.on('zoomstart', function() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
 }
 
 // ===== تحديد الموقع على الخريطة =====
@@ -691,6 +818,26 @@ function submitPropertyForm(event) {
         showToast('يرجى تعبئة جميع الحقول المطلوبة', 'error');
         return false;
     }
+    if (!data.priceType) {
+        showToast('يرجى اختيار نوع السعر', 'error');
+        return false;
+    }
+    // التحقق من أعلى سوم عند اختيار "على السوم"
+    if (data.priceType === 'auction') {
+        const hb = document.getElementById('highest-bid-input');
+        if (hb && (!hb.value || hb.value === '')) {
+            showToast('يرجى إدخال أعلى سوم حالي', 'error');
+            hb.focus();
+            return false;
+        }
+        const hbVal = parseFloat(hb.value);
+        if (isNaN(hbVal) || hbVal < 0 || hbVal > 50000000) {
+            showToast('أعلى سوم يجب أن يكون بين 0 و 50,000,000 ريال', 'error');
+            hb.focus();
+            return false;
+        }
+        data.highestBid = hbVal;
+    }
 
     // حفظ الطلب في localStorage (للاستمرارية)
     const requests = JSON.parse(localStorage.getItem('afaq_property_requests') || '[]');
@@ -705,6 +852,10 @@ function submitPropertyForm(event) {
     requests.push(data);
     localStorage.setItem('afaq_property_requests', JSON.stringify(requests));
 
+    // تسمية نوع السعر بالعربية للعرض
+    const priceTypeLabels = { fixed: 'سعر محدد', negotiable: 'قابل للتفاوض', auction: 'على السوم' };
+    const priceTypeLabel = priceTypeLabels[data.priceType] || 'سعر محدد';
+
     // بناء رسالة واتساب الاحترافية
     let msg = `*\u{1F3E0} طلب عرض عقار جديد*\n\n`;
     msg += `*\u{1F464} الاسم:* ${data.name}\n`;
@@ -712,7 +863,10 @@ function submitPropertyForm(event) {
     msg += `*\u{1F3F7}\u{FE0F} نوع العقار:* ${data.propertyType || 'غير محدد'}\n`;
     msg += `*\u{1F4CD} الموقع:* ${data.location || 'غير محدد'}\n`;
     msg += `*\u{1F4D0} المساحة:* ${data.area || 'غير محدد'} م\u{00B2}\n`;
-    msg += `*\u{1F4B0} السعر التقريبي:* ${data.price || 'غير محدد'} ريال\n`;
+    msg += `*\u{1F4B0} السعر:* ${data.price || 'غير محدد'} ريال (${priceTypeLabel})\n`;
+    if (data.priceType === 'auction' && data.highestBid) {
+        msg += `*\u{1FA99} أعلى سوم حالي:* ${data.highestBid} ريال\n`;
+    }
 
     // إضافة الوصف إن وجد
     if (data.description && data.description.trim()) {
@@ -752,12 +906,19 @@ function submitPropertyForm(event) {
         location: data.location,
         area: data.area,
         price: data.price,
+        priceType: data.priceType,
+        highestBid: data.highestBid || '',
         description: data.description,
         latitude: data.latitude,
         longitude: data.longitude,
         mapsLink: data.mapsLink,
         imageCount: selectedImages.length,
     }).catch(() => {}); // تجاهل الأخطاء بصمت
+
+    // ── رفع الصور فعلياً إلى خادم البوت (اختياري — بصمت) ──
+    if (selectedImages.length > 0) {
+        uploadVisitorImages(data.id, selectedImages).catch(() => {});
+    }
 
     // عرض رسالة النجاح
     const fs = document.getElementById('form-success');
@@ -825,6 +986,83 @@ function submitInquiryForm(event) {
     }, 5000);
 
     return false;
+}
+
+// ===== طلب مزايدة على عرض (يصل للإدارة) =====
+function submitBid(offerId) {
+    const offer = OFFERS.find(o => String(o.id) === String(offerId));
+    if (!offer) return;
+    const currentBid = offer.highestBid || offer.highest_bid || offer.price || 0;
+
+    // بناء نموذج مزايدة بسيط
+    const bidHtml = `
+        <div id="bid-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;">
+            <div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.3);font-family:inherit;">
+                <h3 style="color:#2A5050;margin:0 0 8px;"><i class="fas fa-gavel"></i> طلب مزايدة</h3>
+                <p style="color:#666;font-size:14px;margin:0 0 16px;">${offer.title}</p>
+                <p style="background:#f5f5f5;padding:10px;border-radius:8px;font-size:14px;margin:0 0 16px;">أعلى سوم حالي: <strong>${Number(currentBid).toLocaleString('en-US')} ريال</strong></p>
+                <label style="display:block;font-size:14px;color:#333;margin-bottom:6px;">مبلغ المزايدة (ريال) *</label>
+                <input type="number" id="bid-amount" placeholder="أدخل مبلغ المزايدة" min="${currentBid}" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px;font-family:inherit;" />
+                <label style="display:block;font-size:14px;color:#333;margin-bottom:6px;">الاسم *</label>
+                <input type="text" id="bid-name" placeholder="اسمك الكامل" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px;font-family:inherit;" />
+                <label style="display:block;font-size:14px;color:#333;margin-bottom:6px;">رقم الجوال *</label>
+                <input type="text" id="bid-phone" placeholder="05xxxxxxxx" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;font-family:inherit;" />
+                <div style="display:flex;gap:10px;">
+                    <button onclick="closeBidModal()" style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إلغاء</button>
+                    <button onclick="sendBid('${offerId}')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#2A5050;color:#fff;cursor:pointer;font-family:inherit;">إرسال المزايدة</button>
+                </div>
+            </div>
+        </div>
+    `;
+    const existing = document.getElementById('bid-modal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', bidHtml);
+}
+
+function closeBidModal() {
+    const m = document.getElementById('bid-modal');
+    if (m) m.remove();
+}
+
+async function sendBid(offerId) {
+    const amount = document.getElementById('bid-amount').value;
+    const name = document.getElementById('bid-name').value.trim();
+    const phone = document.getElementById('bid-phone').value.trim();
+    if (!amount || !name || !phone) {
+        showToast('يرجى تعبئة جميع الحقول', 'error');
+        return;
+    }
+    const offer = OFFERS.find(o => String(o.id) === String(offerId));
+    const currentBid = offer ? (offer.highestBid || offer.highest_bid || offer.price || 0) : 0;
+    if (parseFloat(amount) <= parseFloat(currentBid)) {
+        showToast('مبلغ المزايدة يجب أن يكون أعلى من السوم الحالي', 'error');
+        return;
+    }
+
+    // إرسال المزايدة للإدارة عبر تيليجرام
+    const bidData = {
+        id: 'BID-' + Date.now(),
+        offerId: offerId,
+        offerTitle: offer ? offer.title : '',
+        bidAmount: amount,
+        name: name,
+        phone: phone,
+        type: 'bid',
+    };
+    notifyTelegramAdmin({
+        id: bidData.id,
+        name: name,
+        phone: phone,
+        propertyType: 'طلب مزايدة على ' + (offer ? offer.title : offerId),
+        location: offer ? offer.area : '',
+        area: '',
+        price: amount,
+        priceType: 'auction',
+        description: 'طلب مزايدة على العرض ' + offerId + ' — المبلغ: ' + amount + ' ريال',
+    }).catch(() => {});
+
+    closeBidModal();
+    showToast('تم إرسال طلب المزايدة بنجاح! سنتواصل معك قريباً.', 'success');
 }
 
 function showInquiryForm() {
@@ -962,8 +1200,9 @@ function initLightbox() {
         if (cardImg) {
             const card = cardImg.closest('.offer-card');
             if (!card) return;
+            const offerId = card.getAttribute('data-offer-id');
             const title = card.querySelector('h3') ? card.querySelector('h3').textContent.trim() : '';
-            const offer = OFFERS.find(o => o.title === title);
+            const offer = offerId ? OFFERS.find(o => String(o.id) === String(offerId)) : null;
             if (offer && offer.images && offer.images.length > 0) {
                 showLightbox(offer.images, 0, offer.title);
             } else {
