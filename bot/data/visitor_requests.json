@@ -1,5 +1,23 @@
 {
-  "requests": [],
+  "requests": [
+    {
+      "id": "REQ-TEST-API-001",
+      "name": "أحمد اختبار API",
+      "phone": "0545888931",
+      "propertyType": "أرض",
+      "location": "الرحمانية",
+      "area": "500",
+      "price": "425000",
+      "description": "أرض سكنية مميزة للاختبار",
+      "latitude": "24.7136",
+      "longitude": "46.6753",
+      "mapsLink": "https://maps.google.com/test",
+      "imageCount": 3,
+      "source": "website_api_test",
+      "submitted_at": "2026-08-09 14:49",
+      "status": "pending"
+    }
+  ],
   "inquiries": [],
   "offer_submissions": []
 }
