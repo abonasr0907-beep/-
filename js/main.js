@@ -386,35 +386,248 @@ function hideTyping() {
 }
 
 // ===== نماذج العرض والاستفسار =====
+// ===== متغيرات الخريطة والصور =====
+let propertyMap = null;
+let mapMarker = null;
+let selectedImages = [];
+const MAX_IMAGES = 5;
+
+// ===== تهيئة الخريطة التفاعلية =====
+function initPropertyMap() {
+    const mapEl = document.getElementById('property-map');
+    if (!mapEl || typeof L === 'undefined') return;
+
+    // موقع افتراضي: الخرج، الرياض
+    const defaultLat = 24.1554;
+    const defaultLng = 47.3068;
+
+    propertyMap = L.map('property-map').setView([defaultLat, defaultLng], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19
+    }).addTo(propertyMap);
+
+    // النقر على الخريطة لتحديد موقع العقار
+    propertyMap.on('click', function(e) {
+        setMapLocation(e.latlng.lat, e.latlng.lng);
+    });
+}
+
+// ===== تحديد الموقع على الخريطة =====
+function setMapLocation(lat, lng) {
+    if (!propertyMap) return;
+
+    // إزالة العلامة السابقة
+    if (mapMarker) {
+        propertyMap.removeLayer(mapMarker);
+    }
+
+    // إضافة علامة جديدة
+    mapMarker = L.marker([lat, lng], {draggable: true}).addTo(propertyMap);
+
+    // السماح بسحب العلامة
+    mapMarker.on('dragend', function(e) {
+        const pos = e.target.getLatLng();
+        setMapLocation(pos.lat, pos.lng);
+    });
+
+    // تحديث الحقول المخفية
+    document.getElementById('lat-input').value = lat.toFixed(6);
+    document.getElementById('lng-input').value = lng.toFixed(6);
+
+    // إنشاء رابط خرائط Google
+    const mapsLink = `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
+    document.getElementById('maps-link-input').value = mapsLink;
+
+    // عرض الإحداثيات
+    const display = document.getElementById('map-coords-display');
+    const coordsText = document.getElementById('coords-text');
+    const mapsLinkEl = document.getElementById('maps-link');
+    if (display) display.style.display = 'flex';
+    if (coordsText) coordsText.textContent = `خط العرض: ${lat.toFixed(6)} | خط الطول: ${lng.toFixed(6)}`;
+    if (mapsLinkEl) mapsLinkEl.href = mapsLink;
+}
+
+// ===== استخدام GPS لتحديد موقع المستخدم =====
+function useMyGPS() {
+    if (!navigator.geolocation) {
+        showToast('المتصفح لا يدعم تحديد الموقع الجغرافي', 'error');
+        return;
+    }
+
+    showToast('جاري تحديد موقعك...', '');
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            if (!propertyMap) initPropertyMap();
+
+            setMapLocation(lat, lng);
+            propertyMap.setView([lat, lng], 15);
+            showToast('تم تحديد موقعك بنجاح', 'success');
+        },
+        function(error) {
+            let errMsg = 'تعذر تحديد موقعك';
+            if (error.code === 1) errMsg = 'تم رفض إذن الوصول للموقع';
+            else if (error.code === 2) errMsg = 'الموقع غير متاح حالياً';
+            else if (error.code === 3) errMsg = 'انتهت مهلة تحديد الموقع';
+            showToast(errMsg, 'error');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+}
+
+// ===== مسح تحديد الموقع =====
+function clearMapLocation() {
+    if (mapMarker && propertyMap) {
+        propertyMap.removeLayer(mapMarker);
+        mapMarker = null;
+    }
+    document.getElementById('lat-input').value = '';
+    document.getElementById('lng-input').value = '';
+    document.getElementById('maps-link-input').value = '';
+    const display = document.getElementById('map-coords-display');
+    if (display) display.style.display = 'none';
+    showToast('تم مسح تحديد الموقع', '');
+}
+
+// ===== معالجة اختيار الصور =====
+function handleImageSelection(event) {
+    const files = Array.from(event.target.files);
+
+    for (const file of files) {
+        if (selectedImages.length >= MAX_IMAGES) {
+            showToast(`الحد الأقصى ${MAX_IMAGES} صور`, 'error');
+            break;
+        }
+
+        if (!file.type.startsWith('image/')) {
+            showToast('يرجى اختيار ملفات صور فقط', 'error');
+            continue;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            showToast(`الصورة "${file.name}" كبيرة جداً (الحد 10 ميجابايت)`, 'error');
+            continue;
+        }
+
+        selectedImages.push(file);
+    }
+
+    renderImagePreviews();
+    event.target.value = ''; // إعادة تعيين للسماح بإعادة اختيار نفس الصورة
+}
+
+// ===== عرض معاينة الصور =====
+function renderImagePreviews() {
+    const grid = document.getElementById('image-preview-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    selectedImages.forEach((file, idx) => {
+        const item = document.createElement('div');
+        item.className = 'image-preview-item';
+
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.alt = `صورة ${idx + 1}`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-img';
+        removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        removeBtn.type = 'button';
+        removeBtn.onclick = function(e) {
+            e.preventDefault();
+            selectedImages.splice(idx, 1);
+            renderImagePreviews();
+        };
+
+        const number = document.createElement('span');
+        number.className = 'img-number';
+        number.textContent = idx + 1;
+
+        item.appendChild(img);
+        item.appendChild(removeBtn);
+        item.appendChild(number);
+        grid.appendChild(item);
+    });
+}
+
+// ===== إرسال نموذج عرض العقار =====
 function submitPropertyForm(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData);
 
-    // حفظ الطلب في localStorage (سيتم إرساله للبوت)
+    // التحقق من الحقول المطلوبة
+    if (!data.name || !data.phone || !data.location || !data.propertyType || !data.area || !data.price) {
+        showToast('يرجى تعبئة جميع الحقول المطلوبة', 'error');
+        return false;
+    }
+
+    // حفظ الطلب في localStorage (للاستمرارية)
     const requests = JSON.parse(localStorage.getItem('afaq_property_requests') || '[]');
     data.id = 'REQ-' + Date.now();
     data.date = new Date().toISOString();
     data.status = 'pending';
+    data.imageCount = selectedImages.length;
+    if (data.latitude && data.longitude) {
+        data.hasLocation = true;
+        data.mapsLink = data.mapsLink || '';
+    }
     requests.push(data);
     localStorage.setItem('afaq_property_requests', JSON.stringify(requests));
 
-    // إرسال إشعار للواتساب
-    const msg = `*طلب عرض عقار جديد* 📈\n\n` +
-        `*الاسم:* ${data.name}\n` +
-        `*نوع العقار:* ${data.propertyType || data.property_type || 'غير محدد'}\n` +
-        `*الموقع:* ${data.location || 'غير محدد'}\n` +
-        `*المساحة:* ${data.area || data.size || 'غير محدد'} م²\n` +
-        `*السعر التقريبي:* ${data.price || 'غير محدد'} ريال\n` +
-        `*رقم الجوال:* ${data.phone}\n` +
-        (data.description ? `*الوصف:* ${data.description}\n` : (data.notes ? `*ملاحظات:* ${data.notes}\n` : ''));
+    // بناء رسالة واتساب الاحترافية
+    let msg = `*\u{1F3E0} طلب عرض عقار جديد*\n\n`;
+    msg += `*\u{1F464} الاسم:* ${data.name}\n`;
+    msg += `*\u{1F4DE} الجوال:* ${data.phone}\n`;
+    msg += `*\u{1F3F7}\u{FE0F} نوع العقار:* ${data.propertyType || 'غير محدد'}\n`;
+    msg += `*\u{1F4CD} الموقع:* ${data.location || 'غير محدد'}\n`;
+    msg += `*\u{1F4D0} المساحة:* ${data.area || 'غير محدد'} م\u{00B2}\n`;
+    msg += `*\u{1F4B0} السعر التقريبي:* ${data.price || 'غير محدد'} ريال\n`;
 
-    window.open(`https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`, '_blank');
+    // إضافة الوصف إن وجد
+    if (data.description && data.description.trim()) {
+        msg += `*\u{2139}\u{FE0F} الوصف:* ${data.description}\n`;
+    }
 
-    // عرض رسالة نجاح
+    // إضافة الموقع الجغرافي إن تم تحديده
+    if (data.latitude && data.longitude) {
+        msg += `\n*\u{1F5FA}\u{FE0F} موقع العقار على الخريطة:*\n`;
+        msg += `*خط العرض:* ${parseFloat(data.latitude).toFixed(6)}\n`;
+        msg += `*خط الطول:* ${parseFloat(data.longitude).toFixed(6)}\n`;
+        msg += `*رابط خرائط Google:* ${data.mapsLink}\n`;
+    }
+
+    // إضافة عدد الصور
+    if (selectedImages.length > 0) {
+        msg += `\n*\u{1F4F8} عدد الصور المرفقة:* ${selectedImages.length}\n`;
+        msg += `_ملاحظة: يرجى إرفاق الصور يدوياً في واتساب بعد فتح المحادثة_\n`;
+    }
+
+    msg += `\n*\u{1F4C4} رقم الطلب:* ${data.id}\n`;
+    msg += `*\u{1F550} التاريخ:* ${new Date().toLocaleString('ar-SA')}\n`;
+    msg += `\n*\u{1F4A1} مكتب آفاق الإنجاز العقاري*\n`;
+    msg += `\u{1F310} abonasr0907-beep.github.io/-`;
+
+    // فتح واتساب بالرسالة
+    const whatsappUrl = `https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, '_blank');
+
+    // عرض رسالة النجاح
     const fs = document.getElementById('form-success');
     if (fs) fs.classList.add('show');
     event.target.reset();
+
+    // مسح الصور والخريطة
+    selectedImages = [];
+    renderImagePreviews();
+    clearMapLocation();
 
     showToast('تم إرسال طلبك بنجاح! سنتواصل معك قريباً', 'success');
 
@@ -516,6 +729,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ===== معرض الصور (Lightbox) لعرض صور العرض بدقة عالية =====
     initLightbox();
+
+    // ===== تهيئة الخريطة التفاعلية (إن وجدت في الصفحة) =====
+    if (document.getElementById('property-map')) {
+        // تأخير بسيط للتأكد من تحميل Leaflet
+        setTimeout(initPropertyMap, 300);
+    }
 });
 
 // ============================================================

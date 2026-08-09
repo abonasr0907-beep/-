@@ -32,6 +32,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <!-- Leaflet.js for interactive map -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <!-- Schema.org Structured Data -->
     <script type="application/ld+json">
 {
@@ -172,8 +174,41 @@
                         <label><i class="fas fa-info-circle"></i> وصف العقار ومميزاته</label>
                         <textarea name="description" rows="4" placeholder="اذكر مميزات العقار: عدد الآبار، الأشجار، الشوارع، التشطيب..."></textarea>
                     </div>
+
+                    <!-- رفع صور العقار -->
+                    <div class="form-group">
+                        <label><i class="fas fa-images"></i> صور العقار (حتى 5 صور) — اختياري</label>
+                        <div class="image-upload-area" id="image-upload-area">
+                            <input type="file" name="propertyImages" id="property-images" accept="image/*" multiple style="display:none;" onchange="handleImageSelection(event)">
+                            <div class="upload-placeholder" onclick="document.getElementById('property-images').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>اضغط لاختيار صور العقار</p>
+                                <span>يمكنك اختيار حتى 5 صور (JPG, PNG)</span>
+                            </div>
+                        </div>
+                        <div class="image-preview-grid" id="image-preview-grid"></div>
+                    </div>
+
+                    <!-- تحديد الموقع الجغرافي على الخريطة (اختياري) -->
+                    <div class="form-group">
+                        <label><i class="fas fa-map-marked-alt"></i> تحديد موقع العقار على الخريطة — اختياري</label>
+                        <p class="map-hint"><i class="fas fa-shield-alt"></i> موقعك الحقيقي يُرسل للمكتب فقط ولا يُعرض للعامة. يُساعدنا على تقييم العقار بدقة.</p>
+                        <div class="map-controls">
+                            <button type="button" class="btn-map-gps" onclick="useMyGPS()"><i class="fas fa-location-arrow"></i> استخدام موقعي الحالي (GPS)</button>
+                            <button type="button" class="btn-map-clear" onclick="clearMapLocation()"><i class="fas fa-times-circle"></i> مسح التحديد</button>
+                        </div>
+                        <div id="property-map" class="property-map"></div>
+                        <div id="map-coords-display" class="map-coords-display" style="display:none;">
+                            <i class="fas fa-map-pin"></i> <span id="coords-text"></span>
+                            <a href="#" id="maps-link" target="_blank" class="maps-link-btn"><i class="fas fa-external-link-alt"></i> عرض على خرائط Google</a>
+                        </div>
+                        <input type="hidden" name="latitude" id="lat-input" value="">
+                        <input type="hidden" name="longitude" id="lng-input" value="">
+                        <input type="hidden" name="mapsLink" id="maps-link-input" value="">
+                    </div>
+
                     <div class="form-note">
-                        <i class="fas fa-info-circle"></i> سيتم حفظ بياناتك وإرسالها مباشرة عبر واتساب لفريق المكتب للمراجعة والتواصل معك.
+                        <i class="fas fa-info-circle"></i> سيتم حفظ بياناتك وإرسالها مباشرة عبر واتساب لفريق المكتب للمراجعة والتواصل معك. يمكنك إرفاق صور وتحديد موقع العقار على الخريطة لتسريع عملية التقييم.
                     </div>
                     <button type="submit" class="btn-primary btn-full"><i class="fab fa-whatsapp"></i> إرسال الطلب عبر واتساب</button>
                 </form>
@@ -284,6 +319,8 @@
             </div>
         </div>
     </div>
+    <!-- Leaflet.js for interactive map -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

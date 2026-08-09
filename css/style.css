@@ -1993,3 +1993,274 @@ select.form-control {
     .well-content { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr !important; }
 }
+
+/* ============================================================
+   نموذج عرض العقار — رفع الصور والخريطة التفاعلية
+   ============================================================ */
+
+/* منطقة رفع الصور */
+.image-upload-area {
+    border: 2px dashed #2a8080;
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    background: #f8fdfdfd;
+    cursor: pointer;
+}
+
+.image-upload-area:hover {
+    border-color: #1a5f5f;
+    background: #f0f9f9;
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    text-align: center;
+}
+
+.upload-placeholder i {
+    font-size: 42px;
+    color: #2a8080;
+    margin-bottom: 10px;
+}
+
+.upload-placeholder p {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2a8080;
+    margin: 0 0 5px 0;
+}
+
+.upload-placeholder span {
+    font-size: 13px;
+    color: #888;
+}
+
+/* شبكة معاينة الصور */
+.image-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.image-preview-item {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    border: 2px solid #e0e0e0;
+}
+
+.image-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview-item .remove-img {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(220, 53, 69, 0.9);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: background 0.2s;
+}
+
+.image-preview-item .remove-img:hover {
+    background: rgba(200, 35, 51, 1);
+}
+
+.image-preview-item .img-number {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(42, 128, 128, 0.9);
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* الخريطة التفاعلية */
+.map-hint {
+    font-size: 13px;
+    color: #666;
+    background: #fff8e1;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 5px 0 10px 0;
+    border-right: 3px solid #ffc107;
+}
+
+.map-hint i {
+    color: #ffc107;
+}
+
+.map-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-map-gps, .btn-map-clear {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-map-gps {
+    background: #2a8080;
+    color: #fff;
+}
+
+.btn-map-gps:hover {
+    background: #1a5f5f;
+}
+
+.btn-map-clear {
+    background: #e0e0e0;
+    color: #555;
+}
+
+.btn-map-clear:hover {
+    background: #d0d0d0;
+}
+
+.property-map {
+    width: 100%;
+    height: 300px;
+    border-radius: 12px;
+    border: 2px solid #2a8080;
+    margin-bottom: 10px;
+    z-index: 1;
+}
+
+.map-coords-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #e8f5f5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.map-coords-display i {
+    color: #2a8080;
+    font-size: 16px;
+}
+
+.map-coords-display #coords-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+}
+
+.maps-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #2a8080;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.maps-link-btn:hover {
+    background: #1a5f5f;
+    color: #fff;
+}
+
+/* رسالة النجاح */
+#form-success {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: #28a745;
+    color: #fff;
+    padding: 16px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 10000;
+    transition: transform 0.4s ease;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#form-success.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+#form-success i {
+    font-size: 22px;
+}
+
+/* تنبيه التحميل */
+.form-loading {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2a8080;
+    color: #fff;
+    padding: 14px 28px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    z-index: 10000;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* استجابة الشاشات الصغيرة */
+@media (max-width: 600px) {
+    .property-map { height: 250px; }
+    .image-preview-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+    .map-controls { flex-direction: column; }
+    .btn-map-gps, .btn-map-clear { width: 100%; justify-content: center; }
+}

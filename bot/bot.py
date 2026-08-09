@@ -2836,6 +2836,11 @@ def main():
         Application.builder()
         .token(BOT_TOKEN)
         .post_init(_post_init)
+        # ── مهلات اتصال أطول لتحمّل الإنترنت الضعيف ──
+        .connect_timeout(30)
+        .read_timeout(60)
+        .write_timeout(60)
+        .pool_timeout(30)
         .build()
     )
 
