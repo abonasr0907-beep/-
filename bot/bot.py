@@ -1824,6 +1824,8 @@ async def _approve_visitor_request(update, req_ref, query=None):
                     vdata = load_visitor_requests()
                     vdata.setdefault("requests", []).append(parsed)
                     save_visitor_requests(vdata)
+                    # تحديث data لتشير إلى vdata بحيث يعكس save_visitor_requests(data) لاحقاً الطلب المستخرج
+                    data = vdata
                     logger.info(f"💾 تم حفظ الطلب المستخرج من الرسالة: {req_ref}")
                     # إعادة البحث عن الطلب
                     target = ("request", parsed)
@@ -2333,6 +2335,68 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     session = get_session(uid)
     text = update.message.text.strip()
+    # ── معالجة رسالة بيانات VR_DATA من الموقع (مسار الاحتياط) ──
+    # عندما يفشل خادم البوت، يرسل الموقع رسالة بيانات VR_DATA:{json}
+    # البوت يحفظ الطلب ثم يحذف رسالة البيانات ويرسل إشعار بالأزرار
+    if text.startswith("VR_DATA:"):
+        try:
+            import json as _json
+            raw_json = text[len("VR_DATA:"):]
+            data = _json.loads(raw_json)
+
+            # بناء سجل الطلب (نفس منطق _handle_visitor_request_api)
+            request_id = data.get("id", f"REQ-{int(time.time())}")
+            visitor_request = {
+                "id": request_id,
+                "name": str(data.get("name", "")),
+                "phone": str(data.get("phone", "")),
+                "propertyType": str(data.get("propertyType", data.get("property_type", ""))),
+                "location": str(data.get("location", "")),
+                "area": str(data.get("area", "")),
+                "price": str(data.get("price", "")),
+                "description": str(data.get("description", "")),
+                "latitude": str(data.get("latitude", "")),
+                "longitude": str(data.get("longitude", "")),
+                "mapsLink": str(data.get("mapsLink", data.get("maps_link", ""))),
+                "imageCount": int(data.get("imageCount", data.get("image_count", 0)) or 0),
+                "source": str(data.get("source", "website_fallback")),
+                "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "status": "pending",
+            }
+
+            # 1) حفظ الطلب في visitor_requests.json
+            vdata = load_visitor_requests()
+            # التحقق من عدم تكرار الطلب (بناءً على id)
+            existing_ids = [r.get("id") for r in vdata.get("requests", [])]
+            if request_id not in existing_ids:
+                vdata.setdefault("requests", []).append(visitor_request)
+                save_visitor_requests(vdata)
+                logger.info(f"📥 [VR_DATA] تم حفظ طلب زائر من مسار الاحتياط: {request_id} — {visitor_request['name']}")
+            else:
+                logger.info(f"ℹ️ [VR_DATA] الطلب {request_id} محفوظ مسبقاً — تخطي الحفظ المكرر")
+                # تحديث vdata للإشعار
+                vdata = load_visitor_requests()
+
+            # 2) حذف رسالة البيانات (كي لا يرى الإدارة JSON الخام)
+            try:
+                await update.message.delete()
+            except Exception as del_err:
+                logger.warning(f"⚠️ تعذّر حذف رسالة VR_DATA: {del_err}")
+
+            # 3) إرسال إشعار للإدارة مع أزرار موافقة/رفض
+            try:
+                if _bot_app_ref and _bot_app_ref.bot:
+                    await _notify_admins_new_request(_bot_app_ref.bot, visitor_request, vdata)
+                else:
+                    # استخدام context.bot كبديل
+                    await _notify_admins_new_request(context.bot, visitor_request, vdata)
+            except Exception as notify_err:
+                logger.error(f"❌ خطأ في إرسال إشعار VR_DATA: {notify_err}")
+
+        except Exception as e:
+            logger.error(f"❌ خطأ في معالجة رسالة VR_DATA: {e}")
+        return  # عدم متابعة معالجة الرسالة كرسالة عادية
+
 
     # ── توجيه الزوار (غير المصرفين) ──
     if not is_authorized(uid):
