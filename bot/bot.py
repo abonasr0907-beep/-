@@ -418,6 +418,18 @@ def add_admin(user_id):
     user_manager.add_user(user_id, f"Admin {user_id}", role="admin", added_by="system")
 
 
+def remove_admin(user_id):
+    """حذف مدير — يزيل من config.json و user_manager (يحفظ الأذونات بشكل دائم)"""
+    ADMIN_IDS.discard(user_id)
+    CONFIG["admin_ids"] = list(ADMIN_IDS)
+    save_config(CONFIG)
+    # أيضاً التحديث في نظام المستخدمين (تغيير الدور إلى user بدلاً من admin)
+    try:
+        user_manager.add_user(user_id, f"User {user_id}", role="user", added_by="system")
+    except Exception as e:
+        logger.warning(f"⚠️ تعذّر تحديث دور المدير المحذوف في user_manager: {e}")
+
+
 # ============================================================
 #  البوصلة العقارية — جلب متوسط السعر حسب المنطقة والنوع
 # ============================================================
@@ -1145,6 +1157,44 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         req_id = data[len("vreq_reject_"):]
         await _reject_visitor_request(update, req_id, query=query)
 
+    # Task 1: إدارة المدراء
+    elif data == "admin_manage":
+        await _admin_manage_menu(update, query=query)
+    elif data == "admin_add":
+        session["state"] = "awaiting_admin_id"
+        save_session(uid)
+        await query.edit_message_text(
+            "👤 إضافة مدير جديد\n\n"
+            "أرسل معرّف Telegram (ID) للمستخدم الجديد:\n"
+            "(رقم فقط، مثال: 7746757675)"
+        )
+    elif data.startswith("admin_remove_"):
+        admin_id_str = data[len("admin_remove_"):]
+        await _admin_remove(update, admin_id_str, query=query)
+    elif data == "admin_back":
+        await _admin_manage_menu(update, query=query)
+    elif data == "admin_back_settings":
+        # العودة لقائمة الإعدادات (إعادة عرض رسالة الإعدادات)
+        msg = (
+            f"⚙️ إعدادات البوت:\n\n"
+            f"👤 المدراء: {list(ADMIN_IDS)}\n"
+            f"🗺️ موقع المكتب: {CONFIG['office_location']}\n"
+            f"🌐 الموقع: {CONFIG['website_url']}\n"
+            f"📷 الحد الأقصى للصور: {CONFIG['max_images']}\n"
+            f"🔄 التجديد التلقائي: {'مفعّل' if CONFIG.get('auto_renew') else 'معطل'}\n\n"
+            f"الأوامر:\n"
+            f"/setadmin <id> — تعيين مدير\n"
+            f"/setmax <number> — تغيير حد الصور\n"
+            f"/toggleauto — تفعيل/تعطيل التجديد التلقائي"
+        )
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("👤 إدارة المدراء", callback_data="admin_manage")],
+        ])
+        try:
+            await query.edit_message_text(msg, reply_markup=keyboard)
+        except Exception:
+            pass
+
     elif data.startswith("approve_"):
         idx = int(data[7:])
         await _approve_visitor_request(update, idx, query=query)
@@ -1858,7 +1908,94 @@ async def edit_offer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 #  طلبات الزوار
 # ============================================================
+# ============================================================
+#  Task 1: إدارة المدراء — واجهة الأزرار
+# ============================================================
+async def _admin_manage_menu(update, query=None):
+    """عرض قائمة إدارة المدراء مع أزرار الإضافة والحذف"""
+    if not is_admin(update.effective_user.id):
+        return
+    admins_list = sorted(ADMIN_IDS)
+    msg = "👤 إدارة المدراء\n\n"
+    msg += f"عدد المدراء الحاليين: {len(admins_list)}\n\n"
+    msg += "قائمة المدراء:\n"
+    for aid in admins_list:
+        msg += f"  • {aid}\n"
+    msg += "\nاضغط زر الإضافة لتعيين مدير جديد، أو زر الحذف بجانب أي مدير لإزالته."
+
+    keyboard = []
+    keyboard.append([InlineKeyboardButton("➕ إضافة مدير جديد", callback_data="admin_add")])
+    current_uid = update.effective_user.id
+    for aid in admins_list:
+        if aid == current_uid:
+            keyboard.append([InlineKeyboardButton(f"❌ حذف {aid} (أنت)", callback_data=f"admin_remove_{aid}")])
+        else:
+            keyboard.append([InlineKeyboardButton(f"🗑️ حذف {aid}", callback_data=f"admin_remove_{aid}")])
+    keyboard.append([InlineKeyboardButton("↩️ رجوع للإعدادات", callback_data="admin_back_settings")])
+
+    markup = InlineKeyboardMarkup(keyboard)
+    if query:
+        try:
+            await query.edit_message_text(msg, reply_markup=markup)
+        except Exception:
+            await update.callback_query.message.reply_text(msg, reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, reply_markup=markup)
+
+
+async def _admin_remove(update, admin_id_str, query=None):
+    """حذف مدير من القائمة"""
+    if not is_admin(update.effective_user.id):
+        return
+    try:
+        admin_id = int(admin_id_str)
+    except (ValueError, TypeError):
+        if query:
+            await query.edit_message_text("⚠️ معرّف غير صحيح.")
+        return
+    if len(ADMIN_IDS) <= 1:
+        if query:
+            await query.edit_message_text("⚠️ لا يمكن حذف المدير الوحيد. يجب وجود مدير واحد على الأقل.")
+        return
+    remove_admin(admin_id)
+    msg = f"✅ تم حذف المدير {admin_id} من القائمة.\n\nالمدراء الحاليون: {sorted(ADMIN_IDS)}"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("↩️ رجوع لإدارة المدراء", callback_data="admin_manage")],
+    ])
+    if query:
+        await query.edit_message_text(msg, reply_markup=keyboard)
+    else:
+        await update.message.reply_text(msg, reply_markup=keyboard)
+
+
+async def _admin_add_by_id(update, context):
+    """إضافة مدير بواسطة ID — تُستدعى من حالة awaiting_admin_id"""
+    uid = update.effective_user.id
+    text = update.message.text.strip()
+    try:
+        new_admin_id = int(text.replace(" ", ""))
+    except ValueError:
+        await update.message.reply_text("⚠️ أرسل رقم معرّف صحيح (أرقام فقط).")
+        return
+    if is_admin(new_admin_id):
+        await update.message.reply_text(f"ℹ️ المستخدم {new_admin_id} مدير بالفعل.")
+        reset_session(uid)
+        return
+    add_admin(new_admin_id)
+    msg = (
+        f"✅ تم تعيين المستخدم {new_admin_id} كمدير بنجاح!\n\n"
+        f"المدراء الحاليون: {sorted(ADMIN_IDS)}\n\n"
+        f"المدير الجديد يمكنه الآن:\n"
+        f"• إدارة طلبات الزوار (موافقة/رفض)\n"
+        f"• إضافة وتعديل وحذف العروض\n"
+        f"• الوصول للإعدادات والإحصائيات"
+    )
+    await update.message.reply_text(msg, reply_markup=MAIN_KEYBOARD)
+    reset_session(uid)
+
+
 async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Task 6: عرض جميع طلبات الزوار مع الصور والبيانات الكاملة"""
     if not is_admin(update.effective_user.id):
         return
     data = load_visitor_requests()
@@ -1866,43 +2003,136 @@ async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     inquiries = data.get("inquiries", [])
     total = len(requests_list) + len(inquiries)
     if total == 0:
-        await update.message.reply_text("📨 لا توجد طلبات من الزوار حالياً.\n\nملاحظة: يتم استقبال الطلبات من نموذج الموقع وحفظها. يمكن للمدير مراجعتها هنا.")
+        await update.message.reply_text("📨 لا توجد طلبات من الزوار حالياً.\n\nملاحظة: تتم استقبال الطلبات من نموذج الموقع وحفظها. يمكن للمدير مراجعتها هنا.")
         return
-    msg = f"📨 طلبات الزوار ({total} طلب):\n\n"
-    # عرض آخر 10 طلبات
+
+    # تجميع كل الطلبات (جميعها، وليس آخر 10 فقط)
     all_items = []
     for r in requests_list:
         all_items.append(("request", r))
     for i in inquiries:
         all_items.append(("inquiry", i))
 
-    keyboard = []
-    # عرض آخر 10 طلبات مع أزرار موافقة ورفض لكل طلب
-    for idx, (typ, item) in enumerate(all_items[-10:]):
-        label = "\U0001F3E0 عرض" if typ == "request" else "\U0001F50D استفسار"
+    # عرض رسالة ملخص أولاً
+    pending_count = sum(1 for _, item in all_items if item.get("status") == "pending")
+    approved_count = sum(1 for _, item in all_items if item.get("status") == "approved")
+    rejected_count = sum(1 for _, item in all_items if item.get("status") == "rejected")
+    summary_msg = (
+        f"📨 طلبات الزوار ({total} طلب):\n\n"
+        f"⏳ بانتظار المراجعة: {pending_count}\n"
+        f"✅ موافق عليها: {approved_count}\n"
+        f"❌ مرفوضة: {rejected_count}\n\n"
+        f"📋 يتم عرض جميع الطلبات بالتفصيل أدناه..."
+    )
+    await update.message.reply_text(summary_msg)
+
+    # Task 6: عرض كل طلب على حدة مع البيانات الكاملة والصور
+    bot = context.bot
+    for idx, (typ, item) in enumerate(all_items):
+        label = "🏠 عرض" if typ == "request" else "🔍 استفسار"
         name = item.get("name", "غير معروف")
-        status = item.get("status", "")
+        phone = item.get("phone", "")
+        status = item.get("status", "pending")
         status_icon = ""
         if status == "approved":
-            status_icon = " \u2705"
+            status_icon = " ✅"
         elif status == "rejected":
-            status_icon = " \u274C"
+            status_icon = " ❌"
         elif status == "pending":
-            status_icon = " \u23F3"
-        msg += f"{label} [{idx}] \u2014 {name} \u2014 {item.get('phone','')}{status_icon}\n"
+            status_icon = " ⏳"
+
+        # بناء رسالة تفصيلية لكل طلب
+        detail_msg = f"{'─' * 30}\n"
+        detail_msg += f"{label} [{idx}] — {name}{status_icon}\n"
+        detail_msg += f"{'─' * 30}\n"
+        detail_msg += f"👤 الاسم: {name}\n"
+        detail_msg += f"📱 الهاتف: {phone}\n"
+        if item.get("propertyType"):
+            detail_msg += f"🏷️ نوع العقار: {item.get('propertyType', '')}\n"
+        op_type = item.get("operation_type", item.get("operationType", "sale"))
+        detail_msg += f"🔄 العملية: {'🏠 للإيجار' if op_type == 'rent' else '🏷️ للبيع'}\n"
+        if item.get("location"):
+            detail_msg += f"📍 الموقع: {item.get('location', '')}\n"
+        if item.get("area"):
+            detail_msg += f"📐 المساحة: {item.get('area', '')} م²\n"
+        # عرض السعر حسب النوع
+        _ptype = item.get("priceType", "fixed")
+        _price_val = item.get("price", "")
+        _highest_bid = item.get("highestBid", "")
+        if _ptype == "auction":
+            detail_msg += f"🔨 السوم — أعلى سوم: {_highest_bid} ريال\n" if _highest_bid else "🔨 على السوم\n"
+        elif _ptype == "negotiable":
+            detail_msg += f"🤝 السعر: {_price_val} ريال (قابل للتفاوض)\n" if _price_val else "🤝 قابل للتفاوض\n"
+        else:
+            detail_msg += f"💰 السعر: {_price_val} ريال\n" if _price_val else ""
+        if item.get("description"):
+            detail_msg += f"📝 الوصف: {item.get('description', '')}\n"
+        if item.get("latitude") and item.get("longitude"):
+            maps_url = item.get("mapsLink") or f"https://www.google.com/maps?q={item.get('latitude')},{item.get('longitude')}"
+            detail_msg += f"🗺️ الموقع على الخريطة: {maps_url}\n"
+        img_count = item.get("imageCount", 0)
+        img_list = item.get("images", [])
+        detail_msg += f"📷 الصور: {img_count} صورة\n"
+        detail_msg += f"📄 رقم الطلب: {item.get('id', f'idx_{idx}')}\n"
+        detail_msg += f"🕐 التاريخ: {item.get('submitted_at', '')}\n"
+
+        # أزرار الموافقة والرفض (فقط للطلبات المعلّقة)
         req_id = item.get("id", f"idx_{idx}")
-        row = [
-            InlineKeyboardButton(
-                f"\u2705 موافقة [{idx}]",
-                callback_data=f"vreq_approve_{req_id}",
-            ),
-            InlineKeyboardButton(
-                f"\u274C رفض [{idx}]",
-                callback_data=f"vreq_reject_{req_id}",
-            ),
-        ]
-        keyboard.append(row)
-    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None)
+        if status == "pending":
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton(f"✅ موافقة ونشر", callback_data=f"vreq_approve_{req_id}")],
+                [InlineKeyboardButton(f"❌ رفض", callback_data=f"vreq_reject_{req_id}")],
+            ])
+        else:
+            keyboard = None
+
+        # Task 6: إرسال الصور كمجموعة وسائط إن وجدت
+        image_paths_local = []
+        for img_rel in img_list:
+            local_p = WEBSITE_DIR / img_rel
+            if local_p.exists():
+                image_paths_local.append(str(local_p))
+        # البحث في مجلد images/visitor/{id}/ إن لم توجد مسارات
+        if not image_paths_local:
+            req_id_imgs = item.get("id", "")
+            if req_id_imgs:
+                visitor_img_folder = WEBSITE_DIR / "images" / "visitor" / req_id_imgs
+                if visitor_img_folder.exists():
+                    for p in sorted(visitor_img_folder.glob("*")):
+                        if p.suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+                            image_paths_local.append(str(p))
+
+        try:
+            if image_paths_local:
+                # إرسال الصور كمجموعة وسائط (مع المحافظة على الترتيب)
+                media_group = []
+                for img_path in image_paths_local[:10]:
+                    try:
+                        media_group.append(InputMediaPhoto(open(img_path, "rb")))
+                    except Exception as ie:
+                        logger.warning(f"⚠️ تعذّر فتح الصورة {img_path}: {ie}")
+                if media_group:
+                    try:
+                        await bot.send_media_group(chat_id=update.effective_chat.id, media=media_group)
+                    except Exception as mge:
+                        logger.warning(f"⚠️ فشل إرسال مجموعة الصور للطلب {req_id}: {mge}")
+            # إرسال الرسالة التفصيلية مع الأزرار
+            await bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=detail_msg,
+                reply_markup=keyboard,
+                disable_web_page_preview=True,
+            )
+        except Exception as e:
+            logger.error(f"❌ فشل إرسال تفاصيل الطلب {req_id}: {e}")
+            try:
+                await bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=f"⚠️ تعذّر عرض الطلب [{idx}] — {name}",
+                )
+            except Exception:
+                pass
+
 
 def _parse_request_from_callback_message(query, req_id):
     """
@@ -2579,7 +2809,11 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"/setmax <number> — تغيير حد الصور\n"
         f"/toggleauto — تفعيل/تعطيل التجديد التلقائي"
     )
-    await update.message.reply_text(msg)
+    # Task 1: زر إدارة المدراء في لوحة التحكم
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👤 إدارة المدراء", callback_data="admin_manage")],
+    ])
+    await update.message.reply_text(msg, reply_markup=keyboard)
 
 async def set_max(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
@@ -2713,15 +2947,42 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_ai_chat(update, context)
         return
 
-    # إذا كان في عملية إضافة عرض
-    if session["state"] in [
+    # Task 1: إذا كان في وضع إدخال معرّف مدير جديد
+    if session["state"] == "awaiting_admin_id":
+        await _admin_add_by_id(update, context)
+        return
+
+    # Task 3: إذا كان في عملية إضافة عرض وضغط زر رئيسي (وليس زر الإلغاء)
+    # → إلغاء العملية الحالية وتنفيذ الأمر الجديد
+    _ADD_FLOW_STATES = [
         "awaiting_images", "awaiting_title", "awaiting_area",
         "awaiting_size", "awaiting_operation_type", "awaiting_price_type",
         "awaiting_price_fixed", "awaiting_price_auction",
         "awaiting_desc_confirm", "awaiting_custom_desc",
-    ]:
-        await handle_text_during_add(update, context)
-        return
+    ]
+    _MAIN_BUTTONS = [
+        "➕ إضافة عرض جديد", "📋 قائمة العروض", "🗑️ حذف عرض", "✏️ تعديل عرض",
+        "📨 طلبات الزوار", "🏪 عروض الزوار", "🔍 فلترة العروض",
+        "📊 إحصائيات", "📈 التقرير الأسبوعي", "🏷️ تحديث البوصلة",
+        "🤖 المساعد الذكي", "🗣️ تحديث الأخبار", "⚙️ الإعدادات",
+    ]
+    if session["state"] in _ADD_FLOW_STATES:
+        # إذا ضغط زر إلغاء → معالجة عادية (handle_text_during_add تتعامل معه)
+        if text == "❌ إلغاء العملية" or text == "❌ إلغاء":
+            await handle_text_during_add(update, context)
+            return
+        # إذا ضغط زر رئيسي → إلغاء العملية الحالية وتنفيذ الأمر الجديد
+        if text in _MAIN_BUTTONS:
+            reset_session(uid)
+            await update.message.reply_text(
+                "❌ تم إلغاء العملية السابقة تلقائياً.\n",
+                reply_markup=MAIN_KEYBOARD,
+            )
+            # المتابعة لتنفيذ الأمر الجديد (لا return)
+        else:
+            # نص عادي ضمن عملية الإضافة → معالجة عادية
+            await handle_text_during_add(update, context)
+            return
 
     # الأزرار الرئيسية
     if text == "➕ إضافة عرض جديد":
