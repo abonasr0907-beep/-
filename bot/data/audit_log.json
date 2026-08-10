@@ -1,3 +1,58 @@
 {
-  "entries": []
+  "entries": [
+    {
+      "action": "add_user",
+      "performed_by": "test",
+      "detail": "أضاف مستخدم 111 (Test Reviewer) بدور reviewer",
+      "timestamp": "2026-08-10 19:20:16"
+    },
+    {
+      "action": "add_user",
+      "performed_by": "test",
+      "detail": "أضاف مستخدم 222 (Test Publisher) بدور publisher",
+      "timestamp": "2026-08-10 19:20:16"
+    },
+    {
+      "action": "remove_user",
+      "performed_by": "test",
+      "detail": "حذف مستخدم 111 (Test Reviewer)",
+      "timestamp": "2026-08-10 19:20:16"
+    },
+    {
+      "action": "remove_user",
+      "performed_by": "test",
+      "detail": "حذف مستخدم 222 (Test Publisher)",
+      "timestamp": "2026-08-10 19:20:16"
+    },
+    {
+      "action": "add_user",
+      "performed_by": "test",
+      "detail": "أضاف مستخدم 111 (Test Reviewer) بدور reviewer",
+      "timestamp": "2026-08-10 19:21:09"
+    },
+    {
+      "action": "add_user",
+      "performed_by": "test",
+      "detail": "أضاف مستخدم 222 (Test Publisher) بدور publisher",
+      "timestamp": "2026-08-10 19:21:09"
+    },
+    {
+      "action": "change_role",
+      "performed_by": "test",
+      "detail": "Changed role of 111 from reviewer to publisher",
+      "timestamp": "2026-08-10 19:21:09"
+    },
+    {
+      "action": "remove_user",
+      "performed_by": "test",
+      "detail": "حذف مستخدم 111 (Test Reviewer)",
+      "timestamp": "2026-08-10 19:21:09"
+    },
+    {
+      "action": "remove_user",
+      "performed_by": "test",
+      "detail": "حذف مستخدم 222 (Test Publisher)",
+      "timestamp": "2026-08-10 19:21:09"
+    }
+  ]
 }

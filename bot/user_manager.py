@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 نظام إدارة المستخدمين المتعددين
-الأدوار: admin (مدير) و editor (محرر)
+الأدوار: admin (مدير) و reviewer (مراجع طلبات) و publisher (ناشر فقط) و editor (محرر)
 الحالات: active (نشط) و suspended (موقوف)
 
 المميزات:
@@ -32,12 +32,62 @@ AUDIT_FILE = DATA_DIR / "audit_log.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-#  الثوابت
+#  الثوابت — الأدوار الثلاثة المطلوبة
 # ============================================================
+# مدير كامل (admin): كل الصلاحيات
 ROLE_ADMIN = "admin"
+# مراجع طلبات (reviewer): مراجعة الطلبات/العروض والموافقة/الرفض فقط
+ROLE_REVIEWER = "reviewer"
+# ناشر فقط (publisher): إضافة ونشر العروض فقط (لا إدارة مدراء، لا حذف)
+ROLE_PUBLISHER = "publisher"
+# توافق مع الإصدارات القديمة (editor = publisher فعلياً)
 ROLE_EDITOR = "editor"
+
 STATUS_ACTIVE = "active"
 STATUS_SUSPENDED = "suspended"
+
+# خريطة الصلاحيات حسب الدور
+# manage_users: إدارة المدراء (admin فقط)
+# review_requests: مراجعة الطلبات والموافقة/الرفض (admin, reviewer)
+# publish_offers: إضافة ونشر العروض (admin, publisher, editor)
+# delete_offers: حذف العروض (admin فقط)
+# view_archive: عرض الأرشيف (admin, reviewer, publisher, editor)
+# edit_settings: تعديل الإعدادات (admin فقط)
+_ROLE_PERMISSIONS = {
+    ROLE_ADMIN: {
+        "manage_users": True,
+        "review_requests": True,
+        "publish_offers": True,
+        "delete_offers": True,
+        "view_archive": True,
+        "edit_settings": True,
+    },
+    ROLE_REVIEWER: {
+        "manage_users": False,
+        "review_requests": True,
+        "publish_offers": False,
+        "delete_offers": False,
+        "view_archive": True,
+        "edit_settings": False,
+    },
+    ROLE_PUBLISHER: {
+        "manage_users": False,
+        "review_requests": False,
+        "publish_offers": True,
+        "delete_offers": False,
+        "view_archive": True,
+        "edit_settings": False,
+    },
+    # توافق مع الإصدارات القديمة
+    ROLE_EDITOR: {
+        "manage_users": False,
+        "review_requests": True,
+        "publish_offers": True,
+        "delete_offers": False,
+        "view_archive": True,
+        "edit_settings": False,
+    },
+}
 
 # ============================================================
 #  المخزن الداخلي
@@ -243,19 +293,84 @@ def is_admin(user_id) -> bool:
 
 
 def is_editor(user_id) -> bool:
-    """التحقق إن كان المستخدم محرراً أو مديراً (نشط)"""
+    """Check if user is editor/publisher/admin (active) -- backwards compat"""
     role = get_user_role(user_id)
-    return role in (ROLE_EDITOR, ROLE_ADMIN)
+    return role in (ROLE_EDITOR, ROLE_PUBLISHER, ROLE_ADMIN)
 
 
 def is_authorized(user_id) -> bool:
-    """التحقق من الترخيص العام (admin أو editor)"""
-    return is_editor(user_id)
+    """General authorization check (any active role: admin, reviewer, publisher, editor)"""
+    role = get_user_role(user_id)
+    return role in (ROLE_ADMIN, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
 
 
 def can_manage_users(user_id) -> bool:
-    """التحقق إن كان المستخدم يمكنه إدارة المستخدمين (admin فقط)"""
+    """Check if user can manage users (admin only)"""
     return is_admin(user_id)
+
+
+# ============================================================
+#  Permission functions (3-role RBAC)
+# ============================================================
+def has_permission(user_id, permission: str) -> bool:
+    """Check if user has a specific permission based on their role."""
+    role = get_user_role(user_id)
+    if role is None:
+        return False
+    perms = _ROLE_PERMISSIONS.get(role, {})
+    return perms.get(permission, False)
+
+
+def can_review_requests(user_id) -> bool:
+    """Can review/approve/reject visitor requests and offers (admin, reviewer, editor)."""
+    return has_permission(user_id, "review_requests")
+
+
+def can_publish_offers(user_id) -> bool:
+    """Can add and publish offers (admin, publisher, editor)."""
+    return has_permission(user_id, "publish_offers")
+
+
+def can_delete_offers(user_id) -> bool:
+    """Can delete offers (admin only)."""
+    return has_permission(user_id, "delete_offers")
+
+
+def can_view_archive(user_id) -> bool:
+    """Can view the archive (admin, reviewer, publisher, editor)."""
+    return has_permission(user_id, "view_archive")
+
+
+def can_edit_settings(user_id) -> bool:
+    """Can edit settings (admin only)."""
+    return has_permission(user_id, "edit_settings")
+
+
+def get_user_permissions(user_id) -> dict:
+    """Get all permissions for a user based on their role."""
+    role = get_user_role(user_id)
+    if role is None:
+        return {}
+    return dict(_ROLE_PERMISSIONS.get(role, {}))
+
+
+def change_role(user_id, new_role, changed_by="system") -> bool:
+    """Change a user's role. Validates the new role against known roles."""
+    init()
+    valid_roles = (ROLE_ADMIN, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
+    if new_role not in valid_roles:
+        logger.warning(f"Invalid role: {new_role}")
+        return False
+    uid = str(user_id)
+    with _lock:
+        if uid not in _users:
+            return False
+        old_role = _users[uid].get("role", "unknown")
+        _users[uid]["role"] = new_role
+        _save_users()
+    log_audit("change_role", changed_by, f"Changed role of {uid} from {old_role} to {new_role}")
+    logger.info(f"Changed role of {uid}: {old_role} -> {new_role}")
+    return True
 
 
 def update_last_active(user_id):
@@ -306,14 +421,20 @@ def get_stats() -> dict:
     """إحصائيات المستخدمين للوحة التحكم"""
     init()
     with _lock:
-        total = len(_users)
-        admins = sum(1 for u in _users.values() if u.get("role") == ROLE_ADMIN)
-        editors = sum(1 for u in _users.values() if u.get("role") == ROLE_EDITOR)
-        active = sum(1 for u in _users.values() if u.get("status") == STATUS_ACTIVE)
-        suspended = sum(1 for u in _users.values() if u.get("status") == STATUS_SUSPENDED)
+        # Filter to only dict entries (skip legacy keys like "users" list)
+        _ulist = [u for u in _users.values() if isinstance(u, dict)]
+        total = len(_ulist)
+        admins = sum(1 for u in _ulist if u.get("role") == ROLE_ADMIN)
+        reviewers = sum(1 for u in _ulist if u.get("role") == ROLE_REVIEWER)
+        publishers = sum(1 for u in _ulist if u.get("role") == ROLE_PUBLISHER)
+        editors = sum(1 for u in _ulist if u.get("role") == ROLE_EDITOR)
+        active = sum(1 for u in _ulist if u.get("status") == STATUS_ACTIVE)
+        suspended = sum(1 for u in _ulist if u.get("status") == STATUS_SUSPENDED)
         return {
             "total": total,
             "admins": admins,
+            "reviewers": reviewers,
+            "publishers": publishers,
             "editors": editors,
             "active": active,
             "suspended": suspended,

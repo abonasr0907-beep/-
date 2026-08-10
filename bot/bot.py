@@ -404,10 +404,51 @@ def is_editor(user_id):
 
 def is_authorized(user_id):
     """
-    التحقق من الترخيص العام (admin أو editor).
-    البوت ليس عاماً — كل مستخدم يجب أن يكون مصرّحاً له.
+    التحقق من الترخيص العام (admin أو reviewer أو publisher أو editor).
+    البوت تيلس عاماً — كل مستخدم يجب أن يكون مصرّحاً له.
     """
-    return is_editor(user_id)
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.is_authorized(user_id)
+
+
+# ============================================================
+#  دوال الصلاحيات — نظام الأدوار الثلاثة (admin/reviewer/publisher)
+# ============================================================
+def can_review_requests(user_id):
+    """صلاحية مراجعة الطلبات/العروض والموافقة/الرفض (admin, reviewer, editor)"""
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.can_review_requests(user_id)
+
+
+def can_publish_offers(user_id):
+    """صلاحية إضافة ونشر العروض (admin, publisher, editor)"""
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.can_publish_offers(user_id)
+
+
+def can_delete_offers(user_id):
+    """صلاحية حذف العروض (admin فقط)"""
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.can_delete_offers(user_id)
+
+
+def can_view_archive(user_id):
+    """صلاحية عرض الأرشيف (admin, reviewer, publisher, editor)"""
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.can_view_archive(user_id)
+
+
+def can_edit_settings(user_id):
+    """صلاحية تعديل الإعدادات (admin فقط)"""
+    if user_id in ADMIN_IDS:
+        return True
+    return user_manager.can_edit_settings(user_id)
+
 
 def add_admin(user_id):
     """إضافة مدير — يحفظ في config.json و user_manager"""
@@ -560,9 +601,10 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
         ["🗑️ حذف عرض", "✏️ تعديل عرض"],
         ["📨 طلبات الزوار", "🏡 عروض الزوار"],
-        ["📊 إحصائيات", "📈 التقرير الأسبوعي"],
-        ["🧭 تحديث البوصلة", "🤖 المساعد الذكي"],
-        ["🗞️ تحديث الأخبار", "⚙️ الإعدادات"],
+        ["📦 الأرشيف", "📊 إحصائيات"],
+        ["📈 التقرير الأسبوعي", "🧭 تحديث البوصلة"],
+        ["🤖 المساعد الذكي", "🗞️ تحديث الأخبار"],
+        ["⚙️ الإعدادات", "🔄 إلغاء / بدء جديد"],
     ],
     resize_keyboard=True,
 )
@@ -654,7 +696,7 @@ async def set_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #  إضافة عرض جديد — العملية التفاعلية
 # ============================================================
 async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
+    if not can_publish_offers(update.effective_user.id):
         await update.message.reply_text("هذا الأمر للمصرّح لهم فقط. تواصل مع مدير المكتب.")
         return
     uid = update.effective_user.id
@@ -1219,6 +1261,71 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data[7:])
         await _share_visitor_offer_whatsapp(update, idx, query=query)
 
+    # ── نظام الأرشيف ──
+    elif data == "archive_menu":
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📋 كل الطلبات", callback_data="archive_all"),
+             InlineKeyboardButton("🆕 الطلبات الجديدة", callback_data="archive_new")],
+            [InlineKeyboardButton("📦 الطلبات القديمة", callback_data="archive_old"),
+             InlineKeyboardButton("🔍 بحث برقم", callback_data="archive_search_num")],
+            [InlineKeyboardButton("📅 بحث بتاريخ", callback_data="archive_search_date")],
+        ])
+        try:
+            await query.edit_message_text(
+                "📦 الأرشيف\n\nاختر طريقة العرض:",
+                reply_markup=keyboard,
+            )
+        except Exception:
+            pass
+    elif data == "archive_all":
+        await _archive_show_list(update, query, _archive_collect_all(), "كل الطلبات")
+    elif data == "archive_new":
+        _all = _archive_collect_all()
+        _new = [it for it in _all if not _archive_is_old(it.get("submitted_at", ""))]
+        await _archive_show_list(update, query, _new, "الطلبات الجديدة")
+    elif data == "archive_old":
+        _all = _archive_collect_all()
+        _old = [it for it in _all if _archive_is_old(it.get("submitted_at", ""))]
+        await _archive_show_list(update, query, _old, "الطلبات القديمة")
+    elif data.startswith("archive_page_"):
+        _page = int(data[len("archive_page_"):])
+        _all = _archive_collect_all()
+        await _archive_show_list(update, query, _all, "كل الطلبات", page=_page)
+    elif data == "archive_search_num":
+        session["state"] = "awaiting_archive_search_num"
+        save_session(uid)
+        try:
+            await query.edit_message_text("🔍 أرسل رقم الطلب (أو جزء منه) للبحث:")
+        except Exception:
+            pass
+    elif data == "archive_search_date":
+        session["state"] = "awaiting_archive_search_date"
+        save_session(uid)
+        try:
+            await query.edit_message_text("📅 أرسل التاريخ بصيغة YYYY-MM-DD للبحث:")
+        except Exception:
+            pass
+    elif data.startswith("archive_view_"):
+        # archive_view_{source}_{id}
+        _rest = data[len("archive_view_"):]
+        _parts = _rest.split("_", 1)
+        if len(_parts) == 2:
+            _src, _iid = _parts
+            await _archive_show_detail(update, query, _src, _iid)
+    elif data.startswith("archive_imgs_"):
+        _rest = data[len("archive_imgs_"):]
+        _parts = _rest.split("_", 1)
+        if len(_parts) == 2:
+            _src, _iid = _parts
+            await _archive_show_images(update, query, _src, _iid)
+    elif data.startswith("archive_repost_"):
+        _rest = data[len("archive_repost_"):]
+        _parts = _rest.split("_", 1)
+        if len(_parts) == 2:
+            _src, _iid = _parts
+            await _archive_repost(update, query, _src, _iid)
+
+
 async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """سؤال عن رابط الخريطة"""
     uid = update.effective_user.id
@@ -1415,6 +1522,7 @@ async def _save_visitor_offer(update, uid):
         "visitor_map_link": offer.get("visitor_map_link", ""),
         "original_price": offer.get("original_price", ""),
         "status": "pending",
+        "publish_status": "Saved",
     }
     data.setdefault("offer_submissions", []).append(visitor_offer)
     save_visitor_requests(data)
@@ -1449,17 +1557,54 @@ async def _save_visitor_offer(update, uid):
         f"🕐 وقت التقديم: {visitor_offer['submitted_at']}\n\n"
         f"للمراجعة والموافقة: /visitor_offers"
     )
+    # Task 2: إرسال جميع الصور كمجموعة وسائط (media group) بدلاً من صورة واحدة فقط
+    image_paths_local = []
+    for img_rel in offer.get("images", []):
+        local_p = WEBSITE_DIR / img_rel
+        if local_p.exists():
+            image_paths_local.append(str(local_p))
+
     for admin_id in ADMIN_IDS:
         try:
-            # إرسال أول صورة كمعاينة إن وجدت
-            if offer.get("images"):
-                local_img = WEBSITE_DIR / offer["images"][0]
-                if local_img.exists():
-                    await context.app.bot.send_photo(admin_id, photo=open(str(local_img), "rb"), caption=msg)
-                    continue
-            await context.app.bot.send_message(admin_id, msg)
+            if image_paths_local:
+                # إرسال جميع الصور كمجموعة وسائط (حتى 10 صور لكل مجموعة)
+                if len(image_paths_local) == 1:
+                    # صورة واحدة — إرسال مع التعليق
+                    with open(image_paths_local[0], "rb") as photo:
+                        await context.app.bot.send_photo(admin_id, photo=photo, caption=msg)
+                else:
+                    # عدة صور — إرسال كمجموعة وسائط مع التعليق على الأولى
+                    media_group = []
+                    for idx_img, img_path in enumerate(image_paths_local[:10]):
+                        try:
+                            if idx_img == 0:
+                                media_group.append(InputMediaPhoto(open(img_path, "rb"), caption=msg))
+                            else:
+                                media_group.append(InputMediaPhoto(open(img_path, "rb")))
+                        except Exception as ie:
+                            logger.warning(f"تعذر إضافة صورة للمجموعة: {ie}")
+                    if media_group:
+                        await context.app.bot.send_media_group(admin_id, media=media_group)
+                    # إرسال الصور المتبقية إذا كانت أكثر من 10
+                    if len(image_paths_local) > 10:
+                        extra_group = []
+                        for img_path in image_paths_local[10:20]:
+                            try:
+                                extra_group.append(InputMediaPhoto(open(img_path, "rb")))
+                            except Exception:
+                                pass
+                        if extra_group:
+                            await context.app.bot.send_media_group(admin_id, media=extra_group)
+            else:
+                # لا توجد صور — إرسال نص فقط
+                await context.app.bot.send_message(admin_id, msg)
         except Exception as e:
             logger.error(f"فشل إرسال إشعار العرض للمدير {admin_id}: {e}")
+            # محاولة إرسال نص فقط كاحتياط
+            try:
+                await context.app.bot.send_message(admin_id, msg)
+            except Exception:
+                pass
 
     await update.message.reply_text(
         f"✅ تم استلام عرضك بنجاح!\n\n"
@@ -1478,7 +1623,7 @@ async def _save_visitor_offer(update, uid):
 
 async def visitor_offers_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض عروض الزوار المعلقة للمدير — /visitor_offers"""
-    if not is_admin(update.effective_user.id):
+    if not can_review_requests(update.effective_user.id):
         return
     data = load_visitor_requests()
     submissions = data.get("offer_submissions", [])
@@ -1605,6 +1750,7 @@ async def _approve_visitor_offer(update, idx, query=None):
 
     # 8) تحديث حالة الطلب
     s["status"] = "approved"
+    s["publish_status"] = "Published"
     s["published_offer_id"] = offer["id"]
     save_visitor_requests(data)
 
@@ -1673,6 +1819,7 @@ async def _reject_visitor_offer(update, idx, query=None):
     submissions = data.get("offer_submissions", [])
     if idx < len(submissions):
         submissions[idx]["status"] = "rejected"
+        submissions[idx]["publish_status"] = "Failed"
         save_visitor_requests(data)
     msg = "❌ تم رفض العرض."
     if query:
@@ -1690,6 +1837,7 @@ async def _finalize_offer(update, uid, query=None):
 
     # ── توليد معرف تسلسلي فريد (AFQ-2026-0001) ──
     offer["id"] = offer_id.generate_offer_id()
+    offer["publish_status"] = "Published"  # حالة النشر الموحّدة
 
     # ── منع نشر عرض بلا صور ──
     if not offer["images"]:
@@ -1781,7 +1929,7 @@ async def _finalize_offer(update, uid, query=None):
 #  قائمة العروض
 # ============================================================
 async def list_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not can_view_archive(update.effective_user.id):
         return
     data = load_offers_json()
     offers = data.get("offers", [])
@@ -1797,7 +1945,7 @@ async def list_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #  حذف عرض
 # ============================================================
 async def delete_offer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not can_delete_offers(update.effective_user.id):
         return
     uid = update.effective_user.id
     session = get_session(uid)
@@ -1996,7 +2144,7 @@ async def _admin_add_by_id(update, context):
 
 async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Task 6: عرض جميع طلبات الزوار مع الصور والبيانات الكاملة"""
-    if not is_admin(update.effective_user.id):
+    if not can_review_requests(update.effective_user.id):
         return
     data = load_visitor_requests()
     requests_list = data.get("requests", [])
@@ -2111,6 +2259,8 @@ async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detail_msg += f"📷 الصور: {img_count} صورة\n"
         detail_msg += f"📄 رقم الطلب: {item.get('id', f'idx_{idx}')}\n"
         detail_msg += f"🕐 التاريخ: {item.get('submitted_at', '')}\n"
+        _pub_status = item.get("publish_status", "—")
+        detail_msg += f"📤 حالة النشر: {_pub_status}\n"
 
         # أزرار الموافقة والرفض (فقط للطلبات المعلّقة)
         req_id = item.get("id", f"idx_{idx}")
@@ -2230,6 +2380,7 @@ def _parse_request_from_callback_message(query, req_id):
             "source": "website_callback_fallback",
             "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "status": "pending",
+            "publish_status": "Received",
         }
         logger.info(f"\U0001f4cb تم استخراج بيانات الطلب من رسالة الإشعار: {req_id} \u2014 {name}")
         return request
@@ -2456,6 +2607,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
 
     # 7) تحديث حالة الطلب إلى approved (لا يحذف)
     item["status"] = "approved"
+    item["publish_status"] = "Published"
     item["published_offer_id"] = offer_id
     item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     save_visitor_requests(data)
@@ -2552,6 +2704,7 @@ async def _reject_visitor_request(update, req_ref, query=None):
     typ, item = target
     # تحديث الحالة إلى rejected فقط — لا حذف
     item["status"] = "rejected"
+    item["publish_status"] = "Failed"
     item["rejected_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     save_visitor_requests(data)
 
@@ -2566,7 +2719,7 @@ async def _reject_visitor_request(update, req_ref, query=None):
 #  فلترة العروض
 # ============================================================
 async def filter_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not can_view_archive(update.effective_user.id):
         return
     args = context.args
     data = load_offers_json()
@@ -2831,7 +2984,7 @@ def _ai_response(text):
 #  الإعدادات
 # ============================================================
 async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not can_edit_settings(update.effective_user.id):
         return
     msg = (
         f"⚙️ إعدادات البوت:\n\n"
@@ -2879,6 +3032,380 @@ async def toggle_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 #  معالج الرسائل النصية الرئيسي
 # ============================================================
+# ============================================================
+#  نظام الأرشيف — تصفّح كل الطلبات/العروض (جديدة وقديمة) + بحث + إعادة نشر
+# ============================================================
+async def archive_menu(update, context):
+    """عرض قائمة الأرشيف الرئيسية"""
+    uid = update.effective_user.id
+    if not can_view_archive(uid):
+        await update.message.reply_text("⚠️ ليس لديك صلاحية لعرض الأرشيف.")
+        return
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📋 كل الطلبات", callback_data="archive_all"),
+         InlineKeyboardButton("🆕 الطلبات الجديدة", callback_data="archive_new")],
+        [InlineKeyboardButton("📦 الطلبات القديمة", callback_data="archive_old"),
+         InlineKeyboardButton("🔍 بحث برقم", callback_data="archive_search_num")],
+        [InlineKeyboardButton("📅 بحث بتاريخ", callback_data="archive_search_date")],
+    ])
+    await update.message.reply_text(
+        "📦 **الأرشيف**\n\n"
+        "اختر طريقة العرض:\n"
+        "• كل الطلبات: عرض جميع السجلات\n"
+        "• الطلبات الجديدة: آخر 7 أيام\n"
+        "• الطلبات القديمة: قبل 7 أيام\n"
+        "• بحث برقم / بتاريخ",
+        reply_markup=keyboard,
+    )
+
+
+def _archive_collect_all():
+    """جمع كل السجلات من المصادر الثلاثة في قائمة موحدة."""
+    items = []
+    vdata = load_visitor_requests()
+    # 1) طلبات الموقع (requests)
+    for r in vdata.get("requests", []):
+        items.append({
+            "id": r.get("id", ""),
+            "source": "request",
+            "submitted_at": r.get("submitted_at", ""),
+            "status": r.get("status", ""),
+            "publish_status": r.get("publish_status", "—"),
+            "name": r.get("name", ""),
+            "phone": r.get("phone", ""),
+            "propertyType": r.get("propertyType", ""),
+            "location": r.get("location", ""),
+            "area": r.get("area", ""),
+            "price": r.get("price", ""),
+            "description": r.get("description", ""),
+            "images": r.get("images", []),
+            "imageCount": r.get("imageCount", 0),
+            "mapsLink": r.get("mapsLink", ""),
+            "raw": r,
+        })
+    # 2) عروض الزوار المُقدّمة عبر البوت (offer_submissions)
+    for s in vdata.get("offer_submissions", []):
+        items.append({
+            "id": s.get("id", ""),
+            "source": "submission",
+            "submitted_at": s.get("submitted_at", ""),
+            "status": s.get("status", ""),
+            "publish_status": s.get("publish_status", "—"),
+            "name": s.get("submitted_by", {}).get("name", "") if isinstance(s.get("submitted_by"), dict) else str(s.get("submitted_by", "")),
+            "phone": s.get("contact", ""),
+            "propertyType": s.get("category", s.get("type", "")),
+            "location": s.get("area", ""),
+            "area": s.get("size_sqm", ""),
+            "price": s.get("price_text", s.get("original_price", "")),
+            "description": s.get("description", ""),
+            "images": s.get("images", []),
+            "imageCount": len(s.get("images", [])),
+            "mapsLink": s.get("visitor_map_link", s.get("map_link", "")),
+            "raw": s,
+        })
+    # 3) عروض البوت المنشورة (bot_offers)
+    bdata = load_bot_offers()
+    for o in bdata.get("offers", []):
+        items.append({
+            "id": o.get("id", ""),
+            "source": "offer",
+            "submitted_at": o.get("date_added", ""),
+            "status": "published",
+            "publish_status": o.get("publish_status", "Published"),
+            "name": o.get("submitted_by", {}).get("name", "") if isinstance(o.get("submitted_by"), dict) else "",
+            "phone": o.get("contact", ""),
+            "propertyType": o.get("category", o.get("type", "")),
+            "location": o.get("area", ""),
+            "area": o.get("size_sqm", ""),
+            "price": o.get("price_text", ""),
+            "description": o.get("description", ""),
+            "images": o.get("images", []),
+            "imageCount": len(o.get("images", [])),
+            "mapsLink": o.get("map_link", ""),
+            "raw": o,
+        })
+    return items
+
+
+def _archive_is_old(submitted_at):
+    """تحديد إن كان الطلب قديماً (قبل 7 أيام)."""
+    if not submitted_at:
+        return True
+    try:
+        from datetime import datetime, timedelta
+        # محاولة تحليل التاريخ بصيغة YYYY-MM-DD أو YYYY-MM-DD HH:MM
+        ds = submitted_at.strip()
+        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                d = datetime.strptime(ds, fmt)
+                return d < (datetime.now() - timedelta(days=7))
+            except ValueError:
+                continue
+        return True
+    except Exception:
+        return True
+
+
+async def _archive_show_list(update, query, items, title, page=0, per_page=5):
+    """عرض قائمة مختصرة من السجلات مع أزرار للتفاصيل."""
+    if not items:
+        msg = f"📦 {title}\n\nلا توجد سجلات."
+        try:
+            await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 رجوع", callback_data="archive_menu")],
+            ]))
+        except Exception:
+            pass
+        return
+    total = len(items)
+    start = page * per_page
+    end = start + per_page
+    page_items = items[start:end]
+    msg = f"📦 {title}\n📄 الإجمالي: {total} سجل\n\n"
+    buttons = []
+    for it in page_items:
+        _id = it.get("id", "—")
+        _src_icon = {"request": "📨", "submission": "🏚️", "offer": "🏷️"}.get(it.get("source"), "📄")
+        _name = it.get("name", "") or it.get("propertyType", "") or "بدون اسم"
+        _status = it.get("publish_status", "—")
+        msg += f"{_src_icon} {_id} — {_name} [{_status}]\n"
+        buttons.append([InlineKeyboardButton(
+            f"{_src_icon} {_id} — {_name[:20]}",
+            callback_data=f"archive_view_{it.get('source')}_{_id}",
+        )])
+    # أزرار التنقل بين الصفحات
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️ السابق", callback_data=f"archive_page_{page-1}"))
+    if end < total:
+        nav.append(InlineKeyboardButton("التالي ➡️", callback_data=f"archive_page_{page+1}"))
+    if nav:
+        buttons.append(nav)
+    buttons.append([InlineKeyboardButton("🔙 رجوع للأرشيف", callback_data="archive_menu")])
+    try:
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+    except Exception:
+        pass
+
+
+async def _archive_show_detail(update, query, source, item_id):
+    """عرض تفاصيل سجل كاملة + الصور + زر إعادة النشر."""
+    items = _archive_collect_all()
+    target = None
+    for it in items:
+        if it.get("source") == source and it.get("id") == item_id:
+            target = it
+            break
+    if not target:
+        try:
+            await query.edit_message_text("⚠️ لم يتم العثور على السجل.")
+        except Exception:
+            pass
+        return
+    _src_label = {"request": "طلب موقع", "submission": "عرض زائر", "offer": "عرض منشور"}.get(source, "سجل")
+    msg = (
+        f"📦 **تفاصيل السجل**\n"
+        f"{'─' * 28}\n"
+        f"🏷️ النوع: {_src_label}\n"
+        f"📄 رقم الطلب: {target.get('id', '—')}\n"
+        f"🕐 التاريخ: {target.get('submitted_at', '—')}\n"
+        f"📤 حالة النشر: {target.get('publish_status', '—')}\n"
+        f"📌 حالة المعالجة: {target.get('status', '—')}\n"
+    )
+    if target.get("name"):
+        msg += f"👤 الاسم: {target['name']}\n"
+    if target.get("phone"):
+        msg += f"📱 الهاتف: {target['phone']}\n"
+    if target.get("propertyType"):
+        msg += f"🏷️ نوع العقار: {target['propertyType']}\n"
+    if target.get("location"):
+        msg += f"📍 الموقع: {target['location']}\n"
+    if target.get("area"):
+        msg += f"📐 المساحة: {target['area']} م²\n"
+    if target.get("price"):
+        msg += f"💰 السعر: {target['price']} ريال\n"
+    if target.get("description"):
+        _desc = target['description']
+        if len(_desc) > 200:
+            _desc = _desc[:200] + "…"
+        msg += f"📝 الوصف: {_desc}\n"
+    if target.get("mapsLink"):
+        msg += f"🗺️ الخريطة: {target['mapsLink']}\n"
+    _imgs = target.get("images", [])
+    msg += f"🖼️ الصور: {target.get('imageCount', len(_imgs))} صورة\n"
+    buttons = [[InlineKeyboardButton("🔁 إعادة نشر (نسخة جديدة)", callback_data=f"archive_repost_{source}_{item_id}")]]
+    if _imgs:
+        buttons.append([InlineKeyboardButton("🖼️ عرض الصور", callback_data=f"archive_imgs_{source}_{item_id}")])
+    buttons.append([InlineKeyboardButton("🔙 رجوع للأرشيف", callback_data="archive_menu")])
+    try:
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+    except Exception:
+        pass
+
+
+async def _archive_show_images(update, query, source, item_id):
+    """إرسال صور السجل كمجموعة وسائط."""
+    items = _archive_collect_all()
+    target = None
+    for it in items:
+        if it.get("source") == source and it.get("id") == item_id:
+            target = it
+            break
+    if not target:
+        return
+    img_list = target.get("images", [])
+    if not img_list:
+        try:
+            await query.answer("لا توجد صور لهذا السجل.", show_alert=True)
+        except Exception:
+            pass
+        return
+    image_paths = []
+    for rel in img_list:
+        local_p = WEBSITE_DIR / rel
+        if local_p.exists():
+            image_paths.append(str(local_p))
+    # fallback: مجلد images/visitor/{id}/
+    if not image_paths:
+        vfolder = WEBSITE_DIR / "images" / "visitor" / item_id
+        if vfolder.exists():
+            for p in sorted(vfolder.glob("*")):
+                if p.suffix.lower() in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+                    image_paths.append(str(p))
+    if not image_paths:
+        try:
+            await query.answer("لم يتم العثور على ملفات الصور.", show_alert=True)
+        except Exception:
+            pass
+        return
+    uid = update.effective_user.id
+    media_group = []
+    for ip in image_paths[:10]:
+        try:
+            media_group.append(InputMediaPhoto(open(ip, "rb")))
+        except Exception:
+            pass
+    if media_group:
+        try:
+            await update.get_bot().send_media_group(uid, media=media_group)
+        except Exception as e:
+            logger.warning(f"⚠️ فشل إرسال صور الأرشيف: {e}")
+    try:
+        await query.answer("✅ تم إرسال الصور أعلاه.")
+    except Exception:
+        pass
+
+
+async def _archive_repost(update, query, source, item_id):
+    """إعادة نشر السجل بمعرّف جديد مع الاحتفاظ بالسجل القديم."""
+    uid = update.effective_user.id
+    if not can_publish_offers(uid):
+        try:
+            await query.answer("⚠️ ليس لديك صلاحية إعادة النشر.", show_alert=True)
+        except Exception:
+            pass
+        return
+    items = _archive_collect_all()
+    target = None
+    for it in items:
+        if it.get("source") == source and it.get("id") == item_id:
+            target = it
+            break
+    if not target:
+        try:
+            await query.edit_message_text("⚠️ لم يتم العثور على السجل.")
+        except Exception:
+            pass
+        return
+    raw = dict(target.get("raw", {}))  # نسخة من السجل الأصلي
+    # توليد معرّف جديد
+    try:
+        new_id = offer_id.generate_offer_id()
+    except Exception:
+        new_id = f"AFQ-{datetime.now().strftime('%Y')}-{int(time.time()) % 10000:04d}"
+    raw["id"] = new_id
+    raw["reposted_from"] = item_id
+    raw["reposted_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    raw["publish_status"] = "Received"
+    raw["status"] = "pending"
+    # إضافة السجل الجديد إلى bot_offers (لإعادة النشر كعرض)
+    try:
+        bdata = load_bot_offers()
+        # تحويل الحقول لتناسب بنية العرض إن لزم
+        if "category" not in raw and "propertyType" in raw:
+            raw["category"] = raw["propertyType"]
+        if "images" not in raw:
+            raw["images"] = target.get("images", [])
+        if "map_link" not in raw:
+            raw["map_link"] = CONFIG.get("office_location", "")
+        if "date_added" not in raw:
+            raw["date_added"] = datetime.now().strftime("%Y-%m-%d")
+        bdata.setdefault("offers", []).append(raw)
+        save_bot_offers(bdata)
+        try:
+            await query.edit_message_text(
+                f"✅ تم إنشاء نسخة جديدة من السجل!\n\n"
+                f"📄 المعرّف الجديد: {new_id}\n"
+                f"🔁 إعادة نشر من: {item_id}\n"
+                f"📦 السجل القديم محفوظ في الأرشيف.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔙 رجوع للأرشيف", callback_data="archive_menu")],
+                ]),
+            )
+        except Exception:
+            pass
+        logger.info(f"🔁 archive repost: {item_id} → {new_id} by {uid}")
+    except Exception as e:
+        logger.error(f"❌ فشل إعادة النشر: {e}")
+        try:
+            await query.edit_message_text(f"❌ فشل إعادة النشر: {e}")
+        except Exception:
+            pass
+
+
+async def _reset_operation(update, context):
+    """زر الإلغاء / بدء جديد — يلغي أي عملية جارية ويعيد للقائمة الرئيسية."""
+    uid = update.effective_user.id
+    session = get_session(uid)
+    # حذف المسودة إن وُجدت
+    try:
+        persistence.delete_draft(uid)
+    except Exception:
+        pass
+    reset_session(uid)
+    await update.message.reply_text(
+        "🔄 تم إلغاء العملية الحالية ومسح الحالة.\n"
+        "تم العودة إلى القائمة الرئيسية ✅",
+        reply_markup=MAIN_KEYBOARD,
+    )
+
+
+
+
+async def _archive_show_list_msg(update, items, title, page=0, per_page=5):
+    """عرض نتائج بحث الأرشيف كرسالة جديدة (من handle_message)."""
+    if not items:
+        await update.message.reply_text(f"📦 {title}\n\nلا توجد سجلات.")
+        return
+    total = len(items)
+    start = page * per_page
+    end = start + per_page
+    page_items = items[start:end]
+    msg = f"📦 {title}\n📄 الإجمالي: {total} سجل\n\n"
+    buttons = []
+    for it in page_items:
+        _id = it.get("id", "—")
+        _src_icon = {"request": "📨", "submission": "🏚️", "offer": "🏷️"}.get(it.get("source"), "📄")
+        _name = it.get("name", "") or it.get("propertyType", "") or "بدون اسم"
+        _status = it.get("publish_status", "—")
+        msg += f"{_src_icon} {_id} — {_name} [{_status}]\n"
+        buttons.append([InlineKeyboardButton(
+            f"{_src_icon} {_id} — {_name[:20]}",
+            callback_data=f"archive_view_{it.get('source')}_{_id}",
+        )])
+    buttons.append([InlineKeyboardButton("🔙 رجوع للأرشيف", callback_data="archive_menu")])
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     session = get_session(uid)
@@ -2910,6 +3437,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "source": str(data.get("source", "website_fallback")),
                 "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "status": "pending",
+                "publish_status": "Received",
             }
 
             # 1) حفظ الطلب في visitor_requests.json
@@ -2988,6 +3516,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _admin_add_by_id(update, context)
         return
 
+    # ── حالات بحث الأرشيف ──
+    if session["state"] == "awaiting_archive_search_num":
+        _q = text.strip()
+        _all = _archive_collect_all()
+        _res = [it for it in _all if _q.lower() in str(it.get("id", "")).lower()]
+        await _archive_show_list_msg(update, _res, f"نتائج البحث برقم: {_q}")
+        reset_session(uid)
+        return
+    if session["state"] == "awaiting_archive_search_date":
+        _q = text.strip()
+        _all = _archive_collect_all()
+        _res = [it for it in _all if _q in str(it.get("submitted_at", ""))]
+        await _archive_show_list_msg(update, _res, f"نتائج البحث بتاريخ: {_q}")
+        reset_session(uid)
+        return
+
+
     # Task 3: إذا كان في عملية إضافة عرض وضغط زر رئيسي (وليس زر الإلغاء)
     # → إلغاء العملية الحالية وتنفيذ الأمر الجديد
     _ADD_FLOW_STATES = [
@@ -2998,9 +3543,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     _MAIN_BUTTONS = [
         "➕ إضافة عرض جديد", "📋 قائمة العروض", "🗑️ حذف عرض", "✏️ تعديل عرض",
-        "📨 طلبات الزوار", "🏪 عروض الزوار", "🔍 فلترة العروض",
-        "📊 إحصائيات", "📈 التقرير الأسبوعي", "🏷️ تحديث البوصلة",
-        "🤖 المساعد الذكي", "🗣️ تحديث الأخبار", "⚙️ الإعدادات",
+        "📨 طلبات الزوار", "🏡 عروض الزوار", "🔍 فلترة العروض",
+        "📦 الأرشيف", "📊 إحصائيات", "📈 التقرير الأسبوعي", "🧭 تحديث البوصلة",
+        "🤖 المساعد الذكي", "🗞️ تحديث الأخبار", "⚙️ الإعدادات",
+        "🔄 إلغاء / بدء جديد",
     ]
     if session["state"] in _ADD_FLOW_STATES:
         # إذا ضغط زر إلغاء → معالجة عادية (handle_text_during_add تتعامل معه)
@@ -3047,6 +3593,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update_news_cmd(update, context)
     elif text == "⚙️ الإعدادات":
         await settings(update, context)
+    elif text == "📦 الأرشيف":
+        await archive_menu(update, context)
+    elif text == "🔄 إلغاء / بدء جديد":
+        await _reset_operation(update, context)
     else:
         await update.message.reply_text(
             "استخدم القائمة بالأسفل للتحكم 👇",
@@ -3805,6 +4355,7 @@ async def _handle_visitor_request_api(request):
         "source": str(data.get("source", "website")),
         "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "status": "pending",
+        "publish_status": "Received",
     }
 
     # 1) حفظ الطلب في visitor_requests.json (الدوام بعد إعادة التشغيل)
@@ -3975,6 +4526,20 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
             sent_count += 1
         except Exception as e:
             logger.error(f"\u274c فشل إرسال إشعار للمدير {admin_id}: {e}")
+
+    # ── تحديث حالة النشر إلى SentToBot بعد الإرسال الناجح ──
+    try:
+        _req_id = visitor_request.get("id", "")
+        if _req_id and sent_count > 0:
+            _vd = load_visitor_requests()
+            for _r in _vd.get("requests", []):
+                if _r.get("id") == _req_id:
+                    _r["publish_status"] = "SentToBot"
+                    break
+            save_visitor_requests(_vd)
+    except Exception as _ps_err:
+        logger.warning(f"⚠️ تعذّر تحديث publish_status إلى SentToBot: {_ps_err}")
+
 
     logger.info(f"\U0001F4E4 تم إرسال إشعار طلب زائر إلى {sent_count} مدير")
 
