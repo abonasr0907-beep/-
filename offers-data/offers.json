@@ -585,6 +585,33 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
       "featured": false
+    },
+    {
+      "id": "LND-F35FDC",
+      "type": "land",
+      "category": "أرض",
+      "title": "أرض — الخرج",
+      "area": "الخرج",
+      "area_en": "",
+      "size_sqm": "1000",
+      "price": "900000",
+      "price_text": "900000 ريال",
+      "original_price": "900000",
+      "description": "🏗️ أرض للبيع — الخرج بالخرج\n\nمساحة 1000 م²، جاهزة للبناء، صك إلكتروني معتمد.\n\nتواصل معنا: 0561610748\n\n📝 طلب للموافقة",
+      "features": [],
+      "images": [],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "visitor_map_link": "",
+      "visitor_lat": "",
+      "visitor_lng": "",
+      "date_added": "2026-08-10",
+      "featured": false,
+      "source": "visitor_request",
+      "priceType": "fixed",
+      "highestBid": "",
+      "operation_type": "sale",
+      "visitor_name": "زائر الموافقة",
+      "visitor_phone": "0555111222"
     }
   ]
 }
