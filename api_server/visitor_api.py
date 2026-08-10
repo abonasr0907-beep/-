@@ -94,13 +94,47 @@ async def github_save_request(visitor_request):
 
 def build_notification_html(req):
     """بناء رسالة الإشعار بتنسيق HTML"""
-    html = f"<b>🔔 طلب عرض عقار جديد من الموقع</b>\n\n"
-    html += f"<b>👤 اسم العميل:</b> {req.get('name', 'غير محدد')}\n"
-    html += f"<b>📱 رقم الهاتف:</b> {req.get('phone', 'غير محدد')}\n"
-    html += f"<b>🏷️ نوع العقار:</b> {req.get('propertyType', 'غير محدد')}\n"
-    html += f"<b>📍 الموقع:</b> {req.get('location', 'غير محدد')}\n"
-    html += f"<b>📐 المساحة:</b> {req.get('area', 'غير محدد')} م²\n"
-    html += f"<b>💰 السعر التقريبي:</b> {req.get('price', 'غير محدد')} ريال\n"
+
+    # ===== إشعار المزايدة الخاص =====
+    if req.get("bidType") == "bid" or req.get("type") == "bid":
+        html = f"<b>\U0001f514 طلب مزايدة جديد على عقار</b>\n\n"
+        html += f"<b>\U0001f3e0 اسم العقار:</b> {req.get('offerName', req.get('propertyType', 'غير محدد'))}\n"
+        html += f"<b>\U0001f517 رابط العرض:</b> {req.get('offerUrl', 'غير متوفر')}\n"
+        html += f"<b>\U0001f4b0 أعلى سوم حالي:</b> {req.get('currentHighestBid', 'غير محدد')} ريال\n"
+        html += f"<b>\U0001f4b8 المزايدة الجديدة:</b> {req.get('bidAmount', req.get('price', 'غير محدد'))} ريال\n\n"
+        html += f"<b>\U0001f464 اسم المزايد:</b> {req.get('name', 'غير محدد')}\n"
+        html += f"<b>\U0001f4f1 رقم الهاتف:</b> {req.get('phone', 'غير محدد')}\n"
+        _bid_notes = req.get("bidNotes", req.get("notes", ""))
+        if _bid_notes:
+            html += f"<b>\U0001f4dd ملاحظات:</b> {_bid_notes}\n"
+        html += f"\n<b>\U0001f4c4 رقم الطلب:</b> <code>{req.get('id', '')}</code>\n"
+        html += f"<b>\U0001f550 التاريخ:</b> {req.get('submitted_at', '')}\n"
+        html += f"\n<b>\U0001f4a1 مكتب آفاق الإنجاز العقاري</b>\n\U0001f310 abonasr0907-beep.github.io/-"
+        return html
+
+    # ===== إشعار الطلب العادي =====
+    html = f"<b>\U0001f514 طلب عرض عقار جديد من الموقع</b>\n\n"
+    html += f"<b>\U0001f464 اسم العميــل:</b> {req.get('name', 'غير محدد')}\n"
+    html += f"<b>\U0001f4f1 رقم الهاتف:</b> {req.get('phone', 'غير محدد')}\n"
+
+    # نوع العملية (بيع/إيجار)
+    _op = req.get("operation_type", req.get("operationType", "sale"))
+    _op_label = "\U0001f3e0 للإيجار" if _op == "rent" else "\U0001f3f7\ufe0f للبيع"
+    html += f"<b>\U0001f502 عملية:</b> {_op_label}\n"
+
+    html += f"<b>\U0001f3f7\ufe0f نوع العقار:</b> {req.get('propertyType', 'غير محدد')}\n"
+    html += f"<b>\U0001f4cd الموقع:</b> {req.get('location', 'غير محدد')}\n"
+    html += f"<b>\U0001f4d0 المساحة:</b> {req.get('area', 'غير محدد')} م\u00b2\n"
+
+    # السعر حسب نوع السعر (priceType)
+    _pt = req.get("priceType", "fixed")
+    if _pt == "auction":
+        _hb = req.get("highestBid", "")
+        html += f"<b>\U0001f528 على السوم — أعلى سوم:</b> {_hb if _hb else req.get('price', 'غير محدد')} ريال\n"
+    elif _pt == "negotiable":
+        html += f"<b>\U0001f91d قابل للتفاوض</b>\n"
+    else:
+        html += f"<b>\U0001f4b0 السعر:</b> {req.get('price', 'غير محدد')} ريال\n"
     
     if req.get("description") and req["description"].strip():
         html += f"\n<b>ℹ️ الوصف:</b>\n{req['description']}\n"
@@ -121,25 +155,35 @@ def build_notification_html(req):
     return html
 
 async def send_telegram_notification(req):
-    """إرسال إشعار تيليجرام للإدارة مع أزرار موافقة/رفض"""
+    """إرسال إشعار تيليجرام للإدارة مع أزرار موافقة/رفض (بدون أزرار للمزايدة)"""
     html = build_notification_html(req)
     req_id = req.get("id", "")
-    
-    reply_markup = {
-        "inline_keyboard": [
-            [{"text": "✅ موافقة ونشر", "callback_data": f"vreq_approve_{req_id}"}],
-            [{"text": "❌ رفض", "callback_data": f"vreq_reject_{req_id}"}],
-        ]
-    }
-    
-    url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": ADMIN_CHAT_ID,
-        "text": html,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-        "reply_markup": json.dumps(reply_markup),
-    }
+    _is_bid = req.get("bidType") == "bid" or req.get("type") == "bid"
+
+    if _is_bid:
+        # إشعار مزايدة — بدون أزرار موافقة/رفض
+        url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": ADMIN_CHAT_ID,
+            "text": html,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False,
+        }
+    else:
+        reply_markup = {
+            "inline_keyboard": [
+                [{"text": "✅ موافقة ونشر", "callback_data": f"vreq_approve_{req_id}"}],
+                [{"text": "❌ رفض", "callback_data": f"vreq_reject_{req_id}"}],
+            ]
+        }
+        url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": ADMIN_CHAT_ID,
+            "text": html,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "reply_markup": json.dumps(reply_markup),
+        }
     
     async with ClientSession() as session:
         async with session.post(url, data=payload) as resp:
@@ -227,11 +271,22 @@ async def handle_visitor_request(request):
         "location": str(data.get("location", "")),
         "area": str(data.get("area", "")),
         "price": str(data.get("price", "")),
+        "priceType": str(data.get("priceType", data.get("price_type", "fixed"))),
+        "highestBid": str(data.get("highestBid", data.get("highest_bid", ""))),
+        "operation_type": str(data.get("operation_type", data.get("operationType", "sale"))),
         "description": str(data.get("description", "")),
         "latitude": str(data.get("latitude", "")),
         "longitude": str(data.get("longitude", "")),
         "mapsLink": str(data.get("mapsLink", data.get("maps_link", ""))),
         "imageCount": int(data.get("imageCount", data.get("image_count", 0)) or 0),
+        # حقول المزايدة (bid)
+        "bidType": str(data.get("bidType", data.get("bid_type", ""))),
+        "offerId": str(data.get("offerId", data.get("offer_id", ""))),
+        "offerName": str(data.get("offerName", data.get("offer_name", ""))),
+        "offerUrl": str(data.get("offerUrl", data.get("offer_url", ""))),
+        "currentHighestBid": str(data.get("currentHighestBid", data.get("current_highest_bid", ""))),
+        "bidAmount": str(data.get("bidAmount", data.get("bid_amount", ""))),
+        "bidNotes": str(data.get("bidNotes", data.get("bid_notes", data.get("notes", "")))),
         "source": str(data.get("source", "website_api")),
         "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "status": "pending",

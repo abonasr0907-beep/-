@@ -421,6 +421,28 @@ def add_admin(user_id):
 # ============================================================
 #  البوصلة العقارية — جلب متوسط السعر حسب المنطقة والنوع
 # ============================================================
+def format_price_with_separators(raw_value):
+    """
+    تنسيق رقم السعر بفواصل الآلاف دون تغيير القيمة المخزنة.
+    يدعم الأرقام الصحيحة والعشرية والنصوص التي تحتوي فواصل/مسافات.
+    مثال: 650000 -> 650,000 | 1,200,000.50 -> 1,200,000.50
+    """
+    try:
+        cleaned = str(raw_value).replace(",", "").replace(" ", "").replace("ريال", "").replace("ر.س", "").strip()
+        if not cleaned:
+            return str(raw_value)
+        if "." in cleaned:
+            num = float(cleaned)
+            int_part = f"{int(num):,}"
+            dec_part = str(cleaned).split(".")[1].rstrip("0")
+            return f"{int_part}.{dec_part}" if dec_part else int_part
+        else:
+            num = int(float(cleaned))
+            return f"{num:,}"
+    except (ValueError, TypeError):
+        return str(raw_value)
+
+
 def get_bousla_avg_price(area_name, ptype):
     """
     جلب متوسط السعر من البوصلة العقارية حسب المنطقة ونوع العقار.
@@ -496,6 +518,27 @@ ADMIN_CANCEL_KEYBOARD = ReplyKeyboardMarkup(
     one_time_keyboard=True,
     resize_keyboard=True,
 )
+
+# لوحة اختيار نوع السعر (سعر محدد / قابل للتفاوض / على السوم)
+PRICE_TYPE_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["💰 سعر محدد", "🤝 قابل للتفاوض"],
+        ["🔨 على السوم", "❌ إلغاء العملية"],
+    ],
+    one_time_keyboard=True,
+    resize_keyboard=True,
+)
+
+# لوحة اختيار نوع العملية (بيع / إيجار)
+OPERATION_TYPE_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["🏷️ للبيع", "🏠 للإيجار"],
+        ["❌ إلغاء العملية"],
+    ],
+    one_time_keyboard=True,
+    resize_keyboard=True,
+)
+
 
 # ============================================================
 #  لوحة المفاتيح الرئيسية
@@ -640,6 +683,9 @@ async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "area": "",
         "size_sqm": 0,
         "price_text": "",
+        "priceType": "fixed",
+        "highestBid": "",
+        "operation_type": "sale",
         "description": "",
         "features": [],
         "images": [],
@@ -894,14 +940,92 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         except ValueError:
             await update.message.reply_text("⚠️ أرسل رقماً صحيحاً للمساحة:")
             return
-        session["state"] = "awaiting_price"
+        session["state"] = "awaiting_operation_type"
         save_session(uid)  # حفظ الحالة على القرص
-        await update.message.reply_text("💰 أرسل السعر (مثال: 1,200,000 رياال أو قابل للتفاوض):", reply_markup=ADMIN_CANCEL_KEYBOARD)
+        await update.message.reply_text(
+            "🏷️ اختر نوع العملية:\n\n"
+            "🏷️ للبيع \u2014 عقار للبيع\n"
+            "🏠 للإيجار \u2014 عقار للإيجار",
+            reply_markup=OPERATION_TYPE_KEYBOARD,
+        )
         return
 
-    # السعر
-    if session["state"] == "awaiting_price":
-        session["offer"]["price_text"] = text
+    # نوع العملية (بيع / إيجار)
+    if session["state"] == "awaiting_operation_type":
+        if "للإيجار" in text or "ايجار" in text:
+            session["offer"]["operation_type"] = "rent"
+        else:
+            session["offer"]["operation_type"] = "sale"
+        session["state"] = "awaiting_price_type"
+        save_session(uid)  # حفظ الحالة على القرص
+        await update.message.reply_text(
+            "💰 اختر نوع السعر:\n\n"
+            "💰 سعر محدد \u2014 سيتم طلب قيمة السعر\n"
+            "🤝 قابل للتفاوض \u2014 سيتم عرض السعر كقابل للتفاوض\n"
+            "🔨 على السوم \u2014 سيتم طلب أعلى سوم",
+            reply_markup=PRICE_TYPE_KEYBOARD,
+        )
+        return
+
+    # اختيار نوع السعر
+    if session["state"] == "awaiting_price_type":
+        if "سعر محدد" in text:
+            session["offer"]["priceType"] = "fixed"
+            session["state"] = "awaiting_price_fixed"
+            save_session(uid)
+            await update.message.reply_text(
+                "💰 أرسل السعر بالريال (رقم فقط\u060c مثال: 650000):",
+                reply_markup=ADMIN_CANCEL_KEYBOARD,
+            )
+            return
+        elif "قابل للتفاوض" in text:
+            session["offer"]["priceType"] = "negotiable"
+            session["offer"]["price_text"] = "قابل للتفاوض"
+            # توليد النص التسويقي تلقائياً
+            auto_desc = generate_marketing_text(
+                session["offer"]["type"],
+                session["offer"]["area"],
+                session["offer"]["size_sqm"],
+            )
+            session["offer"]["description"] = auto_desc
+            session["state"] = "awaiting_desc_confirm"
+            save_session(uid)
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ نشر بهذا النص", callback_data="publish_auto")],
+                [InlineKeyboardButton("✏️ كتابة نص مخصص", callback_data="custom_desc")],
+            ])
+            await update.message.reply_text(
+                f"🤖 تم توليد نص تسويقي تلقائياً:\n\n{auto_desc}\n\n"
+                "هل تريد النشر بهذا النص أم كتابة نص مخصص؟",
+                reply_markup=keyboard,
+            )
+            return
+        elif "على السوم" in text:
+            session["offer"]["priceType"] = "auction"
+            session["state"] = "awaiting_price_auction"
+            save_session(uid)
+            await update.message.reply_text(
+                "🔨 أرسل أعلى سوم حالي بالريال (رقم فقط\u060c مثال: 500000):",
+                reply_markup=ADMIN_CANCEL_KEYBOARD,
+            )
+            return
+        else:
+            await update.message.reply_text(
+                "⚠️ اختر إحدى الخيارات من اللوحة أسفله",
+                reply_markup=PRICE_TYPE_KEYBOARD,
+            )
+            return
+
+    # سعر محدد \u2014 إدخال القيمة
+    if session["state"] == "awaiting_price_fixed":
+        try:
+            raw_price = text.replace(",", "").replace("ريال", "").replace("رياال", "").strip()
+            price_num = float(raw_price)
+            session["offer"]["price_text"] = f"{format_price_with_separators(int(price_num))} ريال"
+            session["offer"]["highestBid"] = ""
+        except ValueError:
+            await update.message.reply_text("⚠️ أرسل رقماً صحيحاً للسعر:")
+            return
         # توليد النص التسويقي تلقائياً
         auto_desc = generate_marketing_text(
             session["offer"]["type"],
@@ -910,7 +1034,37 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         )
         session["offer"]["description"] = auto_desc
         session["state"] = "awaiting_desc_confirm"
-        save_session(uid)  # حفظ الحالة على القرص
+        save_session(uid)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ نشر بهذا النص", callback_data="publish_auto")],
+            [InlineKeyboardButton("✏️ كتابة نص مخصص", callback_data="custom_desc")],
+        ])
+        await update.message.reply_text(
+            f"🤖 تم توليد نص تسويقي تلقائياً:\n\n{auto_desc}\n\n"
+            "هل تريد النشر بهذا النص أم كتابة نص مخصص؟",
+            reply_markup=keyboard,
+        )
+        return
+
+    # على السوم \u2014 إدخال أعلى سوم
+    if session["state"] == "awaiting_price_auction":
+        try:
+            raw_bid = text.replace(",", "").replace("ريال", "").replace("رياال", "").strip()
+            bid_num = float(raw_bid)
+            session["offer"]["highestBid"] = str(int(bid_num))
+            session["offer"]["price_text"] = f"على السوم \u2014 أعلى سوم: {format_price_with_separators(int(bid_num))} ريال"
+        except ValueError:
+            await update.message.reply_text("⚠️ أرسل رقماً صحيحاً لأعلى سوم:")
+            return
+        # توليد النص التسويقي تلقائياً
+        auto_desc = generate_marketing_text(
+            session["offer"]["type"],
+            session["offer"]["area"],
+            session["offer"]["size_sqm"],
+        )
+        session["offer"]["description"] = auto_desc
+        session["state"] = "awaiting_desc_confirm"
+        save_session(uid)
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ نشر بهذا النص", callback_data="publish_auto")],
             [InlineKeyboardButton("✏️ كتابة نص مخصص", callback_data="custom_desc")],
@@ -1555,10 +1709,12 @@ async def _finalize_offer(update, uid, query=None):
 
     # Task 4: المرحلة 2 — نجاح النشر
     site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    _op_label = "🏠 للإيجار" if offer.get("operation_type") == "rent" else "🏷️ للبيع"
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
         f"🏷️ النوع: {offer['category']}\n"
+        f"🔂 عملية: {_op_label}\n"
         f"📍 المنطقة: {offer['area']}\n"
         f"📐 المساحة: {offer['size_sqm']} م²\n"
         f"💰 السعر: {offer['price_text']}\n"
@@ -1957,6 +2113,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
         "source": "visitor_request",
         "priceType": _req_price_type,
         "highestBid": _req_highest_bid,
+        "operation_type": item.get("operation_type", item.get("operationType", "sale")),
         "visitor_name": item.get("name", ""),
         "visitor_phone": item.get("phone", ""),
     }
@@ -2045,10 +2202,12 @@ async def _approve_visitor_request(update, req_ref, query=None):
 
     # Task 4: المرحلة 2 — نجاح النشر
     site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    _op_label2 = "🏠 للإيجار" if offer.get("operation_type") == "rent" else "🏷️ للبيع"
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer_id}\n"
         f"🏷️ النوع: {offer['category']}\n"
+        f"🔂 عملية: {_op_label2}\n"
         f"📍 المنطقة: {offer['area']}\n"
         f"📐 المساحة: {offer['size_sqm']} م²\n"
         f"💰 المعروض: {offer['price_text']}\n"
@@ -2553,8 +2712,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # إذا كان في عملية إضافة عرض
     if session["state"] in [
         "awaiting_images", "awaiting_title", "awaiting_area",
-        "awaiting_size", "awaiting_price", "awaiting_desc_confirm",
-        "awaiting_custom_desc",
+        "awaiting_size", "awaiting_operation_type", "awaiting_price_type",
+        "awaiting_price_fixed", "awaiting_price_auction",
+        "awaiting_desc_confirm", "awaiting_custom_desc",
     ]:
         await handle_text_during_add(update, context)
         return
@@ -3334,6 +3494,13 @@ async def _handle_visitor_request_api(request):
         "images": list(data.get("images", [])),
         "priceType": str(data.get("priceType", data.get("price_type", "fixed"))),
         "highestBid": str(data.get("highestBid", data.get("highest_bid", ""))),
+        "operation_type": str(data.get("operation_type", data.get("operationType", "sale"))),
+        "bidType": str(data.get("bidType", data.get("bid_type", ""))),
+        "offerId": str(data.get("offerId", data.get("offer_id", ""))),
+        "offerUrl": str(data.get("offerUrl", data.get("offer_url", ""))),
+        "currentHighestBid": str(data.get("currentHighestBid", data.get("current_highest_bid", ""))),
+        "bidAmount": str(data.get("bidAmount", data.get("bid_amount", ""))),
+        "bidNotes": str(data.get("bidNotes", data.get("bid_notes", data.get("notes", "")))),
         "source": str(data.get("source", "website")),
         "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "status": "pending",
@@ -3366,6 +3533,50 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
     requests_list = vdata.get("requests", [])
     idx = len(requests_list) - 1
 
+    # —— معالجة خاصة لطلبات المزايدة ——
+    if visitor_request.get("bidType") == "bid" or visitor_request.get("type") == "bid":
+        _bid_amount = visitor_request.get("bidAmount", visitor_request.get("price", ""))
+        _current_bid = visitor_request.get("currentHighestBid", "")
+        _offer_id = visitor_request.get("offerId", "")
+        _offer_url = visitor_request.get("offerUrl", "")
+        _offer_title = visitor_request.get("propertyType", "").replace("طلب مزايدة على ", "")
+        _bid_notes = visitor_request.get("bidNotes", visitor_request.get("notes", ""))
+        _bid_name = visitor_request.get("name", "")
+        _bid_phone = visitor_request.get("phone", "")
+        try:
+            _bid_formatted = format_price_with_separators(_bid_amount) if _bid_amount else _bid_amount
+            _current_formatted = format_price_with_separators(_current_bid) if _current_bid else _current_bid
+        except Exception:
+            _bid_formatted = str(_bid_amount)
+            _current_formatted = str(_current_bid)
+        bid_msg = (
+            "🔔 <b>طلب مزايدة جديد</b>\n\n"
+            f"🏷️ <b>اسم العقار:</b> {_offer_title}\n"
+            f"🆔 <b>معرف العرض:</b> <code>{_offer_id}</code>\n"
+        )
+        if _offer_url:
+            bid_msg += f"🔗 <b>رابط العرض:</b> {_offer_url}\n"
+        bid_msg += (
+            f"💰 <b>أعلى سوم حالي:</b> {_current_formatted} ريال\n"
+            f"👑 <b>المزايدة الجديدة:</b> {_bid_formatted} ريال\n\n"
+            f"👤 <b>اسم المزايد:</b> {_bid_name}\n"
+            f"📱 <b>رقم الهاتف:</b> {_bid_phone}\n"
+        )
+        if _bid_notes:
+            bid_msg += f"\n📝 <b>ملاحظات:</b>\n{_bid_notes}\n"
+        bid_msg += (
+            f"\n📄 <b>رقم الطلب:</b> <code>{visitor_request.get('id', '')}</code>\n"
+            f"🕐 <b>التاريخ:</b> {visitor_request.get('submitted_at', '')}\n"
+            f"\n💡 مكتب آفاق الإنجاز العقاري\n"
+            f"🌐 abonasr0907-beep.github.io/-"
+        )
+        for admin_id in CONFIG.get("admin_ids", []):
+            try:
+                await bot.send_message(chat_id=admin_id, text=bid_msg, parse_mode="HTML", disable_web_page_preview=True)
+            except Exception as e:
+                logger.error(f"خطأ إرسال إشعار المزايدة: {e}")
+        return
+
     # تحديد نص السعر حسب النوع
     _ptype = visitor_request.get("priceType", "fixed")
     _price_val = visitor_request.get("price", "")
@@ -3385,6 +3596,7 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
         f"\U0001F464 <b>اسم العميل:</b> {visitor_request.get('name', '')}\n"
         f"\U0001F4F1 <b>رقم الهاتف:</b> {visitor_request.get('phone', '')}\n"
         f"\U0001F3F7\uFE0F <b>نوع العقار:</b> {visitor_request.get('propertyType', '')}\n"
+        f"\U0001F502 <b>عملية:</b> {'🏠 للإيجار' if visitor_request.get('operation_type') == 'rent' else '🏷️ للبيع'}\n"
         f"\U0001F4CD <b>الموقع:</b> {visitor_request.get('location', '')}\n"
         f"\U0001F4D0 <b>المساحة:</b> {visitor_request.get('area', '')} م²\n"
         f"\U0001F4B0 <b>{_price_label}:</b> {_price_display}\n"

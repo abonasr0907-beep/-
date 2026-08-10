@@ -162,6 +162,13 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label><i class="fas fa-exchange-alt"></i> نوع العملية *</label>
+                            <select name="operation_type" id="operation-type-select" required>
+                                <option value="sale">🏷️ للبيع</option>
+                                <option value="rent">🏠 للإيجار</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label><i class="fas fa-ruler-combined"></i> المساحة (م²) *</label>
                             <input type="text" name="area" required placeholder="أدخل المساحة بالمتر المربع" inputmode="numeric" oninput="formatPriceInput(this)" data-raw="" min="50" autocomplete="off">
                         </div>

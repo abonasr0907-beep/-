@@ -47,6 +47,7 @@ async function notifyTelegramAdmin(requestData) {
         html += `<b>\U0001F464 اسم العميل:</b> ${escapeHtml(requestData.name || 'غير محدد')}\n`;
         html += `<b>\U0001F4F1 رقم الهاتف:</b> ${escapeHtml(requestData.phone || 'غير محدد')}\n`;
         html += `<b>\U0001F3F7\ufe0f نوع العقار:</b> ${escapeHtml(requestData.propertyType || 'غير محدد')}\n`;
+        html += `<b>\U0001F502 عملية:</b> ${requestData.operation_type === 'rent' ? '🏠 للإيجار' : '🏷️ للبيع'}\n`;
         html += `<b>\U0001F4CD الموقع:</b> ${escapeHtml(requestData.location || 'غير محدد')}\n`;
         html += `<b>\U0001F4D0 المساحة:</b> ${escapeHtml(requestData.area || 'غير محدد')} م\u00b2\n`;
         html += `<b>\U0001F4B0 السعر التقريبي:</b> ${escapeHtml(requestData.price || 'غير محدد')} ريال\n`;
@@ -258,7 +259,8 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
         const bouslaPrice = offer.type === 'farm' ? bousla.farm : (offer.type === 'resthouse' ? bousla.resthouse : bousla.land);
         const featuresHtml = (offer.features || []).slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
         const featuredBadge = offer.featured ? '<span class="offer-badge featured">مميز ⭐</span>' : `<span class="offer-badge">${offer.category}</span>`;
-        const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
+                const operationBadge = (offer.operation_type === 'rent' || offer.operationType === 'rent') ? '<span class="offer-badge operation-rent">🏠 للإيجار</span>' : '<span class="offer-badge operation-sale">🏷️ للبيع</span>';
+const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
         const mapLink = offer.map_link || OFFICE_DATA.defaultMap;
         const imgCount = (offer.images && offer.images.length) ? offer.images.length : 0;
         const morePhotosBadge = imgCount > 1 ? `<span class="offer-photos-count"><i class="fas fa-images"></i> ${imgCount} صور</span>` : '';
@@ -267,6 +269,7 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
             <div class="offer-card" data-offer-id="${offer.id}">
                 <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
                 ${featuredBadge}
+                ${operationBadge}
                 ${morePhotosBadge}
                 <div class="offer-card-body">
                     <h3>${offer.title}</h3>
@@ -936,6 +939,7 @@ function submitPropertyForm(event) {
     msg += `*\u{1F464} الاسم:* ${data.name}\n`;
     msg += `*\u{1F4DE} الجوال:* ${data.phone}\n`;
     msg += `*\u{1F3F7}\u{FE0F} نوع العقار:* ${data.propertyType || 'غير محدد'}\n`;
+    msg += `*\u{1F502} عملية:* ${data.operation_type === 'rent' ? 'للإيجار' : 'للبيع'}\n`;
     msg += `*\u{1F4CD} الموقع:* ${data.location || 'غير محدد'}\n`;
     msg += `*\u{1F4D0} المساحة:* ${data.area || 'غير محدد'} م\u{00B2}\n`;
     msg += `*\u{1F4B0} السعر:* ${priceDisplay || data.price || 'غير محدد'} ريال (${priceTypeLabel})\n`;
@@ -986,6 +990,7 @@ function submitPropertyForm(event) {
                 priceDisplay: priceDisplay,
                 priceType: data.priceType,
                 highestBid: data.highestBid || '',
+                operation_type: data.operation_type || 'sale',
                 description: data.description,
                 latitude: data.latitude,
                 longitude: data.longitude,
@@ -1091,7 +1096,9 @@ function submitBid(offerId) {
                 <label style="display:block;font-size:14px;color:#333;margin-bottom:6px;">الاسم *</label>
                 <input type="text" id="bid-name" placeholder="اسمك الكامل" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px;font-family:inherit;" />
                 <label style="display:block;font-size:14px;color:#333;margin-bottom:6px;">رقم الجوال *</label>
-                <input type="text" id="bid-phone" placeholder="05xxxxxxxx" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;font-family:inherit;" />
+                <input type="text" id="bid-phone" placeholder="05xxxxxxxx" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px;font-family:inherit;" />
+                <label style="display:block;font-size:14px;color:#333;margin-bottom:6px;">ملاحظات الإضافية</label>
+                <textarea id="bid-notes" placeholder="أي ملاحظات أو طلبات خاصة" rows="2" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:18px;font-family:inherit;resize:vertical;"></textarea>
                 <div style="display:flex;gap:10px;">
                     <button onclick="closeBidModal()" style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إلغاء</button>
                     <button onclick="sendBid('${offerId}')" style="flex:1;padding:10px;border:none;border-radius:8px;background:#2A5050;color:#fff;cursor:pointer;font-family:inherit;">إرسال المزايدة</button>
@@ -1113,27 +1120,47 @@ async function sendBid(offerId) {
     const amount = document.getElementById('bid-amount').value;
     const name = document.getElementById('bid-name').value.trim();
     const phone = document.getElementById('bid-phone').value.trim();
+    const notes = document.getElementById('bid-notes') ? document.getElementById('bid-notes').value.trim() : '';
     if (!amount || !name || !phone) {
-        showToast('يرجى تعبئة جميع الحقول', 'error');
+        showToast('يرجى تعبئة جميع الحقل المطلوبة', 'error');
         return;
     }
     const offer = OFFERS.find(o => String(o.id) === String(offerId));
     const currentBid = offer ? (offer.highestBid || offer.highest_bid || offer.price || 0) : 0;
     if (parseFloat(amount) <= parseFloat(currentBid)) {
-        showToast('مبلغ المزايدة يجب أن يكون أعلى من السوم الحالي', 'error');
+        showToast('مبلغ المزايدة تجب أن تكون أعلى من السوم الحالي', 'error');
         return;
     }
 
     // إرسال المزايدة للإدارة عبر تيليجرام
+    const siteBaseUrl = (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.siteUrl) ? OFFICE_DATA.siteUrl : 'https://abonasr0907-beep.github.io/-/';
+    const offerUrl = siteBaseUrl + '#offer-' + offerId;
     const bidData = {
         id: 'BID-' + Date.now(),
         offerId: offerId,
         offerTitle: offer ? offer.title : '',
+        offerUrl: offerUrl,
+        currentHighestBid: currentBid,
         bidAmount: amount,
         name: name,
         phone: phone,
+        notes: notes,
         type: 'bid',
     };
+
+    // تنسيق الأرقام بفواصل الآلاف
+    const formattedAmount = Number(amount).toLocaleString('en-US');
+    const formattedCurrent = Number(currentBid).toLocaleString('en-US');
+
+    let bidDescription = 'طلب مزايدة على العرض ' + offerId + '\n'
+        + 'اسم العقار: ' + (offer ? offer.title : offerId) + '\n'
+        + 'أعلى سوم حالي: ' + formattedCurrent + ' ريال\n'
+        + 'المزايدة الجديدة: ' + formattedAmount + ' ريال\n'
+        + 'رابط العرض: ' + offerUrl;
+    if (notes) {
+        bidDescription += '\nملاحظات: ' + notes;
+    }
+
     notifyTelegramAdmin({
         id: bidData.id,
         name: name,
@@ -1143,7 +1170,13 @@ async function sendBid(offerId) {
         area: '',
         price: amount,
         priceType: 'auction',
-        description: 'طلب مزايدة على العرض ' + offerId + ' — المبلغ: ' + amount + ' ريال',
+        bidType: 'bid',
+        offerId: offerId,
+        offerUrl: offerUrl,
+        currentHighestBid: currentBid,
+        bidAmount: amount,
+        bidNotes: notes,
+        description: bidDescription,
     }).catch(() => {});
 
     closeBidModal();

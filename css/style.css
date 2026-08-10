@@ -495,6 +495,24 @@ a.hero-feature:hover {
     color: var(--white);
 }
 
+.offer-badge.operation-sale {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: auto;
+    background: #2A5050;
+    color: #fff;
+}
+
+.offer-badge.operation-rent {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: auto;
+    background: #d4760a;
+    color: #fff;
+}
+
 .offer-photos-count {
     position: absolute;
     bottom: 12px;
