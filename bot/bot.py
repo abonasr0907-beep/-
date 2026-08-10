@@ -4227,11 +4227,7 @@ async def _run_custom_webhook(app, webhook_url, port):
     web_app.router.add_get("/health", _handle_health)
     web_app.router.add_get("/", _handle_root)
 
-    # تعيين الـ webhook مع Telegram
-    await app.bot.set_webhook(url=full_webhook_url, allowed_updates=Update.ALL_TYPES)
-    logger.info(f"\U0001F517 تم تعيين webhook: {full_webhook_url}")
-
-    # تشغيل الخادم
+    # تشغيل خادم aiohttp أولاً (ليتم استجابة فحص الصحة + API فوراً)
     runner = web.AppRunner(web_app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
@@ -4239,14 +4235,29 @@ async def _run_custom_webhook(app, webhook_url, port):
     logger.info(f"\U0001F310 خادم webhook+API يعمل على المنفذ {port}")
     logger.info(f"   المسارات: POST {webhook_path}, POST /api/visitor-request, GET /health, GET /")
 
-    # تهيئة البوت أولاً (مطلوب في PTB v20 قبل app.start)
-    # post_init يُستدعى أثناء initialize() — يبدأ طابور العمليات
+    # تهيئة البوت (مطلوب في PTB v20 قبل app.start)
+    # post_init يُستدعى يدوياً بالأسفل (لا يُستدعى تلقائياً مع initialize)
     await app.initialize()
     logger.info("\U0001F527 تمت تهيئة البوت (initialize)")
 
+
+    # مهم: post_init لا يُستدعى تلقائياً عند استدعاء initialize() يدوياً
+    # في PTB v20 يتم استدعاؤه فقط عبر run_webhook()/run_polling()
+    # لذا نستدعيه يدوياً لتهيئة مرجع البوت + تشغيل طابور العمليات
+    if app.post_init:
+        await app.post_init(app)
+        logger.info("\u2705 تم تنفيذ post_init (مرجع البوت + طابور العمليات)")
     # تشغيل البوت (بدون updater لأننا ندير الـ webhook يدوياً)
     await app.start()
-    logger.info("\u2705 البوت يعمل في وضع webhook المخصص")
+    logger.info("\u2705 البوت تعمل في وضع webhook المخصص")
+
+    # تعيين الـ webhook مع Telegram (بعد تشغيل الخادم — غير قاتل للأخطاء)
+    # إذا فشل setWebhook لا يتعطل الخادم — الـ API + فحص الصحة تظل تعمل
+    try:
+        await app.bot.set_webhook(url=full_webhook_url, allowed_updates=Update.ALL_TYPES)
+        logger.info(f"\U0001F517 تم تعيين webhook: {full_webhook_url}")
+    except Exception as e:
+        logger.error(f"\u26a0\ufe0f تعذر تعيين webhook (الخادم يستمر بالعمل): {e}")
 
     # انتظار indefinite
     import asyncio

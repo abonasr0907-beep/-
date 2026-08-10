@@ -9,7 +9,7 @@
 
 [deploy]
 # Railway سيستخدم Dockerfile تلقائياً
-startCommand = "cd bot && python3 bot.py"
+startCommand = "python3 bot.py"
 # إعادة التشغيل التلقائي عند التعطل
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
