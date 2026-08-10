@@ -4239,6 +4239,11 @@ async def _run_custom_webhook(app, webhook_url, port):
     logger.info(f"\U0001F310 خادم webhook+API يعمل على المنفذ {port}")
     logger.info(f"   المسارات: POST {webhook_path}, POST /api/visitor-request, GET /health, GET /")
 
+    # تهيئة البوت أولاً (مطلوب في PTB v20 قبل app.start)
+    # post_init يُستدعى أثناء initialize() — يبدأ طابور العمليات
+    await app.initialize()
+    logger.info("\U0001F527 تمت تهيئة البوت (initialize)")
+
     # تشغيل البوت (بدون updater لأننا ندير الـ webhook يدوياً)
     await app.start()
     logger.info("\u2705 البوت يعمل في وضع webhook المخصص")
