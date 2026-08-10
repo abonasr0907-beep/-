@@ -2017,19 +2017,29 @@ async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pending_count = sum(1 for _, item in all_items if item.get("status") == "pending")
     approved_count = sum(1 for _, item in all_items if item.get("status") == "approved")
     rejected_count = sum(1 for _, item in all_items if item.get("status") == "rejected")
+    bid_count = sum(1 for _, item in all_items if item.get("bidType") == "bid" or item.get("type") == "bid")
     summary_msg = (
         f"📨 طلبات الزوار ({total} طلب):\n\n"
         f"⏳ بانتظار المراجعة: {pending_count}\n"
         f"✅ موافق عليها: {approved_count}\n"
-        f"❌ مرفوضة: {rejected_count}\n\n"
-        f"📋 يتم عرض جميع الطلبات بالتفصيل أدناه..."
+        f"❌ مرفوضة: {rejected_count}\n"
     )
+    if bid_count > 0:
+        summary_msg += f"🔩 طلبات مزايدة: {bid_count}\n"
+    summary_msg += f"\n📋 يتم عرض جميع الطلبات بالتفصيل أدناه..."
     await update.message.reply_text(summary_msg)
 
     # Task 6: عرض كل طلب على حدة مع البيانات الكاملة والصور
     bot = context.bot
     for idx, (typ, item) in enumerate(all_items):
-        label = "🏠 عرض" if typ == "request" else "🔍 استفسار"
+        # تمييز طلبات المزايدة عن الطلبات العادية
+        is_bid = item.get("bidType") == "bid" or item.get("type") == "bid"
+        if is_bid:
+            label = "🔨 مزايدة"
+        elif typ == "request":
+            label = "🏠 عرض"
+        else:
+            label = "🔍 استفسار"
         name = item.get("name", "غير معروف")
         phone = item.get("phone", "")
         status = item.get("status", "pending")
@@ -2047,29 +2057,55 @@ async def visitor_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
         detail_msg += f"{'─' * 30}\n"
         detail_msg += f"👤 الاسم: {name}\n"
         detail_msg += f"📱 الهاتف: {phone}\n"
-        if item.get("propertyType"):
-            detail_msg += f"🏷️ نوع العقار: {item.get('propertyType', '')}\n"
-        op_type = item.get("operation_type", item.get("operationType", "sale"))
-        detail_msg += f"🔄 العملية: {'🏠 للإيجار' if op_type == 'rent' else '🏷️ للبيع'}\n"
-        if item.get("location"):
-            detail_msg += f"📍 الموقع: {item.get('location', '')}\n"
-        if item.get("area"):
-            detail_msg += f"📐 المساحة: {item.get('area', '')} م²\n"
-        # عرض السعر حسب النوع
-        _ptype = item.get("priceType", "fixed")
-        _price_val = item.get("price", "")
-        _highest_bid = item.get("highestBid", "")
-        if _ptype == "auction":
-            detail_msg += f"🔨 السوم — أعلى سوم: {_highest_bid} ريال\n" if _highest_bid else "🔨 على السوم\n"
-        elif _ptype == "negotiable":
-            detail_msg += f"🤝 السعر: {_price_val} ريال (قابل للتفاوض)\n" if _price_val else "🤝 قابل للتفاوض\n"
+        # عرض تفاصيل المزايدة إن كانت
+        if is_bid:
+            _bid_amt = item.get("bidAmount", item.get("price", ""))
+            _cur_bid = item.get("currentHighestBid", "")
+            _offer_id = item.get("offerId", "")
+            _offer_url = item.get("offerUrl", "")
+            _bid_title = item.get("propertyType", "").replace("طلب مزايدة على ", "")
+            if _bid_title:
+                detail_msg += f"🏷️ العقار: {_bid_title}\n"
+            if _offer_id:
+                detail_msg += f"🆔 معرف العرض: {_offer_id}\n"
+            if _cur_bid:
+                try:
+                    detail_msg += f"💰 أعلى سوم حالي: {format_price_with_separators(_cur_bid)} ريال\n"
+                except Exception:
+                    detail_msg += f"💰 أعلى سوم حالي: {_cur_bid} ريال\n"
+            if _bid_amt:
+                try:
+                    detail_msg += f"🆕 المزايدة: {format_price_with_separators(_bid_amt)} ريال\n"
+                except Exception:
+                    detail_msg += f"🆕 المزايدة: {_bid_amt} ريال\n"
+            if _offer_url:
+                detail_msg += f"🔗 رابط العرض: {_offer_url}\n"
+            if item.get("bidNotes") or item.get("notes"):
+                detail_msg += f"📝 ملاحظات: {item.get('bidNotes') or item.get('notes', '')}\n"
         else:
-            detail_msg += f"💰 السعر: {_price_val} ريال\n" if _price_val else ""
-        if item.get("description"):
-            detail_msg += f"📝 الوصف: {item.get('description', '')}\n"
-        if item.get("latitude") and item.get("longitude"):
-            maps_url = item.get("mapsLink") or f"https://www.google.com/maps?q={item.get('latitude')},{item.get('longitude')}"
-            detail_msg += f"🗺️ الموقع على الخريطة: {maps_url}\n"
+            if item.get("propertyType"):
+                detail_msg += f"🏷️ نوع العقار: {item.get('propertyType', '')}\n"
+            op_type = item.get("operation_type", item.get("operationType", "sale"))
+            detail_msg += f"🔄 العملية: {'🏠 للإيجار' if op_type == 'rent' else '🏷️ للبيع'}\n"
+            if item.get("location"):
+                detail_msg += f"📍 الموقع: {item.get('location', '')}\n"
+            if item.get("area"):
+                detail_msg += f"📐 المساحة: {item.get('area', '')} م²\n"
+            # عرض السعر حسب النوع
+            _ptype = item.get("priceType", "fixed")
+            _price_val = item.get("price", "")
+            _highest_bid = item.get("highestBid", "")
+            if _ptype == "auction":
+                detail_msg += f"🔨 السوم — أعلى سوم: {_highest_bid} ريال\n" if _highest_bid else "🔨 على السوم\n"
+            elif _ptype == "negotiable":
+                detail_msg += f"🤝 السعر: {_price_val} ريال (قابل للتفاوض)\n" if _price_val else "🤝 قابل للتفاوض\n"
+            else:
+                detail_msg += f"💰 السعر: {_price_val} ريال\n" if _price_val else ""
+            if item.get("description"):
+                detail_msg += f"📝 الوصف: {item.get('description', '')}\n"
+            if item.get("latitude") and item.get("longitude"):
+                maps_url = item.get("mapsLink") or f"https://www.google.com/maps?q={item.get('latitude')},{item.get('longitude')}"
+                detail_msg += f"🗺️ الموقع على الخريطة: {maps_url}\n"
         img_count = item.get("imageCount", 0)
         img_list = item.get("images", [])
         detail_msg += f"📷 الصور: {img_count} صورة\n"

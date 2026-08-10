@@ -979,12 +979,8 @@ function submitPropertyForm(event) {
     // Task 4: رفع الصور أولاً ثم إرسال الإشعار — يضمن وصول الصور مع الإشعار
     (async () => {
         try {
-            // 1) Task 4: رفع الصور إلى خادم البوت أولاً (قبل الإشعار)
-            //    هذا يضمن أن الصور محفوظة عند وصول الإشعار فيتم إرفاقها معه
-            if (selectedImages.length > 0) {
-                await uploadVisitorImages(data.id, selectedImages).catch(() => {});
-            }
-            // 2) إرسال إشعار الطلب إلى البوت (بعد رفع الصور)
+            // 1) إرسال الطلب إلى البوت أولاً (يحفظه في visitor_requests.json ثم يشعر المدير)
+            //    هذا يضمن وجود سجل الطلب قبل رفع الصور فيتم ربط الصور به
             await notifyTelegramAdmin({
                 id: data.id,
                 name: data.name,
@@ -1003,11 +999,15 @@ function submitPropertyForm(event) {
                 mapsLink: data.mapsLink,
                 imageCount: selectedImages.length,
             });
+            // 2) رفع الصور بعد حفظ الطلب (حتى تُربط الصور بسجل الطلب وتُرسل للمدير)
+            if (selectedImages.length > 0) {
+                await uploadVisitorImages(data.id, selectedImages).catch(() => {});
+            }
         } catch (e) {
             console.warn('⚠️ خطأ غير مهم في إرسال الطلب:', e.message);
         }
 
-        // 3) Task 3: فتح WhatsApp بطريقة أسرع (بدون window.open المتزامن)
+        // 3) فتح WhatsApp بطريقة أسرع (بدون window.open المتزامن)
         openWhatsAppFast(whatsappUrl);
     })();
 
@@ -1180,6 +1180,31 @@ async function sendBid(offerId) {
         bidNotes: notes,
         description: bidDescription,
     }).catch(() => {});
+
+    // إرسال نسخة واتساب للمزايدة إلى المكتب
+    try {
+        let waBidMsg = '*🔨 طلب مزايدة جديد*\n\n';
+        waBidMsg += `*🏷️ العقار:* ${offer ? offer.title : offerId}\n`;
+        waBidMsg += `*🆔 معرف العرض:* ${offerId}\n`;
+        waBidMsg += `*💰 أعلى سوم حالي:* ${formattedCurrent} ريال\n`;
+        waBidMsg += `*🆕 المزايدة الجديدة:* ${formattedAmount} ريال\n`;
+        if (offerUrl) {
+            waBidMsg += `*🔗 رابط العرض:* ${offerUrl}\n`;
+        }
+        waBidMsg += `\n*👤 الاسم:* ${name}\n`;
+        waBidMsg += `*📱 الجوال:* ${phone}\n`;
+        if (notes) {
+            waBidMsg += `*📝 ملاحظات:* ${notes}\n`;
+        }
+        waBidMsg += `\n*📄 رقم الطلب:* ${bidData.id}\n`;
+        waBidMsg += `*🕐 التاريخ:* ${new Date().toLocaleString('ar-SA')}\n`;
+        waBidMsg += `\n*💡 مكتب آفاق الإنجاز العقاري*\n`;
+        waBidMsg += `🌐 abonasr0907-beep.github.io/-`;
+        const waBidUrl = `https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(waBidMsg)}`;
+        openWhatsAppFast(waBidUrl);
+    } catch (e) {
+        console.warn('⚠️ تعذر فتح واتساب للمزايدة:', e.message);
+    }
 
     closeBidModal();
     showToast('تم إرسال طلب المزايدة بنجاح! سنتواصل معك قريباً.', 'success');
