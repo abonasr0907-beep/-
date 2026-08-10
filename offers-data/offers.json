@@ -692,6 +692,33 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
       "featured": false
+    },
+    {
+      "id": "LND-0BF52E",
+      "type": "land",
+      "category": "أرض",
+      "title": "أرض — الخرج",
+      "area": "الخرج",
+      "area_en": "",
+      "size_sqm": "1000",
+      "price": "900000",
+      "price_text": "900000 ريال",
+      "original_price": "900000",
+      "description": "📐 أرض سكنية مميزة في الخرج\n\nالمساحة: 1000 م²\neموقع استراتيجي وقريب من الخدمات. استثمار آمن.\n\nللتفاصيل: 0544699933\n\n📝 طلب للموافقة",
+      "features": [],
+      "images": [],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "visitor_map_link": "",
+      "visitor_lat": "",
+      "visitor_lng": "",
+      "date_added": "2026-08-10",
+      "featured": false,
+      "source": "visitor_request",
+      "priceType": "fixed",
+      "highestBid": "",
+      "operation_type": "sale",
+      "visitor_name": "زائر الموافقة",
+      "visitor_phone": "0555111222"
     }
   ]
 }
