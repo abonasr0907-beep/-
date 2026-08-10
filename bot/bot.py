@@ -40,6 +40,11 @@ import image_utils
 import offer_id
 import backup
 import user_manager
+import smart_backup
+import smart_sync
+import ai_monitor
+import smart_repair
+import emergency_protection
 
 from telegram import (
     Update,
@@ -1430,6 +1435,117 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(_parts) == 2:
             _src, _iid = _parts
             await _archive_repost(update, query, _src, _iid)
+    # ── Phase 3: النسخ الاحتياطي الذكي ──
+    elif data == "backup_cancel":
+        await query.edit_message_text("\u21a9\ufe0f تم الإلغاء.")
+    elif data.startswith("backup_detail_"):
+        version_id = data[len("backup_detail_"):]
+        details = smart_backup.get_version_details(version_id)
+        if not details.get("found"):
+            await query.edit_message_text("\u26a0\ufe0f النسخة غير موجودة.")
+            return
+        msg = (
+            f"\U0001f4be تفاصيل النسخة {details['version_number']}\n\n"
+            f"\U0001f4c5 التاريخ: {details['timestamp']}\n"
+            f"\U0001f4cb السبب: {details['reason']}\n"
+            f"\U0001f4c2 الملفات: {details['files_copied']}\n"
+            f"\U0001f504 الملفات المتغيّرة: {len(details.get('diffs', []))}\n\n"
+        )
+        if details.get("diffs"):
+            msg += "\u2500 الفرق:\n"
+            for d in details["diffs"][:10]:
+                icon = {"added": "\u2795", "removed": "\u2796", "modified": "\u270f\ufe0f"}.get(d["status"], "\u2753")
+                msg += f"  {icon} {d['file']}\n"
+        keyboard = [
+            [InlineKeyboardButton("\U0001f504 إعادة نشر هذه النسخة", callback_data=f"backup_redeploy_{version_id}")],
+            [InlineKeyboardButton("\u21a9\ufe0f رجوع للقائمة", callback_data="backup_list_back")],
+        ]
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    elif data == "backup_list_back":
+        versions = smart_backup.list_stable_versions()
+        if not versions:
+            await query.edit_message_text("\U0001f4be لا توجد نسخ مستقرة.")
+            return
+        msg = "\U0001f4be النسخ المستقرة\n\n"
+        keyboard = []
+        for v in versions:
+            keyboard.append([InlineKeyboardButton(
+                f"\U0001f4c1 النسخة {v['version_number']} — {v['timestamp'][:16]}",
+                callback_data=f"backup_detail_{v['version_id']}"
+            )])
+        keyboard.append([InlineKeyboardButton("\u21a9\ufe0f إلغاء", callback_data="backup_cancel")])
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    elif data.startswith("backup_redeploy_"):
+        version_id = data[len("backup_redeploy_"):]
+        result = smart_backup.redeploy_version(version_id)
+        icon = "\u2705" if result["success"] else "\u274c"
+        msg = f"{icon} إعادة النشر\n\n{result['message']}\n"
+        if result.get("restored_files"):
+            msg += f"\n\U0001f4c2 الملفات المستعادة: {result['restored_files']}\n"
+        if result.get("pre_restore_backup"):
+            msg += f"\U0001f4be نسخة احتياطية قبل الاستعادة: {result['pre_restore_backup']}\n"
+        await query.edit_message_text(msg)
+
+    # ── Phase 3: المزامنة الذكية ──
+    elif data == "sync_force":
+        await query.edit_message_text("\U0001f501 جاري المزامنة الفورية...")
+        result = smart_sync.force_sync()
+        icon = "\u2705" if result["all_online"] else "\u26a0\ufe0f"
+        msg = f"{icon} المزامنة الفورية\n\n"
+        msg += f"GitHub: {result['github']['status']}\n"
+        msg += f"Railway: {result['railway']['status']}\n"
+        msg += f"Bot: {result['bot']['status']}\n"
+        msg += f"Webhook: {result['webhook']['status']}\n"
+        await query.edit_message_text(msg)
+
+    # ── Phase 3: الإصلاح الذكي ──
+    elif data == "repair_cancel":
+        await query.edit_message_text("\u21a9\ufe0f تم الإلغاء.")
+    elif data.startswith("repair_approve_"):
+        repair_id = data[len("repair_approve_"):]
+        approve_result = smart_repair.approve_repair(repair_id, update.effective_user.id)
+        if not approve_result["success"]:
+            await query.edit_message_text(f"\u274c {approve_result['message']}")
+            return
+        await query.edit_message_text(f"\u2705 تمت الموافقة. جاري تنفيذ الإصلاح {repair_id}...")
+        exec_result = smart_repair.execute_repair(repair_id)
+        icon = "\u2705" if exec_result["success"] else "\u274c"
+        msg = f"{icon} نتيجة الإصلاح\n\n{exec_result['message']}\n"
+        details = exec_result.get("results", {})
+        if details.get("backup"):
+            msg += f"\U0001f4be نسخة احتياطية: {details['backup'].get('version', '—')}\n"
+        if details.get("test_passed"):
+            msg += "\U0001f9ea الاختبار: نجح\n"
+        elif details.get("test_result"):
+            msg += f"\U0001f9ea الاختبار: {details['test_result']['status']}\n"
+        if details.get("errors"):
+            msg += f"\u26a0\ufe0f أخطاء: {len(details['errors'])}\n"
+        await query.edit_message_text(msg)
+
+    # ── Phase 3: حماية الطوارئ ──
+    elif data == "emergency_scan":
+        await query.edit_message_text("\U0001f50d جاري الفحص الطارئ...")
+        result = emergency_protection.run_emergency_scan()
+        icon = "\u2705" if result["all_clear"] else "\u26a0\ufe0f"
+        msg = f"{icon} فحص الطوارئ\n\n"
+        msg += f"الحوادث المكتشفة: {result['detected_count']}\n"
+        if result["all_clear"]:
+            msg += "\u2705 جميع الأنظمة تعمل بشكل طبيعي.\n"
+        else:
+            for d in result["detected"]:
+                sc = d.get("scenario", {})
+                msg += f"\u26a0\ufe0f {sc.get('name', '—')}: {len(d.get('actions_taken', []))} إجراءات\n"
+        await query.edit_message_text(msg)
+    elif data == "emergency_log":
+        incidents = emergency_protection.get_recent_incidents(10)
+        if not incidents:
+            await query.edit_message_text("\U0001f4dc سجل الطوارئ\n\nلا توجد حوادث مسجلة.")
+            return
+        msg = "\U0001f4dc آخر حوادث الطوارئ\n\n"
+        for inc in reversed(incidents):
+            msg += f"\u2500 {inc['scenario_id']}\n   {inc['category']}: {inc['message'][:40]}\n   {inc['detected_at']}\n\n"
+        await query.edit_message_text(msg)
+
 
 
 async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -4445,6 +4561,222 @@ async def error_handler(update, context):
 
 
 # ============================================================
+
+# ============================================================
+# Phase 3 — الأنظمة الذكية (Smart Systems)
+# ============================================================
+
+async def cmd_backups(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض النسخ الاحتياطية المستقرة — /backups"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمدير فقط.")
+        return
+    versions = smart_backup.list_stable_versions()
+    if not versions:
+        await update.message.reply_text(
+            "\U0001f4be النسخ الاحتياطية المستقرة\n\n"
+            "لا توجد نسخ مستقرة بعد.\n"
+            "سيتم إنشاء نسخة تلقائياً عند التحديث الناجح."
+        )
+        return
+    msg = "\U0001f4be النسخ الاحتياطية المستقرة (آخر 5)\n\n"
+    keyboard = []
+    for v in versions:
+        msg += (
+            f"\u2500 النسخة {v['version_number']} — {v['timestamp']}\n"
+            f"  السبب: {v['reason']}\n"
+            f"  الملفات المتغيّرة: {v['changed_count']}\n"
+            f"  إجمالي الملفات: {v['files_copied']}\n\n"
+        )
+        keyboard.append([InlineKeyboardButton(
+            f"\U0001f4c1 النسخة {v['version_number']} — {v['timestamp'][:16]}",
+            callback_data=f"backup_detail_{v['version_id']}"
+        )])
+    keyboard.append([InlineKeyboardButton("\u21a9\ufe0f رجوع", callback_data="backup_cancel")])
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def cmd_sync_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض حالة المزامنة — /sync_status"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمدير فقط.")
+        return
+    report = smart_sync.get_sync_status_report()
+    cs = report["current_status"]
+    status_icon = lambda s: "\u2705" if s == "online" else ("\u26a0\ufe0f" if s in ("warning", "timeout") else "\u274c")
+    msg = (
+        "\U0001f501 حالة المزامنة الذكية\n\n"
+        f"{status_icon(cs['github']['status'])} GitHub: {cs['github']['status']}\n"
+    )
+    if cs['github'].get('last_commit_sha'):
+        msg += f"   آخر commit: {cs['github']['last_commit_sha']}\n"
+    msg += f"{status_icon(cs['railway']['status'])} Railway: {cs['railway']['status']}\n"
+    msg += f"{status_icon(cs['bot']['status'])} Bot: {cs['bot']['status']}\n"
+    if cs['bot'].get('bot_username'):
+        msg += f"   @{cs['bot']['bot_username']}\n"
+    msg += f"{status_icon(cs['webhook']['status'])} Webhook: {cs['webhook']['status']}\n"
+    if cs['webhook'].get('pending_updates') is not None:
+        msg += f"   تحديثات معلّقة: {cs['webhook']['pending_updates']}\n"
+    msg += f"\n\u2705 جميع الخدمات: {'تعمل' if cs['all_online'] else 'توجد مشكلة'}\n"
+    if report.get("offline_since"):
+        msg += f"\u26a0\ufe0f offline منذ: {report['offline_since']}\n"
+    if report.get("pending_syncs"):
+        msg += f"\U0001f501 مزامنات معلّقة: {len(report['pending_syncs'])}\n"
+    if report.get("auto_synced"):
+        sr = report.get("sync_result", {})
+        msg += f"\n\U0001f501 تمت المزامنة التلقائية: {sr.get('synced', 0)}/{sr.get('total', 0)}\n"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("\U0001f501 مزامنة فورية", callback_data="sync_force")],
+    ])
+    await update.message.reply_text(msg, reply_markup=keyboard)
+
+
+async def cmd_ai_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """فحص الذكاء الاصطناعي — /ai_check"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمدير فقط.")
+        return
+    await update.message.reply_text("\U0001f9e0 جاري الفحص الذكي الشامل...\nقد تستغرق بضع ثوانٍ.")
+    result = ai_monitor.full_ai_check()
+    status_icon = {"critical": "\u274c", "warning": "\u26a0\ufe0f", "healthy": "\u2705"}.get(result["overall_status"], "\u2753")
+    msg = (
+        "\U0001f9e0 تقرير الفحص الذكي\n\n"
+        f"{status_icon} الحالة: {result['overall_message']}\n\n"
+        f"\U0001f4c1 قبل النشر: {result['pre_deploy']['status']} ({result['pre_deploy']['passed']}/{result['pre_deploy']['checked']} ملف)\n"
+        f"\U0001f681 Railway: {result['railway']['status']}\n"
+        f"\u26a0\ufe0f المشاكل المتوقعة: {result['problems']['status']}\n\n"
+        f"\U0001f527 إصلاحات مقترحة: {len(result['suggestions'])}\n"
+        f"   تلقائية: {result['auto_fixable']}\n"
+        f"   تتطلب موافقة: {result['pending_approvals']}\n"
+    )
+    if result["suggestions"]:
+        msg += "\n\u2500 الإصلاحات (أهم 5):\n"
+        for s in result["suggestions"][:5]:
+            icon = "\u274c" if s["severity"] == "critical" else "\u26a0\ufe0f"
+            approval = " \U0001f512" if s.get("needs_approval") else " \u2705"
+            msg += f"{icon}{approval} {s['issue'][:60]}\n"
+            if s.get("file"):
+                msg += f"   \U0001f4c2 {s['file']}\n"
+    await update.message.reply_text(msg)
+
+
+async def cmd_repair_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض تقارير الإصلاح المعلقة — /repair_report"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمدير فقط.")
+        return
+    pending = smart_repair.list_pending_repairs()
+    if not pending:
+        await update.message.reply_text(
+            "\U0001f527 تقارير الإصلاح\n\n"
+            "لا توجد إصلاحات معلّقة.\n"
+            "استخدم /ai_check لاكتشاف المشاكل وإنشاء تقارير إصلاح."
+        )
+        return
+    msg = "\U0001f527 إصلاحات معلّقة بانتظار الموافقة\n\n"
+    keyboard = []
+    for r in pending:
+        severity_icon = "\u274c" if r["severity"] == "critical" else "\u26a0\ufe0f"
+        approval_label = "\U0001f512 تتطلب موافقة" if r["needs_admin_approval"] else "\u2705 تلقائي"
+        msg += (
+            f"{severity_icon} {r['repair_id']}\n"
+            f"   النوع: {r['issue_type']}\n"
+            f"   السبب: {r['cause'][:50]}\n"
+            f"   الملف: {r.get('causing_file', '-')}\n"
+            f"   {approval_label}\n\n"
+        )
+        keyboard.append([InlineKeyboardButton(
+            f"\u2705 موافقة + تنفيذ {r['repair_id'][:25]}",
+            callback_data=f"repair_approve_{r['repair_id']}"
+        )])
+    keyboard.append([InlineKeyboardButton("\u21a9\ufe0f إلغاء", callback_data="repair_cancel")])
+    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+async def cmd_admin_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض سجل عمليات الأدمن — /admin_log"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمدير فقط.")
+        return
+    try:
+        audit_path = DATA_DIR / "audit_log.json"
+        if audit_path.exists():
+            with open(audit_path, "r", encoding="utf-8") as f:
+                audit = json.load(f)
+            actions = audit.get("actions", audit.get("logs", []))[-15:]
+        else:
+            actions = []
+    except Exception:
+        actions = []
+    if not actions:
+        await update.message.reply_text("\U0001f4dc سجل عمليات الأدمن\n\nلا توجد عمليات مسجلة.")
+        return
+    msg = "\U0001f4dc سجل عمليات الأدمن (آخر 15)\n\n"
+    for a in reversed(actions):
+        ts = a.get("timestamp", a.get("date", "?"))
+        actor = a.get("actor", a.get("user_id", "?"))
+        action = a.get("action", "?")
+        detail = a.get("detail", a.get("description", ""))
+        msg += f"\u2500 {ts}\n   العملية: {action}\n   بواسطة: {actor}\n"
+        if detail:
+            msg += f"   التفاصيل: {str(detail)[:50]}\n"
+        msg += "\n"
+    if len(msg) > 4000:
+        msg = msg[:4000] + "\n... (تم truncation)"
+    await update.message.reply_text(msg)
+
+
+async def cmd_emergency(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """نظام حماية الطوارئ — /emergency"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمدير فقط.")
+        return
+    scenarios = emergency_protection.list_all_scenarios()
+    msg = "\U0001f6a8 نظام حماية الطوارئ\n\n"
+    msg += "\U0001f464 سيناريوهات الزوّار:\n"
+    for s in scenarios["visitor"]:
+        msg += f"  \u2022 {s['name']}: {s['description'][:40]}\n"
+    msg += "\n\U0001f451 سيناريوهات الأدمن:\n"
+    for s in scenarios["admin"]:
+        msg += f"  \u2022 {s['name']}: {s['description'][:40]}\n"
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("\U0001f50d فحص طوارئ فوري", callback_data="emergency_scan")],
+        [InlineKeyboardButton("\U0001f4dc آخر الحوادث", callback_data="emergency_log")],
+    ])
+    await update.message.reply_text(msg, reply_markup=keyboard)
+
+
+async def cmd_request_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض سجل طلبات الزوّار — /request_history"""
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        await update.message.reply_text("\u26d4 هذا الأمر للمصرّح لهم فقط.")
+        return
+    data = load_visitor_requests()
+    requests = data.get("requests", [])
+    if not requests:
+        await update.message.reply_text("\U0001f4cb سجل طلبات الزوّار\n\nلا توجد طلبات مسجلة.")
+        return
+    msg = f"\U0001f4cb سجل طلبات الزوّار (آخر {min(len(requests), 15)})\n\n"
+    for req in reversed(requests[-15:]):
+        req_id = req.get("id", "?")
+        name = req.get("name", req.get("visitor_name", "?"))
+        phone = req.get("phone", req.get("visitor_phone", "?"))
+        status = req.get("status", "?")
+        ts = req.get("timestamp", req.get("date", "?"))
+        ptype = req.get("property_type", req.get("type", "?"))
+        msg += f"\u2500 {req_id}\n   الاسم: {name}\n   الهاتف: {phone}\n   النوع: {ptype}\n   الحالة: {status}\n   التاريخ: {ts}\n\n"
+    if len(msg) > 4000:
+        msg = msg[:4000] + "\n... (تم truncation)"
+    await update.message.reply_text(msg)
+
+
 def _setup_handlers(app):
     """تسجيل جميع معالجات البوت — مشترك بين وضعي polling و webhook."""
     # الأوامر
@@ -4474,6 +4806,13 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("users", cmd_list_users))
     app.add_handler(CommandHandler("remove_user", cmd_remove_user))
     app.add_handler(CommandHandler("change_role", cmd_change_role))
+    app.add_handler(CommandHandler("backups", cmd_backups))
+    app.add_handler(CommandHandler("sync_status", cmd_sync_status))
+    app.add_handler(CommandHandler("ai_check", cmd_ai_check))
+    app.add_handler(CommandHandler("repair_report", cmd_repair_report))
+    app.add_handler(CommandHandler("admin_log", cmd_admin_log))
+    app.add_handler(CommandHandler("emergency", cmd_emergency))
+    app.add_handler(CommandHandler("request_history", cmd_request_history))
 
     # الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))

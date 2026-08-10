@@ -17,3 +17,18 @@ bot/data/backups/
 # Keep these tracked (they are the initial seed files, NOT ignored):
 # bot/data/users.json
 # bot/data/audit_log.json
+
+# Phase 3 runtime artifacts (regenerated on first run)
+bot/data/stable_backups/
+bot/data/ai_monitor_reports.json
+bot/data/repair_queue.json
+bot/data/repair_reports.json
+bot/data/smart_sync_state.json
+bot/data/sync_reports.json
+bot/data/emergency_log.json
+
+# Phase 3 backup/patch files (not needed in repo)
+bot/bot.py.bak_*
+patch_*.py
+migrate_*.py
+todo_phase3.md
