@@ -421,6 +421,27 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
       "featured": false
+    },
+    {
+      "id": "AFQ-2026-0013",
+      "type": "land",
+      "category": "أرض سكنية",
+      "title": "مزرعه",
+      "area": "الهياثم",
+      "size_sqm": 10400,
+      "price_text": "٢,٥٠٠,٠٠٠",
+      "description": "🗺️ أرض سكنية للبيع في الهياثم بالخرج!\n\nمساحة 10400 م²، على شارعين، صك إلكتروني. جاهزة للبناء.\n\nفرصة ذهبية — تواصل: 0545888931",
+      "features": [],
+      "images": [
+        "images/bot/draft_0_1786338421.webp",
+        "images/bot/draft_1_1786338421.webp",
+        "images/bot/draft_2_1786338422.webp",
+        "images/bot/draft_3_1786338422.webp",
+        "images/bot/draft_4_1786338423.webp"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-10",
+      "featured": false
     }
   ]
 }
