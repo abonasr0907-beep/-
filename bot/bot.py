@@ -2227,7 +2227,11 @@ async def _approve_visitor_request(update, req_ref, query=None):
         except Exception as de:
             logger.warning(f"⚠️ تعذّر حذف رسالة الطلب الأصلية: {de}")
 
-    reset_session(str(uid))
+    # إعادة تعيين جلسة المستخدم الحالي (الإدارة)
+    try:
+        reset_session(str(update.effective_user.id))
+    except Exception as _re:
+        logger.warning(f"⚠️ reset_session في _approve_visitor_request: {_re}")
 
 
 async def _reject_visitor_request(update, req_ref, query=None):

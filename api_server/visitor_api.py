@@ -99,6 +99,9 @@ def build_notification_html(req):
     if req.get("bidType") == "bid" or req.get("type") == "bid":
         html = f"<b>\U0001f514 طلب مزايدة جديد على عقار</b>\n\n"
         html += f"<b>\U0001f3e0 اسم العقار:</b> {req.get('offerName', req.get('propertyType', 'غير محدد'))}\n"
+        _offer_id = req.get("offerId", req.get("offer_id", ""))
+        if _offer_id:
+            html += f"<b>\U0001f194 معرف العرض:</b> <code>{_offer_id}</code>\n"
         html += f"<b>\U0001f517 رابط العرض:</b> {req.get('offerUrl', 'غير متوفر')}\n"
         html += f"<b>\U0001f4b0 أعلى سوم حالي:</b> {req.get('currentHighestBid', 'غير محدد')} ريال\n"
         html += f"<b>\U0001f4b8 المزايدة الجديدة:</b> {req.get('bidAmount', req.get('price', 'غير محدد'))} ريال\n\n"
