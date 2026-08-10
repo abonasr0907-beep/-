@@ -652,6 +652,26 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
       "featured": false
+    },
+    {
+      "id": "AFQ-2026-0020",
+      "type": "land",
+      "category": "أرض سكنية",
+      "title": "عمارة قابلة للتفاوض اختبار",
+      "area": "الملز",
+      "size_sqm": 500,
+      "price_text": "قابل للتفاوض",
+      "priceType": "negotiable",
+      "highestBid": "",
+      "operation_type": "rent",
+      "description": "🗺️ أرض سكنية للبيع في الملز بالخرج!\n\nمساحة 500 م²، على شارعين، صك إلكتروني. جاهزة للبناء.\n\nفرصة ذهبية — تواصل: 0545888931",
+      "features": [],
+      "images": [
+        "images/bot/draft_0_1786347069.webp"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-10",
+      "featured": false
     }
   ]
 }
