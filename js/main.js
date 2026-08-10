@@ -976,9 +976,15 @@ function submitPropertyForm(event) {
 
     // Task 1: إرسال الطلب إلى البوت أولاً (إشعار فوري للمكتب) ثم فتح WhatsApp
     // هذا يضمن وصول الإشعار للبوت أسرع ما تكون
+    // Task 4: رفع الصور أولاً ثم إرسال الإشعار — يضمن وصول الصور مع الإشعار
     (async () => {
         try {
-            // 1) إرسال الطلب + الصور إلى البوت أولاً
+            // 1) Task 4: رفع الصور إلى خادم البوت أولاً (قبل الإشعار)
+            //    هذا يضمن أن الصور محفوظة عند وصول الإشعار فيتم إرفاقها معه
+            if (selectedImages.length > 0) {
+                await uploadVisitorImages(data.id, selectedImages).catch(() => {});
+            }
+            // 2) إرسال إشعار الطلب إلى البوت (بعد رفع الصور)
             await notifyTelegramAdmin({
                 id: data.id,
                 name: data.name,
@@ -997,10 +1003,6 @@ function submitPropertyForm(event) {
                 mapsLink: data.mapsLink,
                 imageCount: selectedImages.length,
             });
-            // 2) رفع الصور إن وجدت (في الخلفية بعد إرسال الإشعار)
-            if (selectedImages.length > 0) {
-                uploadVisitorImages(data.id, selectedImages).catch(() => {});
-            }
         } catch (e) {
             console.warn('⚠️ خطأ غير مهم في إرسال الطلب:', e.message);
         }
