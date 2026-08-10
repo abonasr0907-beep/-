@@ -525,6 +525,26 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
       "featured": false
+    },
+    {
+      "id": "AFQ-2026-0019",
+      "type": "resthouse",
+      "category": "استراحة",
+      "title": "استراحة للإيجار بالهياثم",
+      "area": "الهياثم",
+      "size_sqm": 400,
+      "price_text": "قابل للتفاوض",
+      "priceType": "negotiable",
+      "highestBid": "",
+      "operation_type": "rent",
+      "description": "✨ استراحة مميزة في الهياثم بالخرج\n\nالمساحة: 400 م²\neبيئة هادئة وموقع مميز. فرصة لا تفوت!\n\nتواصل: 0544699933",
+      "features": [],
+      "images": [
+        "images/bot/draft_0_1786345078.webp"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-10",
+      "featured": false
     }
   ]
 }
