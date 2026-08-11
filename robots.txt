@@ -15,8 +15,6 @@ Allow: /offers-data/
 
 Disallow: /bot/
 Disallow: /docs/
-Disallow: /gen_pages.py
-Disallow: /gen_pages2.py
 Disallow: /admin.html
 
 # Google
