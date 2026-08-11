@@ -745,6 +745,33 @@
       "visitor_phone": "0561610748",
       "section": "أراضي",
       "property_type": "مزرعة"
+    },
+    {
+      "id": "FRM-3A6598",
+      "type": "land",
+      "category": "مزرعة",
+      "title": "مزرعة — حي النرجس",
+      "area": "حي النرجس",
+      "area_en": "",
+      "size_sqm": "8500",
+      "price": "",
+      "price_text": "حسب البوصلة العقارية",
+      "original_price": "",
+      "description": "🏗️ أرض للبيع — حي النرجس بالخرج\n\nمساحة 8500 م²، جاهزة للبناء، صك إلكتروني معتمد.\n\nتواصل معنا: 0561610748\n\n📝 مزرعة اختبارية للمرحلة 4 - اختبار وصول البيانات الكاملة إلى التيليجرام. تشمل مسبح ومزروعات.",
+      "features": [],
+      "images": [],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "visitor_map_link": "https://www.google.com/maps?q=24.8607,46.7154",
+      "visitor_lat": "24.8607",
+      "visitor_lng": "46.7154",
+      "date_added": "2026-08-11",
+      "featured": false,
+      "source": "visitor_request",
+      "priceType": "fixed",
+      "highestBid": "",
+      "operation_type": "sale",
+      "visitor_name": "اختبار المرحلة 4 - زائر اختبار",
+      "visitor_phone": "+966500000099"
     }
   ]
 }
