@@ -8,12 +8,16 @@
     <meta name="robots" content="index, follow">
     <meta name="language" content="Arabic">
 
+    <!-- Canonical (updated dynamically by JS when property loads) -->
+    <link rel="canonical" href="https://abonasr0907-beep.github.io/-/property.html">
+    <link rel="manifest" href="site.webmanifest">
+
     <!-- Open Graph (dynamic, updated by JS) -->
     <meta property="og:title" content="تفاصيل العقار | مكتب آفاق الإنجاز العقاري" id="og-title">
     <meta property="og:description" content="عقار متاح في مكتب آفاق الإنجاز العقاري" id="og-desc">
     <meta property="og:type" content="website">
     <meta property="og:locale" content="ar_SA">
-    <meta property="og:image" content="images/logo.jpg" id="og-image">
+    <meta property="og:image" content="https://abonasr0907-beep.github.io/-/images/logo.jpg" id="og-image">
     <meta property="og:site_name" content="مكتب آفاق الإنجاز العقاري">
 
     <!-- Twitter Card -->
@@ -395,7 +399,7 @@
             border-radius: 10px;
         }
     </style>
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js" defer></script>
 </head>
 <body>
     <!-- Header -->
@@ -404,7 +408,7 @@
             <a href="index.html" class="logo">
                 <img src="images/logo.jpg" alt="مكتب آفاق الإنجاز العقاري" class="logo-img">
                 <div class="logo-text">
-                    <h1>مكتب آفاق الإنجاز العقاري</h1>
+                    <span class="logo-name">مكتب آفاق الإنجاز العقاري</span>
                     <span>عقارات الخرج والرياض — 20 سنة خبرة</span>
                 </div>
             </a>
@@ -453,7 +457,7 @@
             <div class="property-detail-grid">
                 <!-- Image Gallery -->
                 <div class="property-gallery">
-                    <img src="" alt="" class="property-main-image" id="property-main-image" loading="eager">
+                    <img src="" alt="صورة العقار" class="property-main-image" id="property-main-image" loading="eager">
                     <div class="property-thumbnails" id="property-thumbnails"></div>
                 </div>
 
@@ -539,11 +543,11 @@
 
     <!-- Lightbox -->
     <div class="property-lightbox" id="property-lightbox">
-        <img src="" alt="" id="lightbox-img">
+        <img src="" alt="عرض مكبر للصورة" id="lightbox-img">
     </div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
     <!-- Property Page Script -->
     <script>
@@ -816,6 +820,7 @@
                 var lightbox = document.getElementById('property-lightbox');
                 var lbImg = document.getElementById('lightbox-img');
                 lbImg.src = currentImages[currentImageIdx];
+                lbImg.alt = 'عرض مكبر - صورة العقار ' + (currentImageIdx + 1);
                 lightbox.classList.add('active');
             };
             document.getElementById('property-lightbox').onclick = function() {
