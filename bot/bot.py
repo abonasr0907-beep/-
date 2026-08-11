@@ -49,6 +49,12 @@ import smart_sync
 import ai_monitor
 import smart_repair
 import emergency_protection
+# Phase 6.2: Automated Weekly SEO Intelligence System
+try:
+    import seo_monitor
+except Exception as _seo_imp:
+    seo_monitor = None
+    logger.warning(f"⚠️ تعذّر استيراد seo_monitor: {_seo_imp}")
 # Phase 4: AI Protection & Property Storage
 try:
     import property_storage
@@ -5026,6 +5032,230 @@ async def cmd_request_history(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text(msg)
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# Phase 6.2: SEO Intelligence — Command Handlers
+# ═══════════════════════════════════════════════════════════════════════
+
+async def cmd_seo_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """تشغيل فحص SEO شامل فوري — /seo_check"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+    if seo_monitor is None:
+        await update.message.reply_text("⚠️ وحدة SEO غير متاحة. تحقق من السجل.")
+        return
+    await update.message.reply_text(
+        "🔍 جاري تشغيل فحص SEO الشامل...\n"
+        "قد تستغرق بضع ثوانٍ."
+    )
+    try:
+        result = seo_monitor.run_full_seo_audit()
+        summary = seo_monitor.get_seo_summary_for_telegram(result)
+        await update.message.reply_text(summary)
+        await update.message.reply_text(
+            "📄 التقرير الكامل: WEEKLY_SEO_REPORT.md\n"
+            f"💡 اقتراحات معلّقة: {len(result.get('suggestions', []))}\n"
+            "🔒 لا تتم أي تعديلات بدون موافقة المدير.\n"
+            "استخدم /seo_suggestions لعرض الاقتراحات."
+        )
+    except Exception as e:
+        logger.error(f"فشل فحص SEO: {e}")
+        await update.message.reply_text(f"❌ فشل فحص SEO: {e}")
+
+
+async def cmd_seo_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إرسال أحدث تقرير SEO أسبوعي — /seo_report"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+    if seo_monitor is None:
+        await update.message.reply_text("⚠️ وحدة SEO غير متاحة.")
+        return
+    try:
+        report_path = seo_monitor.WEBSITE_DIR / "WEEKLY_SEO_REPORT.md"
+        if report_path.exists():
+            content = report_path.read_text(encoding="utf-8")
+            # إرسال التقرير الكامل كملف
+            import io as _io
+            bio = _io.BytesIO(content.encode("utf-8"))
+            bio.name = "WEEKLY_SEO_REPORT.md"
+            await update.message.reply_text("📄 تقرير SEO الأسبوعي الكامل:")
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=bio,
+                filename="WEEKLY_SEO_REPORT.md"
+            )
+        else:
+            await update.message.reply_text(
+                "📭 لا يوجد تقرير SEO بعد.\n"
+                "استخدم /seo_check لتشغيل الفحص وإنشاء التقرير."
+            )
+    except Exception as e:
+        logger.error(f"فشل إرسال تقرير SEO: {e}")
+        await update.message.reply_text(f"❌ فشل: {e}")
+
+
+async def cmd_seo_suggestions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض الاقتراحات المعلّقة بانتظار موافقة المدير — /seo_suggestions"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+    if seo_monitor is None:
+        await update.message.reply_text("⚠️ وحدة SEO غير متاحة.")
+        return
+    try:
+        pending = seo_monitor.get_pending_suggestions()
+        if not pending:
+            await update.message.reply_text(
+                "✅ لا توجد اقتراحات SEO معلّقة.\n"
+                "استخدم /seo_check لتشغيل فحص جديد."
+            )
+            return
+        msg = f"💡 اقتراحات SEO معلّقة ({len(pending)})\n"
+        msg += "━"*18 + "\n\n"
+        for s in pending[:10]:
+            sev_icon = {"critical": "🔴", "warning": "⚠️", "info": "ℹ️"}.get(s.get("severity", ""), "ℹ️")
+            msg += f"{sev_icon} {s['id']} — {s['check_name']}\n"
+            msg += f"   📂 {s.get('category', '?')}\n"
+            msg += f"   ❓ {s.get('problem', '')[:60]}\n"
+            msg += f"   💡 {s.get('recommendation', '')[:60]}\n"
+            msg += f"   🔒 {s.get('safety_note', '')[:50]}\n\n"
+        if len(pending) > 10:
+            msg += f"... و {len(pending) - 10} اقتراح آخر\n"
+        msg += "\n━━━━━━━━━━━━━━━━━━\n"
+        msg += "✅ للموافقة: /seo_approve <ID>\n"
+        msg += "❌ للرفض: /seo_reject <ID> [سبب]\n"
+        msg += "🔒 لا تتم تعديلات بدون موافقة المدير"
+        if len(msg) > 4000:
+            msg = msg[:4000] + "\n... (تم اقتطاع)"
+        await update.message.reply_text(msg)
+    except Exception as e:
+        logger.error(f"فشل عرض اقتراحات SEO: {e}")
+        await update.message.reply_text(f"❌ فشل: {e}")
+
+
+async def cmd_seo_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """الموافقة على اقتراح SEO — /seo_approve <ID>"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+    if seo_monitor is None:
+        await update.message.reply_text("⚠️ وحدة SEO غير متاحة.")
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "📝 الاستخدام: /seo_approve <ID>\n"
+            "مثال: /seo_approve SEO-003\n"
+            "استخدم /seo_suggestions لعرض القائمة."
+        )
+        return
+    suggestion_id = args[0].strip()
+    try:
+        result = seo_monitor.approve_suggestion(suggestion_id, uid)
+        if result:
+            await update.message.reply_text(
+                f"✅ تمت الموافقة على الاقتراح {suggestion_id}\n"
+                "📝 الحالة: approved (بانتظار التطبيق اليدوي)\n"
+                "🔒 سيتم تطبيق التغيير يدوياً مع مراعاة:\n"
+                "   • ممنوع حذف صفحات مفهرسة\n"
+                "   • ممنوع تغيير روابط بدون Redirect 301"
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ لم يتم العثور على الاقتراح {suggestion_id}\n"
+                "أو أنه ليس في حالة معلّقة."
+            )
+    except Exception as e:
+        logger.error(f"فشل الموافقة على اقتراح SEO: {e}")
+        await update.message.reply_text(f"❌ فشل: {e}")
+
+
+async def cmd_seo_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """رفض اقتراح SEO — /seo_reject <ID> [سبب]"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+    if seo_monitor is None:
+        await update.message.reply_text("⚠️ وحدة SEO غير متاحة.")
+        return
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "📝 الاستخدام: /seo_reject <ID> [سبب]\n"
+            "مثال: /seo_reject SEO-005 لا حاجة للتغيير"
+        )
+        return
+    suggestion_id = args[0].strip()
+    reason = " ".join(args[1:]) if len(args) > 1 else ""
+    try:
+        result = seo_monitor.reject_suggestion(suggestion_id, uid, reason)
+        if result:
+            await update.message.reply_text(
+                f"❌ تم رفض الاقتراح {suggestion_id}\n"
+                f"📝 السبب: {reason or 'غير محدد'}\n"
+                "📝 الحالة: rejected"
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ لم يتم العثور على الاقتراح {suggestion_id}"
+            )
+    except Exception as e:
+        logger.error(f"فشل رفض اقتراح SEO: {e}")
+        await update.message.reply_text(f"❌ فشل: {e}")
+
+
+async def auto_seo_report(context):
+    """إرسال تقرير SEO الأسبوعي تلقائياً — كل أحد 9:30 صباحاً"""
+    if seo_monitor is None:
+        logger.warning("⚠️ seo_monitor غير متاح — تخطي تقرير SEO الأسبوعي")
+        return
+    try:
+        logger.info("🔍 بدء تقرير SEO الأسبوعي التلقائي...")
+        result = seo_monitor.run_full_seo_audit()
+        summary = seo_monitor.get_seo_summary_for_telegram(result)
+
+        # إرسال الملخص إلى جميع المدراء
+        for admin_id in ADMIN_IDS:
+            try:
+                await context.bot.send_message(admin_id, summary)
+            except Exception as e:
+                logger.error(f"فشل إرسال تقرير SEO للمدير {admin_id}: {e}")
+
+        # مزامنة التقرير مع GitHub (إذا كان GITHUB_TOKEN متاحاً)
+        try:
+            report_path = seo_monitor.WEBSITE_DIR / "WEEKLY_SEO_REPORT.md"
+            if report_path.exists():
+                report_content = report_path.read_text(encoding="utf-8")
+                github_sync.upload_text_file(
+                    "WEEKLY_SEO_REPORT.md",
+                    report_content,
+                    f"Phase 6.2: Weekly SEO Report — {datetime.now().strftime('%Y-%m-%d')}"
+                )
+                logger.info("📤 تم رفع تقرير SEO إلى GitHub")
+        except Exception as ge:
+            logger.warning(f"⚠️ تعذّر رفع تقرير SEO إلى GitHub: {ge}")
+
+        pending_count = len(result.get("suggestions", []))
+        logger.info(f"✅ اكتمل تقرير SEO الأسبوعي — {pending_count} اقتراح معلّق")
+    except Exception as e:
+        logger.error(f"❌ فشل تقرير SEO الأسبوعي: {e}")
+        # إخطار المدراء بالفشل
+        for admin_id in ADMIN_IDS:
+            try:
+                await context.bot.send_message(
+                    admin_id,
+                    f"❌ فشل تقرير SEO الأسبوعي: {e}"
+                )
+            except Exception:
+                pass
+
+
 def _setup_handlers(app):
     """تسجيل جميع معالجات البوت — مشترك بين وضعي polling و webhook."""
     # الأوامر
@@ -5063,6 +5293,13 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("emergency", cmd_emergency))
     app.add_handler(CommandHandler("request_history", cmd_request_history))
 
+    # ── Phase 6.2: SEO Intelligence Commands ──
+    app.add_handler(CommandHandler("seo_check", cmd_seo_check))
+    app.add_handler(CommandHandler("seo_report", cmd_seo_report))
+    app.add_handler(CommandHandler("seo_suggestions", cmd_seo_suggestions))
+    app.add_handler(CommandHandler("seo_approve", cmd_seo_approve))
+    app.add_handler(CommandHandler("seo_reject", cmd_seo_reject))
+
     # الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
@@ -5079,6 +5316,10 @@ def _setup_handlers(app):
     if CONFIG.get("weekly_report", True) and app.job_queue:
         app.job_queue.run_daily(auto_weekly_report, days=[6], time=__import__("datetime").time(hour=9, minute=0))
         logger.info("📅 تم جدولة التقرير الأسبوعي — كل يوم أحد 9 صباحاً")
+    # Phase 6.2: تقرير SEO الأسبوعي — كل أحد 9:30 صباحاً (بعد التقرير العام بـ 30 دقيقة)
+    if CONFIG.get("seo_monitoring", True) and app.job_queue and seo_monitor is not None:
+        app.job_queue.run_daily(auto_seo_report, days=[6], time=__import__("datetime").time(hour=9, minute=30))
+        logger.info("🔍 تم جدولة تقرير SEO الأسبوعي — كل يوم أحد 9:30 صباحاً")
     if CONFIG.get("auto_prices_update", True) and app.job_queue:
         app.job_queue.run_daily(auto_update_prices, time=__import__("datetime").time(hour=6, minute=0))
         logger.info("🧭 تم جدولة تحديث الأسعار اليومي — كل يوم 6 صباحاً")

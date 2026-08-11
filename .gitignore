@@ -26,9 +26,23 @@ bot/data/repair_reports.json
 bot/data/smart_sync_state.json
 bot/data/sync_reports.json
 bot/data/emergency_log.json
+bot/data/outage_operations.json
 
 # Phase 3 backup/patch files (not needed in repo)
 bot/bot.py.bak_*
 patch_*.py
 migrate_*.py
 todo_phase3.md
+
+# Phase 6.2 SEO runtime artifacts (regenerated on each audit)
+bot/data/seo_suggestions.json
+bot/data/seo_history.json
+bot/data/seo_reports/
+
+# Phase 6 helper scripts (build tools, not part of production)
+integrate_keywords.py
+generate_landing_pages.py
+add_faq_schema.py
+enhance_inquiry.py
+update_footer_areas.py
+update_quick_links.py

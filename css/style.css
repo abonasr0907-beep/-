@@ -122,6 +122,18 @@ body {
     text-shadow: 0 1px 2px rgba(42, 80, 80, 0.1);
 }
 
+.logo-text .logo-name {
+    font-family: 'Cairo', sans-serif;
+    font-size: 38px;
+    font-weight: 900;
+    color: var(--primary);
+    line-height: 1.2;
+    margin: 0;
+    letter-spacing: -0.5px;
+    text-shadow: 0 1px 2px rgba(42, 80, 80, 0.1);
+    display: block;
+}
+
 .logo-text .logo-full {
     font-family: 'Cairo', sans-serif;
     font-size: 20px;
@@ -1711,7 +1723,8 @@ select.form-control {
         width: 320px;
     }
 
-    .logo-text h1 {
+    .logo-text h1,
+    .logo-text .logo-name {
         font-size: 20px;
     }
 
@@ -1762,7 +1775,8 @@ select.form-control {
         height: 72px;
     }
 
-    .logo-text h1 {
+    .logo-text h1,
+    .logo-text .logo-name {
         font-size: 24px;
     }
 

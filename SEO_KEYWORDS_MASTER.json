@@ -1,0 +1,266 @@
+{
+  "version": "1.0",
+  "phase": "6.1",
+  "created": "2025-08-11",
+  "office_name": "مكتب آفاق الإنجاز العقاري",
+  "description": "ملف الكلمات المفتاحية المركزي - Phase 6.1 Keywords Optimization",
+  "keyword_types": {
+    "Local": "كلمات محلية تستهدف منطقة جغرافية محددة (الرياض أو الخرج)",
+    "Service": "كلمات خدماتية تستهدف خدمة معينة يقدمها المكتب",
+    "Property": "كلمات عقارية تستهدف نوع عقار معين (مزارع، استراحات، أراضي، فلل)",
+    "Long Tail": "كلمات طويلة ومحددة تستهدف نية بحث دقيقة"
+  },
+  "keywords": [
+    {
+      "keyword": "آفاق الإنجاز العقاري",
+      "target_page": "index.html",
+      "type": "Local",
+      "locations": ["global"],
+      "priority": "high"
+    },
+    {
+      "keyword": "عقارات في الرياض",
+      "target_page": "real-estate-riyadh/index.html",
+      "type": "Local",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "عقارات في الخرج",
+      "target_page": "real-estate-alkharj/index.html",
+      "type": "Local",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مكتب عقاري في الرياض",
+      "target_page": "real-estate-riyadh/index.html",
+      "type": "Local",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مكتب عقاري في الخرج",
+      "target_page": "real-estate-alkharj/index.html",
+      "type": "Local",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "أفضل مكتب عقاري في الرياض",
+      "target_page": "real-estate-riyadh/index.html",
+      "type": "Long Tail",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "أفضل مكتب عقاري في الخرج",
+      "target_page": "real-estate-alkharj/index.html",
+      "type": "Long Tail",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "بيع عقارات في الرياض",
+      "target_page": "real-estate-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "شراء عقارات في الرياض",
+      "target_page": "real-estate-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "أراضي للبيع في الرياض",
+      "target_page": "lands-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "أراضي للبيع في الخرج",
+      "target_page": "lands-alkharj/index.html",
+      "type": "Property",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "أراضي سكنية للبيع في الرياض",
+      "target_page": "lands-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "أراضي زراعية للبيع في الخرج",
+      "target_page": "lands-alkharj/index.html",
+      "type": "Property",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مزارع للبيع في الرياض",
+      "target_page": "farms-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مزارع للبيع في الخرج",
+      "target_page": "farms-alkharj/index.html",
+      "type": "Property",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مشاريع زراعية في الرياض",
+      "target_page": "farms-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "مشاريع زراعية في الخرج",
+      "target_page": "farms-alkharj/index.html",
+      "type": "Property",
+      "locations": ["الخرج"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "استراحات للبيع في الرياض",
+      "target_page": "resthouses-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "استراحات للبيع في الخرج",
+      "target_page": "resthouses-alkharj/index.html",
+      "type": "Property",
+      "locations": ["الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "فلل للبيع في الرياض",
+      "target_page": "lands-riyadh/index.html",
+      "type": "Property",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مشاريع عقارية",
+      "target_page": "index.html",
+      "type": "Property",
+      "locations": ["global"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "استثمار عقاري بالرياض",
+      "target_page": "real-estate-riyadh/index.html",
+      "type": "Long Tail",
+      "locations": ["الرياض"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "إدارة الأملاك العقارية",
+      "target_page": "property-management-riyadh/index.html",
+      "type": "Service",
+      "locations": ["الرياض", "الخرج"],
+      "priority": "high"
+    },
+    {
+      "keyword": "إدارة المشاريع الزراعية",
+      "target_page": "property-management-riyadh/index.html",
+      "type": "Service",
+      "locations": ["الرياض", "الخرج"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "حفر الآبار في الرياض",
+      "target_page": "well-drilling-services/index.html",
+      "type": "Service",
+      "locations": ["الرياض"],
+      "priority": "high"
+    },
+    {
+      "keyword": "حفر آبار زراعية",
+      "target_page": "well-drilling-services/index.html",
+      "type": "Service",
+      "locations": ["global"],
+      "priority": "high"
+    },
+    {
+      "keyword": "تحديد مواقع الآبار",
+      "target_page": "well-location-services/index.html",
+      "type": "Service",
+      "locations": ["global"],
+      "priority": "high"
+    },
+    {
+      "keyword": "تصوير الآبار",
+      "target_page": "well-location-services/index.html",
+      "type": "Service",
+      "locations": ["global"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "تقارير الآبار للعملاء",
+      "target_page": "well-location-services/index.html",
+      "type": "Service",
+      "locations": ["global"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "خدمات ما بعد البيع العقاري",
+      "target_page": "services.html",
+      "type": "Service",
+      "locations": ["global"],
+      "priority": "high"
+    },
+    {
+      "keyword": "مقاولات عامة بالرياض",
+      "target_page": "services.html",
+      "type": "Service",
+      "locations": ["الرياض"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "تشطيبات فلل بالرياض",
+      "target_page": "services.html",
+      "type": "Service",
+      "locations": ["الرياض"],
+      "priority": "medium"
+    },
+    {
+      "keyword": "تنفيذ المشاريع العقارية",
+      "target_page": "services.html",
+      "type": "Service",
+      "locations": ["global"],
+      "priority": "medium"
+    }
+  ],
+  "page_keyword_map": {
+    "index.html": ["آفاق الإنجاز العقاري", "مشاريع عقارية", "بيع عقارات في الرياض", "شراء عقارات في الرياض"],
+    "farms.html": ["مزارع للبيع في الخرج", "مزارع للبيع في الرياض", "مشاريع زراعية في الخرج", "مشاريع زراعية في الرياض"],
+    "resthouses.html": ["استراحات للبيع في الخرج", "استراحات للبيع في الرياض"],
+    "lands.html": ["أراضي للبيع في الخرج", "أراضي للبيع في الرياض", "أراضي سكنية للبيع في الرياض", "أراضي زراعية للبيع في الخرج"],
+    "services.html": ["خدمات ما بعد البيع العقاري", "مقاولات عامة بالرياض", "تشطيبات فلل بالرياض", "تنفيذ المشاريع العقارية", "حفر الآبار في الرياض", "حفر آبار زراعية", "تحديد مواقع الآبار", "تصوير الآبار", "تقارير الآبار للعملاء", "إدارة الأملاك العقارية", "إدارة المشاريع الزراعية"],
+    "contact.html": ["مكتب عقاري في الرياض", "مكتب عقاري في الخرج", "آفاق الإنجاز العقاري"],
+    "inquiry.html": ["أفضل مكتب عقاري في الرياض", "أفضل مكتب عقاري في الخرج", "استثمار عقاري بالرياض"],
+    "farms-riyadh/index.html": ["مزارع للبيع في الرياض", "مشاريع زراعية في الرياض", "حفر آبار زراعية", "بيع عقارات في الرياض"],
+    "farms-alkharj/index.html": ["مزارع للبيع في الخرج", "مشاريع زراعية في الخرج", "أراضي زراعية للبيع في الخرج", "حفر آبار زراعية"],
+    "resthouses-riyadh/index.html": ["استراحات للبيع في الرياض", "فلل للبيع في الرياض", "تشطيبات فلل بالرياض", "بيع عقارات في الرياض"],
+    "resthouses-alkharj/index.html": ["استراحات للبيع في الخرج", "بيع عقارات في الخرج"],
+    "lands-riyadh/index.html": ["أراضي للبيع في الرياض", "أراضي سكنية للبيع في الرياض", "فلل للبيع في الرياض", "تشطيبات فلل بالرياض"],
+    "lands-alkharj/index.html": ["أراضي للبيع في الخرج", "أراضي زراعية للبيع في الخرج", "أراضي سكنية للبيع في الرياض"],
+    "real-estate-riyadh/index.html": ["عقارات في الرياض", "مكتب عقاري في الرياض", "أفضل مكتب عقاري في الرياض", "بيع عقارات في الرياض", "شراء عقارات في الرياض", "استثمار عقاري بالرياض", "مشاريع عقارية"],
+    "real-estate-alkharj/index.html": ["عقارات في الخرج", "مكتب عقاري في الخرج", "أفضل مكتب عقاري في الخرج"],
+    "property-management-riyadh/index.html": ["إدارة الأملاك العقارية", "إدارة المشاريع الزراعية", "استثمار عقاري بالرياض"],
+    "well-drilling-services/index.html": ["حفر الآبار في الرياض", "حفر آبار زراعية"],
+    "well-location-services/index.html": ["تحديد مواقع الآبار", "تصوير الآبار", "تقارير الآبار للعملاء"]
+  }
+}
