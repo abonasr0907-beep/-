@@ -748,7 +748,7 @@
     },
     {
       "id": "FRM-3A6598",
-      "type": "land",
+      "type": "farm",
       "category": "مزرعة",
       "title": "مزرعة — حي النرجس",
       "area": "حي النرجس",
@@ -771,7 +771,9 @@
       "highestBid": "",
       "operation_type": "sale",
       "visitor_name": "اختبار المرحلة 4 - زائر اختبار",
-      "visitor_phone": "+966500000099"
+      "visitor_phone": "+966500000099",
+      "section": "مزارع",
+      "property_type": "مزرعة"
     }
   ]
 }

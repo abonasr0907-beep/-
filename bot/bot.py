@@ -2837,6 +2837,29 @@ async def _approve_visitor_request(update, req_ref, query=None):
 
     # 1) توليد معرف فريد للعرض
     offer_id = f"{type_prefix}-{uuid.uuid4().hex[:6].upper()}"
+    # Phase 4 Validation Fix (P3): resolve Arabic propertyType -> English "type"
+    # so the website 3-way filter (o.type) classifies the offer in the correct section.
+    _ar_type_map = {
+        "\u0645\u0632\u0627\u0631\u0639\u0629": "farm",
+        "\u0645\u0632\u0631\u0639\u0647": "farm",
+        "\u0623\u0631\u0636": "land",
+        "\u0627\u0631\u0636": "land",
+        "\u0623\u0631\u0627\u0636\u064a": "land",
+        "\u0627\u0633\u062a\u0631\u0627\u062d\u0629": "resthouse",
+        "\u0627\u0633\u062a\u0631\u0627\u062d\u0647": "resthouse",
+        "\u0634\u0642\u0629": "apartment",
+        "\u0634\u0642\u0647": "apartment",
+        "\u0641\u064a\u0644\u0627": "villa",
+    }
+    _resolved_en_type = "land"
+    for _k, _v in _ar_type_map.items():
+        if _k in item_type:
+            _resolved_en_type = _v
+            break
+    # also honor explicit English values
+    if item_type.lower() in ["farm", "land", "resthouse", "villa", "apartment"]:
+        _resolved_en_type = item_type.lower()
+
 
     # 2) تحديد سعر العرض حسب نوع السعر
     _req_price_type = item.get("priceType", "fixed")
@@ -2881,8 +2904,11 @@ async def _approve_visitor_request(update, req_ref, query=None):
     # 3) بناء كائن العرض
     offer = {
         "id": offer_id,
-        "type": item_type.lower() if item_type.lower() in ["farm", "land", "resthouse", "villa", "apartment"] else "land",
+        "type": _resolved_en_type,
         "category": item_type,
+        # Phase 4 Validation Fix (P1): preserve section + property_type from the visitor request
+        "section": item.get("section", ""),
+        "property_type": item.get("propertyType", item.get("property_type", item_type)),
         "title": f"{item_type} \u2014 {item_area}",
         "area": item_area,
         "area_en": "",
@@ -2943,6 +2969,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
     # Phase 4: تعيين حالة PUBLISHING قبل النشر
     item["status"] = REQUEST_STATUS_PUBLISHING
     item["publishing_started_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    item.setdefault("status_history", []).append({"status": "PUBLISHING", "at": item["publishing_started_at"]})
     save_visitor_requests(data)
 
     # 5) نشر مباشر على الموقع
@@ -2978,6 +3005,13 @@ async def _approve_visitor_request(update, req_ref, query=None):
             await update.message.reply_text(err_msg)
         if error_reporter:
             error_reporter.report_error("bot._approve_visitor_request.verify", "Publish verification failed", context={"offer_id": offer_id, "section_ok": False}, severity="critical", file_affected="offers-data/offers.json")
+        # Phase 4 Validation Fix (P10): mark the request as FAILED instead of leaving it stuck in PUBLISHING
+        item["status"] = "rejected"
+        item["publish_status"] = "Failed"
+        item["failed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        item["fail_reason"] = "publish verification failed (offer not found in offers.json after save)"
+        item.setdefault("status_history", []).append({"status": "FAILED", "at": item["failed_at"], "reason": item["fail_reason"]})
+        save_visitor_requests(data)
         return
 
     # 6) مزامنة مع GitHub — Task 5: تنفيذ غير متزامن (non-blocking) باستخدام asyncio.to_thread
@@ -3004,6 +3038,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
     item["published_offer_id"] = offer_id
     item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id})
     save_visitor_requests(data)
     if error_reporter:
         error_reporter.report_success("bot._approve_visitor_request", "publish_offer", {"offer_id": offer_id, "status": REQUEST_STATUS_PUBLISHED})
@@ -3097,6 +3132,7 @@ async def _reject_visitor_request(update, req_ref, query=None):
     item["status"] = "rejected"
     item["publish_status"] = "Failed"
     item["rejected_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    item.setdefault("status_history", []).append({"status": "REJECTED", "at": item["rejected_at"]})
     save_visitor_requests(data)
 
     msg = "❌ تم رفض الطلب. تم تحديث الحالة إلى مرفوض (لم يتم التسجيل للنشر)."
