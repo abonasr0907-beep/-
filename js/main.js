@@ -1401,6 +1401,365 @@ function toggleMenu() {
 }
 
 // ===== تهيئة الصفحة =====
+
+// ============================================================
+// Phase 4: Map & Classification Enhancement
+// الخريطة التفاعلية للصفحة الرئيسية (Homepage Interactive Map)
+// ============================================================
+let homeMap = null;
+let homeMapMarker = null;
+let homeMapPropertiesLayer = null;
+let homeMapPropertiesVisible = false;
+let homeMapSearchTimer = null;
+let homeMapSatellite = false;
+
+// إقرأ رابط ال API الفعلي (Railway) أو الاستبدال للملف المحلي
+function getMapApiUrl() {
+    if (window.location.hostname.includes('railway.app') || window.AFAQ_API_BASE) {
+        return (window.AFAQ_API_BASE || '') + '/api/properties/map';
+    }
+    // على GitHub Pages: استخدم ال API المباشر على Railway
+    return 'https://worker-production-7713.up.railway.app/api/properties/map';
+}
+
+// تهيئة الخريطة التفاعلية للصفحة الرئيسية
+function initHomeMap() {
+    const mapEl = document.getElementById('afaq-interactive-map');
+    if (!mapEl || typeof L === 'undefined') {
+        console.log('Home map: element not found or Leaflet not loaded');
+        return;
+    }
+    if (homeMap) return; // تهيئة مرة واحدة فقط
+
+    // موقع افتراضي: الخرج، الرياض
+    const defaultLat = 24.1554;
+    const defaultLng = 47.3068;
+
+    homeMap = L.map('afaq-interactive-map', {
+        zoomControl: true,
+        attributionControl: true,
+        fadeAnimation: true,
+        zoomAnimation: true,
+        inertia: true
+    }).setView([defaultLat, defaultLng], 11);
+
+    // طبقة الخريطة العادية
+    const standardLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19
+    });
+
+    // طبقة الأقمار الصناعية (Esri World Imagery)
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+        maxZoom: 19
+    });
+
+    const labelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO',
+        maxZoom: 19,
+        pane: 'shadowPane'
+    });
+
+    standardLayer.addTo(homeMap);
+
+    // زر تبديل الأقمار الصناعية
+    const satBtn = L.DomUtil.create('div', 'afaq-sat-toggle-home');
+    satBtn.innerHTML = '🛰️ أقمار صناعية';
+    const satCtrl = L.control({ position: 'topright' });
+    satCtrl.onAdd = function() {
+        const div = L.DomUtil.create('div');
+        div.appendChild(satBtn);
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+    };
+    satCtrl.addTo(homeMap);
+    satBtn.addEventListener('click', function() {
+        if (!homeMapSatellite) {
+            homeMap.removeLayer(standardLayer);
+            satelliteLayer.addTo(homeMap);
+            labelsLayer.addTo(homeMap);
+            satBtn.innerHTML = '🗺️ خريطة عادية';
+            homeMapSatellite = true;
+        } else {
+            homeMap.removeLayer(satelliteLayer);
+            homeMap.removeLayer(labelsLayer);
+            standardLayer.addTo(homeMap);
+            satBtn.innerHTML = '🛰️ أقمار صناعية';
+            homeMapSatellite = false;
+        }
+    });
+
+    // النقر على الخريطة لوضع دبوس
+    homeMap.on('click', function(e) {
+        setHomeMapPin(e.latlng.lat, e.latlng.lng);
+    });
+
+    // ===== تهيئة أزرار الأدوات =====
+
+    // زر GPS: تحديد الموقع الحالي
+    const gpsBtn = document.getElementById('home-map-gps-btn');
+    if (gpsBtn) {
+        gpsBtn.addEventListener('click', function() {
+            if (!navigator.geolocation) {
+                showToast('المتصفح لا يدعم تحديد الموقع', 'error');
+                return;
+            }
+            showToast('جاري تحديد موقعك...', '');
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    setHomeMapPin(lat, lng);
+                    homeMap.setView([lat, lng], 15);
+                    showToast('تم تحديد موقعك بنجاح', 'success');
+                },
+                function(error) {
+                    let msg = 'تعذر تحديد موقعك';
+                    if (error.code === 1) msg = 'تم رفض إذن الوصول للموقع';
+                    else if (error.code === 2) msg = 'الموقع غير متاح حالياً';
+                    else if (error.code === 3) msg = 'انتهت مهلة تحديد الموقع';
+                    showToast(msg, 'error');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+        });
+    }
+
+    // زر عرض العقارات
+    const propBtn = document.getElementById('home-map-properties-btn');
+    if (propBtn) {
+        propBtn.addEventListener('click', toggleHomeMapProperties);
+    }
+
+    // تهيئة البحث
+    initHomeMapSearch();
+
+    // تحميل العقارات تلقائيًا عند فتح الخريطة
+    setTimeout(function() {
+        toggleHomeMapProperties();
+    }, 800);
+}
+
+// وضع دبوس قابل للسحب على الخريطة
+function setHomeMapPin(lat, lng) {
+    if (!homeMap) return;
+    if (homeMapMarker) homeMap.removeLayer(homeMapMarker);
+
+    homeMapMarker = L.marker([lat, lng], { draggable: true }).addTo(homeMap);
+
+    // السماح بسحب العلامة وحفظ الإحداثيات
+    homeMapMarker.on('dragend', function(e) {
+        const pos = e.target.getLatLng();
+        updateHomeMapCoords(pos.lat, pos.lng);
+    });
+
+    updateHomeMapCoords(lat, lng);
+}
+
+// تحديث عرض الإحداثيات
+function updateHomeMapCoords(lat, lng) {
+    const coordsDiv = document.getElementById('home-map-coords');
+    const coordsText = document.getElementById('home-coords-text');
+    if (coordsDiv) coordsDiv.style.display = 'block';
+    if (coordsText) coordsText.textContent = ' خط العرض: ' + lat.toFixed(6) + ' | خط الطول: ' + lng.toFixed(6);
+}
+
+// تهيئة صندوق البحث على الخريطة
+function initHomeMapSearch() {
+    const searchInput = document.getElementById('home-map-search-input');
+    const searchResults = document.getElementById('home-map-search-results');
+    if (!searchInput || !searchResults) return;
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length < 3) {
+            searchResults.style.display = 'none';
+            searchResults.innerHTML = '';
+            return;
+        }
+        if (homeMapSearchTimer) clearTimeout(homeMapSearchTimer);
+        homeMapSearchTimer = setTimeout(function() {
+            searchHomeMapLocation(query, searchResults);
+        }, 500);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.afaq-map-search-box')) {
+            searchResults.style.display = 'none';
+        }
+    });
+}
+
+// البحث عن موقع عبر Nominatim
+async function searchHomeMapLocation(query, resultsEl) {
+    try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&limit=5&accept-language=ar';
+        const response = await fetch(url);
+        const results = await response.json();
+
+        if (results.length === 0) {
+            resultsEl.innerHTML = '<div style="padding:10px;color:#999;text-align:center;">لا توجد نتائج</div>';
+            resultsEl.style.display = 'block';
+            return;
+        }
+
+        resultsEl.innerHTML = results.map(function(r) {
+            return '<div class="map-search-item" data-lat="' + r.lat + '" data-lon="' + r.lon + '" data-name="' + r.display_name.replace(/"/g, '&quot;') + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px;">' +
+                '<i class="fas fa-map-marker-alt" style="color:#2A5050;margin-left:6px;"></i>' + r.display_name.substring(0, 80) +
+                '</div>';
+        }).join('');
+        resultsEl.style.display = 'block';
+
+        resultsEl.querySelectorAll('.map-search-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                const lat = parseFloat(this.dataset.lat);
+                const lon = parseFloat(this.dataset.lon);
+                if (homeMap) {
+                    homeMap.setView([lat, lon], 15);
+                    setHomeMapPin(lat, lon);
+                }
+                resultsEl.style.display = 'none';
+                document.getElementById('home-map-search-input').value = this.dataset.name.substring(0, 50);
+            });
+            item.addEventListener('mouseenter', function() { this.style.backgroundColor = '#f0f7f7'; });
+            item.addEventListener('mouseleave', function() { this.style.backgroundColor = ''; });
+        });
+    } catch (e) {
+        console.error('Home map search error:', e);
+        resultsEl.innerHTML = '<div style="padding:10px;color:#c00;text-align:center;">خطأ في البحث</div>';
+        resultsEl.style.display = 'block';
+    }
+}
+
+// عرض/إخفاء العقارات على الخريطة مع بطاقات تفاصيلية
+async function toggleHomeMapProperties() {
+    if (homeMapPropertiesVisible) {
+        if (homeMapPropertiesLayer) {
+            homeMap.removeLayer(homeMapPropertiesLayer);
+            homeMapPropertiesLayer = null;
+        }
+        homeMapPropertiesVisible = false;
+        const btn = document.getElementById('home-map-properties-btn');
+        if (btn) btn.innerHTML = '<i class="fas fa-home"></i> عرض العقارات';
+        showToast('تم إخفاء العقارات من الخريطة', '');
+        return;
+    }
+
+    const btn = document.getElementById('home-map-properties-btn');
+    if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+
+    try {
+        // محاولة ال API أولاً، ثم الملف المحلي كاحتياط
+        let properties = [];
+        try {
+            const apiUrl = getMapApiUrl();
+            const resp = await fetch(apiUrl, { timeout: 8000 });
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.ok && data.properties) {
+                    properties = data.properties;
+                }
+            }
+        } catch (apiErr) {
+            console.log('Map API unavailable, falling back to local offers.json:', apiErr.message);
+        }
+
+        // احتياط: الملف المحلي
+        if (properties.length === 0 && typeof OFFERS !== 'undefined') {
+            properties = OFFERS.filter(function(o) {
+                return (o.visitor_lat || o.lat) && (o.visitor_lng || o.lng) &&
+                       parseFloat(o.visitor_lat || o.lat) && parseFloat(o.visitor_lng || o.lng);
+            }).map(function(o) {
+                var images = o.images || [];
+                return {
+                    id: o.id,
+                    title: o.title || o.category || 'عقار',
+                    latitude: parseFloat(o.visitor_lat || o.lat),
+                    longitude: parseFloat(o.visitor_lng || o.lng),
+                    section: o.section || '',
+                    property_type: o.property_type || o.category || '',
+                    type: o.type || '',
+                    area: o.area || '',
+                    price: o.price || o.price_text || '',
+                    image: images.length > 0 ? images[0] : '',
+                    operation_type: o.operation_type || '',
+                    size_sqm: o.size_sqm || '',
+                    map_link: o.map_link || o.visitor_map_link || ''
+                };
+            });
+        }
+
+        if (properties.length === 0) {
+            showToast('لا توجد عقارات بإحداثيات معروفة حالياً', 'error');
+            if (btn) btn.innerHTML = '<i class="fas fa-home"></i> عرض العقارات';
+            return;
+        }
+
+        homeMapPropertiesLayer = L.layerGroup().addTo(homeMap);
+
+        const typeIcons = {
+            'farm': '🌾', 'land': '🗺️', 'villa': '🏠',
+            'apartment': '🏢', 'resthouse': '🏡', 'store': '🏪',
+            'project': '🏗️'
+        };
+
+        properties.forEach(function(p) {
+            const icon = typeIcons[p.type] || '📍';
+            const marker = L.marker([p.latitude, p.longitude], {
+                icon: L.divIcon({
+                    className: 'afaq-property-marker',
+                    html: '<div style="font-size:28px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">' + icon + '</div>',
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 17]
+                })
+            });
+
+            // بناء بطاقة العقار (صور + تفاصيل + موقع + زر تواصل)
+            var imgHtml = p.image ? '<img src="' + p.image + '" alt="' + (p.title || '') + '" onerror="this.style.display=\'none\'">' : '';
+            var priceLabel = p.price ? (p.price + ' ريال') : '';
+            var areaLabel = p.area ? '<div class="popup-meta"><i class="fas fa-map-marker-alt"></i> ' + p.area + '</div>' : '';
+            var sectionLabel = p.section ? '<div class="popup-meta"><i class="fas fa-folder"></i> ' + p.section + '</div>' : '';
+            var typeLabel = p.property_type ? '<div class="popup-meta"><i class="fas fa-tag"></i> ' + p.property_type + '</div>' : '';
+            var sizeLabel = p.size_sqm ? '<div class="popup-meta"><i class="fas fa-ruler-combined"></i> ' + p.size_sqm + ' م²</div>' : '';
+            var opLabel = p.operation_type === 'rent' ? 'للإيجار' : 'للبيع';
+            var mapLink = p.map_link || ('https://www.google.com/maps?q=' + p.latitude + ',' + p.longitude);
+            var contactLink = 'https://wa.me/966500000099?text=' + encodeURIComponent('مرحباً، أنا مهتم بالعقار: ' + (p.title || p.id));
+
+            var popupHtml = '<div class="afaq-property-popup">' +
+                imgHtml +
+                '<h4>' + (p.title || 'عقار') + '</h4>' +
+                sectionLabel + typeLabel + areaLabel + sizeLabel +
+                (priceLabel ? '<div class="popup-price"><i class="fas fa-money-bill-wave"></i> ' + priceLabel + ' (' + opLabel + ')</div>' : '') +
+                '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">' +
+                '<a href="' + mapLink + '" target="_blank" class="popup-contact" style="background:#2A5050;"><i class="fas fa-directions"></i> الموقع</a>' +
+                '<a href="' + contactLink + '" target="_blank" class="popup-contact"><i class="fab fa-whatsapp"></i> تواصل</a>' +
+                '</div>' +
+                '</div>';
+
+            marker.bindPopup(popupHtml, { maxWidth: 300, minWidth: 240 });
+            homeMapPropertiesLayer.addLayer(marker);
+        });
+
+        homeMapPropertiesVisible = true;
+        if (btn) btn.innerHTML = '<i class="fas fa-eye-slash"></i> إخفاء العقارات';
+        showToast('تم عرض ' + properties.length + ' عقار على الخريطة', 'success');
+
+        // ضبط المنظر لشمل جميع العقارات
+        if (properties.length > 1) {
+            var bounds = L.latLngBounds(properties.map(function(p) {
+                return [p.latitude, p.longitude];
+            }));
+            homeMap.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+        }
+    } catch (e) {
+        console.error('Error loading properties on home map:', e);
+        showToast('خطأ في تحميل العقارات', 'error');
+        if (btn) btn.innerHTML = '<i class="fas fa-home"></i> عرض العقارات';
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     // اكتشاف نوع الصفحة لتحديد الفلتر الافتراضي
     const pagePath = window.location.pathname.toLowerCase();
@@ -1437,6 +1796,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('property-map')) {
         // تأخير بسيط للتأكد من تحميل Leaflet
         setTimeout(initPropertyMap, 300);
+    }
+
+    // Phase 4: Homepage interactive map
+    if (document.getElementById('afaq-interactive-map')) {
+        setTimeout(initHomeMap, 400);
     }
 });
 

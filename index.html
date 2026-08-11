@@ -96,6 +96,116 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
+    <!-- Leaflet Interactive Map (Phase 4) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+    <style>
+        #afaq-interactive-map {
+            height: 520px;
+            width: 100%;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1;
+        }
+        .afaq-map-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .afaq-map-search-box {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+        .afaq-map-search-box input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #2A5050;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+        }
+        .afaq-map-search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 5000;
+            display: none;
+        }
+        .afaq-map-btn {
+            background: #2A5050;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .afaq-map-btn:hover { background: #1f3d3d; }
+        .afaq-map-btn.secondary { background: #5a8585; }
+        .afaq-map-btn.secondary:hover { background: #4a7575; }
+        .afaq-property-popup {
+            direction: rtl;
+            text-align: right;
+            min-width: 240px;
+            font-family: inherit;
+        }
+        .afaq-property-popup img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .afaq-property-popup h4 {
+            margin: 4px 0;
+            color: #2A5050;
+            font-size: 15px;
+        }
+        .afaq-property-popup .popup-meta {
+            color: #666;
+            font-size: 12px;
+            margin: 2px 0;
+        }
+        .afaq-property-popup .popup-price {
+            color: #2A5050;
+            font-weight: bold;
+            font-size: 15px;
+            margin: 4px 0;
+        }
+        .afaq-property-popup .popup-contact {
+            display: inline-block;
+            background: #25D366;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .afaq-property-popup .popup-contact:hover { background: #1da851; }
+        .afaq-sat-toggle-home {
+            background:#2A5050;color:#fff;padding:6px 12px;border-radius:6px;
+            cursor:pointer;font-size:13px;font-family:inherit;box-shadow:0 2px 6px rgba(0,0,0,0.3);
+        }
+        .leaflet-popup-content { margin: 10px 12px; }
+        .leaflet-popup-content-wrapper { border-radius: 10px; }
+    </style>
 </head>
 <body>
 
@@ -294,21 +404,37 @@
         </div>
     </section>
 
-    <!-- الخريطة ثلاثية الأبعاد -->
-    <section class="map-section">
+    <!-- الخريطة التفاعلية ثلاثية الأبعاد (Phase 4) -->
+    <section class="map-section" id="interactive-map-section">
         <div class="section-title">
-            <h2>موقعنا على الخريطة ثلاثية الأبعاد</h2>
-            <p>مكتب آفاق الإنجاز العقاري — الخرج، الرياض</p>
+            <h2><i class="fas fa-map-marked-alt"></i> استكشف العقارات على الخريطة التفاعلية</h2>
+            <p>ابحث، حدّد موقعك، وشاهد العقارات المتاحة حولك</p>
         </div>
-        <div class="map-container">
-            <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3631.5!2d47.3068!3d24.1554!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjTCsDA5JzE5LjQiTiA0N8KwMTgnMjQuNSJF!5e0!3m2!1sar!2ssa!4v1700000000000!5m2!1sar!2ssa"
-                allowfullscreen=""
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade">
-            </iframe>
+
+        <!-- أدوات الخريطة: بحث + GPS + عرض العقارات -->
+        <div class="afaq-map-toolbar">
+            <div class="afaq-map-search-box">
+                <input type="text" id="home-map-search-input" placeholder="ابحث عن منطقة أو عنوان..." autocomplete="off" />
+                <div class="afaq-map-search-results" id="home-map-search-results"></div>
+            </div>
+            <button class="afaq-map-btn" id="home-map-gps-btn" type="button">
+                <i class="fas fa-crosshairs"></i> موقعي الحالي
+            </button>
+            <button class="afaq-map-btn secondary" id="home-map-properties-btn" type="button">
+                <i class="fas fa-home"></i> عرض العقارات
+            </button>
         </div>
-        <div style="text-align: center; margin-top: 20px;">
+
+        <!-- خريطة Leaflet التفاعلية -->
+        <div id="afaq-interactive-map"></div>
+
+        <!-- عرض الإحداثيات المحددة -->
+        <div id="home-map-coords" style="display:none; margin-top:10px; padding:8px 14px; background:#f0f7f7; border-radius:8px; font-size:13px;">
+            <i class="fas fa-map-pin" style="color:#2A5050;"></i>
+            <span id="home-coords-text"></span>
+        </div>
+
+        <div style="text-align: center; margin-top: 16px;">
             <a href="https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw" target="_blank" class="btn btn-primary">
                 <i class="fas fa-map-marked-alt"></i> افتح في خرائط Google
             </a>
@@ -478,6 +604,9 @@
     </div>
 
     <!-- JavaScript -->
+    <!-- Leaflet JS (Phase 4 Interactive Map) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

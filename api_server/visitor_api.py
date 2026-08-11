@@ -452,6 +452,65 @@ async def github_update_request_images(request_id, image_paths):
         return False
 
 
+
+# ===== Phase 4: Map API — /api/properties/map =====
+
+async def handle_properties_map(request):
+    """
+    المسار: GET /api/properties/map
+    يعيد بيانات العقارات المناسبة للخريطة التفاعلية:
+    id, title, latitude, longitude, section, property_type, price, image
+    يقرأ ملف offers.json من مستودع GitHub.
+    """
+    import urllib.request
+    github_raw = "https://raw.githubusercontent.com/" + GITHUB_REPO + "/main/offers-data/offers.json"
+    try:
+        req = urllib.request.Request(github_raw, headers={"User-Agent": "AfaqMapAPI/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8")
+        data = json.loads(raw)
+    except Exception as e:
+        return web.json_response({"ok": False, "error": "fetch_offers_failed", "detail": str(e)}, status=502)
+
+    offers = data.get("offers", [])
+    # تحديد العروض التي لديها إحداثيات صالحة
+    map_items = []
+    for o in offers:
+        lat = o.get("visitor_lat") or o.get("lat") or o.get("latitude")
+        lng = o.get("visitor_lng") or o.get("lng") or o.get("longitude")
+        try:
+            lat_f = float(lat) if lat else None
+            lng_f = float(lng) if lng else None
+        except (ValueError, TypeError):
+            lat_f = lng_f = None
+        if lat_f is None or lng_f is None:
+            continue
+        images = o.get("images") or []
+        first_image = images[0] if isinstance(images, list) and len(images) > 0 else ""
+        price_val = o.get("price") or o.get("price_text") or ""
+        map_items.append({
+            "id": o.get("id", ""),
+            "title": o.get("title") or o.get("category") or "عقار",
+            "latitude": lat_f,
+            "longitude": lng_f,
+            "section": o.get("section") or "",
+            "property_type": o.get("property_type") or o.get("category") or "",
+            "type": o.get("type") or "",
+            "area": o.get("area") or "",
+            "price": str(price_val) if price_val else "",
+            "image": first_image,
+            "operation_type": o.get("operation_type") or "",
+            "size_sqm": o.get("size_sqm") or "",
+            "map_link": o.get("map_link") or o.get("visitor_map_link") or "",
+        })
+
+    return web.json_response({
+        "ok": True,
+        "count": len(map_items),
+        "properties": map_items,
+    })
+
+
 async def handle_health(request):
     """فحص صحة الخادم"""
     return web.json_response({"ok": True, "status": "running", "service": "visitor-api"})
@@ -461,7 +520,7 @@ async def handle_root(request):
     return web.json_response({
         "ok": True,
         "service": "Afaq Visitor Request API",
-        "endpoints": ["/api/visitor-request", "/health"]
+        "endpoints": ["/api/visitor-request", "/api/visitor-images", "/api/properties/map", "/health"]
     })
 
 # ===== تشغيل الخادم =====
@@ -471,6 +530,7 @@ def create_app():
     app = web.Application()
     app.router.add_post("/api/visitor-request", handle_visitor_request)
     app.router.add_post("/api/visitor-images", handle_visitor_images)
+    app.router.add_get("/api/properties/map", handle_properties_map)
     app.router.add_get("/health", handle_health)
     app.router.add_get("/", handle_root)
     return app
