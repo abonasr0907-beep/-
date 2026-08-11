@@ -6,6 +6,7 @@
     "auto_renew": true,
     "max_images": 5,
     "weekly_report": true,
+    "seo_monitoring": true,
     "auto_prices_update": true,
     "offer_id_prefix": "AFQ",
     "image_format": "webp",
