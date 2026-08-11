@@ -17,6 +17,9 @@ import json
 import hashlib
 import logging
 import shutil
+import subprocess
+import platform
+import sys
 from pathlib import Path
 from datetime import datetime
 
@@ -54,6 +57,11 @@ STABLE_FILES = [
     "bot/data/audit_log.json",
     "offers-data/office-data.json",
     "offers-data/news.json",
+    # Phase 4 files
+    "bot/property_storage.py",
+    "bot/publish_verifier.py",
+    "bot/data/property_storage.json",
+    "bot/data/publish_verification_log.json",
 ]
 
 MAX_STABLE_VERSIONS = 5
@@ -119,6 +127,220 @@ def _save_stable_index(data: dict):
 
 # ============================================================
 # إنشاء نسخة احتياطية ذكية (فقط عند التغيير)
+# ============================================================
+# Phase 4: دوال مساعدة لإعلامات النسخة (معرف commit, حالة النظام, الفرق)
+# ============================================================
+def _get_git_commit_id() -> str:
+    """جلب معرف الـ commit الحالي من git"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(WEBSITE_DIR),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception as e:
+        logger.debug(f"  تعذر جلب commit_id: {e}")
+    return ""
+
+
+def _get_git_commit_message(commit_id: str = "") -> str:
+    """جلب رسالة الـ commit"""
+    if not commit_id:
+        return ""
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%s", commit_id],
+            cwd=str(WEBSITE_DIR),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _get_system_state() -> dict:
+    """تجميع معلومات حالة النظام في وقت النسخ الاحتياطي"""
+    state = {
+        "python_version": sys.version.split()[0] if sys.version else "",
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or "",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    # عد الملفات المهمة
+    files_info = {}
+    for rel_path in STABLE_FILES:
+        fpath = WEBSITE_DIR / rel_path
+        if fpath.exists():
+            try:
+                files_info[rel_path] = {
+                    "exists": True,
+                    "size_bytes": fpath.stat().st_size,
+                }
+            except Exception:
+                files_info[rel_path] = {"exists": True, "size_bytes": 0}
+        else:
+            files_info[rel_path] = {"exists": False, "size_bytes": 0}
+    state["files_info"] = files_info
+    state["total_files_tracked"] = len(STABLE_FILES)
+    state["existing_files"] = sum(1 for v in files_info.values() if v["exists"])
+    return state
+
+
+def _compute_diff_from_previous(current_hashes: dict, previous_hashes: dict) -> dict:
+    """
+    حساب الفرق بين النسخة الحالية والسابقة.
+    يرجع: {added: [], removed: [], modified: []}
+    """
+    added = []
+    removed = []
+    modified = []
+
+    current_files = set(current_hashes.keys())
+    previous_files = set(previous_hashes.keys())
+
+    for f in current_files - previous_files:
+        if current_hashes.get(f, "") != "MISSING":
+            added.append(f)
+
+    for f in previous_files - current_files:
+        removed.append(f)
+
+    for f in current_files & previous_files:
+        cur_h = current_hashes.get(f, "")
+        prev_h = previous_hashes.get(f, "")
+        if cur_h != prev_h and cur_h != "MISSING":
+            modified.append(f)
+
+    return {
+        "added": sorted(added),
+        "removed": sorted(removed),
+        "modified": sorted(modified),
+        "total_changes": len(added) + len(removed) + len(modified),
+    }
+
+
+def get_version_diff(version_id: str) -> dict:
+    """
+    عرض الفرق بين نسخة محددة والنسخة السابقة لها.
+    يستخدم لعرض الفرق قبل الاستعادة (rollback).
+    """
+    try:
+        index = _load_stable_index()
+        versions = index.get("versions", [])
+
+        target_idx = None
+        for i, v in enumerate(versions):
+            if v["version_id"] == version_id:
+                target_idx = i
+                break
+
+        if target_idx is None:
+            return {"success": False, "message": f"النسخة {version_id} غير موجودة"}
+
+        target = versions[target_idx]
+
+        # إذا كانت هذه أول نسخة لا يوجد نسخة سابقة
+        if target_idx == 0:
+            return {
+                "success": True,
+                "version_id": version_id,
+                "version_number": target["version_number"],
+                "has_previous": False,
+                "diff": None,
+                "message": f"النسخة {target['version_number']} هي أول نسخة — لا توجد نسخة سابقة للمقارنة",
+            }
+
+        previous = versions[target_idx - 1]
+        diff = _compute_diff_from_previous(
+            target.get("file_hashes", {}),
+            previous.get("file_hashes", {}),
+        )
+
+        # أيضا مقارنة مع الحالة الحالية
+        current_hashes = {}
+        for rel_path in STABLE_FILES:
+            fpath = WEBSITE_DIR / rel_path
+            if fpath.exists():
+                current_hashes[rel_path] = _compute_file_hash(fpath)
+            else:
+                current_hashes[rel_path] = "MISSING"
+
+        diff_vs_current = _compute_diff_from_previous(
+            current_hashes,
+            target.get("file_hashes", {}),
+        )
+
+        return {
+            "success": True,
+            "version_id": version_id,
+            "version_number": target["version_number"],
+            "has_previous": True,
+            "previous_version_id": previous["version_id"],
+            "previous_version_number": previous["version_number"],
+            "diff_from_previous": diff,
+            "diff_vs_current": diff_vs_current,
+            "target_changed_files": target.get("changed_files", []),
+            "target_commit_id": target.get("commit_id", ""),
+            "message": f"الفرق بين النسخة {target['version_number']} والسابقة {previous['version_number']}",
+        }
+    except Exception as e:
+        logger.error(f"❌ خطأ في جلب الفرق: {e}")
+        return {"success": False, "message": f"خطأ: {e}"}
+
+
+def confirm_restore(version_id: str) -> dict:
+    """
+    تأكيد استعادة نسخة — يعرض الفرق ومعلومات النسخة قبل الاستعادة.
+    تستخدم قبل redeploy_version لتأكيد المسؤول.
+    """
+    try:
+        index = _load_stable_index()
+        versions = index.get("versions", [])
+
+        target = None
+        for v in versions:
+            if v["version_id"] == version_id:
+                target = v
+                break
+
+        if not target:
+            return {"success": False, "message": f"النسخة {version_id} غير موجودة"}
+
+        diff_result = get_version_diff(version_id)
+
+        return {
+            "success": True,
+            "version_id": version_id,
+            "version_number": target["version_number"],
+            "reason": target.get("reason", ""),
+            "timestamp": target.get("timestamp", ""),
+            "commit_id": target.get("commit_id", ""),
+            "commit_message": target.get("commit_message", ""),
+            "changed_files": target.get("changed_files", []),
+            "diff_from_previous": diff_result.get("diff_from_previous"),
+            "diff_vs_current": diff_result.get("diff_vs_current"),
+            "files_copied": target.get("files_copied", 0),
+            "system_state_summary": {
+                "python_version": target.get("system_state", {}).get("python_version", ""),
+                "platform": target.get("system_state", {}).get("platform", ""),
+                "existing_files": target.get("system_state", {}).get("existing_files", 0),
+            },
+            "requires_confirmation": True,
+            "message": f"تم تجهيز استعادة النسخة {target['version_number']} — يحتاج تأكيد المسؤول",
+        }
+    except Exception as e:
+        return {"success": False, "message": f"خطأ: {e}"}
+
+
 # ============================================================
 def create_stable_backup(reason: str = "update", changed_files: list = None) -> dict:
     """
@@ -187,6 +409,15 @@ def create_stable_backup(reason: str = "update", changed_files: list = None) -> 
                     actually_changed.append(cf)
 
         # معلومات النسخة
+        commit_id = _get_git_commit_id()
+        commit_msg = _get_git_commit_message(commit_id)
+        system_state = _get_system_state()
+
+        # حساب الفرق من النسخة السابقة
+        diff_from_previous = None
+        if existing_versions:
+            diff_from_previous = _compute_diff_from_previous(file_hashes, prev_hashes)
+
         version_info = {
             "version_id": version_id,
             "version_number": version_num,
@@ -197,6 +428,11 @@ def create_stable_backup(reason: str = "update", changed_files: list = None) -> 
             "files_copied": copied,
             "changed_files": actually_changed,
             "file_hashes": file_hashes,
+            # Phase 4: معلومات إضافية
+            "commit_id": commit_id,
+            "commit_message": commit_msg,
+            "system_state": system_state,
+            "diff_from_previous": diff_from_previous,
         }
 
         # إضافة النسخة للفهرس
@@ -258,6 +494,8 @@ def list_stable_versions() -> list:
     versions = index.get("versions", [])
     result = []
     for v in reversed(versions):  # الأحدث أولاً
+        # Phase 4: إضافة معلومات commit وحالة النظام والفرق
+        diff_info = v.get("diff_from_previous")
         result.append({
             "version_id": v["version_id"],
             "version_number": v["version_number"],
@@ -266,6 +504,14 @@ def list_stable_versions() -> list:
             "files_copied": v.get("files_copied", 0),
             "changed_files": v.get("changed_files", []),
             "changed_count": len(v.get("changed_files", [])),
+            # Phase 4
+            "commit_id": v.get("commit_id", "")[:12],
+            "commit_message": v.get("commit_message", ""),
+            "has_system_state": bool(v.get("system_state")),
+            "diff_total_changes": diff_info.get("total_changes", 0) if diff_info else 0,
+            "diff_added": len(diff_info.get("added", [])) if diff_info else 0,
+            "diff_modified": len(diff_info.get("modified", [])) if diff_info else 0,
+            "diff_removed": len(diff_info.get("removed", [])) if diff_info else 0,
         })
     return result
 
@@ -322,10 +568,18 @@ def get_version_details(version_id: str) -> dict:
 # ============================================================
 # إعادة نشر نسخة (Redeploy)
 # ============================================================
-def redeploy_version(version_id: str) -> dict:
+def redeploy_version(version_id: str, admin_confirmed: bool = False) -> dict:
     """
     إعادة نشر نسخة مستقرة — استعادة جميع الملفات من النسخة المحددة.
-    ينشئ نسخة احتياطية للحالة الحالية أولاً قبل الاستعادة.
+    Phase 4: يتطلب تأكيد المسؤول، يعرض الفرق، ينفذ اختبار بعد الاستعادة.
+    
+    الدورة:
+    1. اختيار نسخة مستقرة
+    2. عرض الفرق (diff)
+    3. تأكيد المسؤول (admin_confirmed=True)
+    4. استعادة النسخة
+    5. تشغيل الاختبارات (pre_deploy_check)
+    6. تقرير نجاح/فشل
     """
     try:
         index = _load_stable_index()
@@ -344,12 +598,31 @@ def redeploy_version(version_id: str) -> dict:
         if not backup_dir.exists():
             return {"success": False, "message": f"مجلد النسخة {version_id} غير موجود"}
 
+        # Phase 4: عرض الفرق قبل الاستعادة
+        diff_result = get_version_diff(version_id)
+
+        # Phase 4: يتطلب تأكيد المسؤول
+        if not admin_confirmed:
+            confirm_info = confirm_restore(version_id)
+            return {
+                "success": False,
+                "requires_confirmation": True,
+                "version_id": version_id,
+                "version_number": target["version_number"],
+                "diff_from_previous": diff_result.get("diff_from_previous"),
+                "diff_vs_current": diff_result.get("diff_vs_current"),
+                "changed_files": target.get("changed_files", []),
+                "commit_id": target.get("commit_id", ""),
+                "message": f"تتطلب إعادة نشر النسخة {target['version_number']} تأكيد المسؤول. استدع redeploy_version('{version_id}', admin_confirmed=True) للتأكيد.",
+            }
+
         # إنشاء نسخة احتياطية للحالة الحالية قبل الاستعادة
         pre_restore = create_stable_backup(reason="pre_redeploy")
 
         # استعادة الملفات
         restored = 0
         failed = 0
+        failed_files_list = []
         for rel_path in STABLE_FILES:
             src = backup_dir / rel_path
             if src.exists():
@@ -361,22 +634,52 @@ def redeploy_version(version_id: str) -> dict:
                 except Exception as e:
                     logger.error(f"  ❌ فشل استعادة {rel_path}: {e}")
                     failed += 1
+                    failed_files_list.append(rel_path)
 
         logger.info(f"🔄 تم إعادة نشر النسخة {version_id} ({restored} ملف، {failed} فشل)")
 
+        # Phase 4: تشغيل الاختبارات بعد الاستعادة
+        test_result = None
+        test_passed = False
+        try:
+            from ai_monitor import pre_deploy_check
+            test_result = pre_deploy_check()
+            test_passed = test_result.get("all_passed", False)
+        except Exception as e:
+            test_result = {"all_passed": False, "error": str(e)}
+            test_passed = False
+
+        # Phase 4: تقرير نجاح/فشل
+        if test_passed and failed == 0:
+            status = "success"
+            message = f"تم إعادة نشر النسخة {target['version_number']} بنجاح — {restored} ملف مستعاد، الاختبارات نجحت"
+        elif test_passed and failed > 0:
+            status = "partial_success"
+            message = f"تم استعادة النسخة {target['version_number']} — {restored} ملف، {failed} فشل. الاختبارات نجحت لكن بعض الملفات لم تُستعاد"
+        else:
+            status = "failed"
+            message = f"فشل الاستعادة — النسخة {target['version_number']}. الاختبارات فشلت. تم إنشاء نسخة احتياطية {pre_restore.get('version', '')}"
+
+        logger.info(f"  📋 حالة الاستعادة: {status}")
+
         return {
-            "success": True,
+            "success": test_passed and failed == 0,
+            "status": status,
             "version_id": version_id,
             "version_number": target["version_number"],
             "restored_files": restored,
             "failed_files": failed,
+            "failed_files_list": failed_files_list,
             "pre_restore_backup": pre_restore.get("version", ""),
-            "message": f"تم إعادة نشر النسخة {target['version_number']} — {restored} ملف مستعاد",
+            "diff_from_previous": diff_result.get("diff_from_previous"),
+            "test_result": test_result,
+            "test_passed": test_passed,
+            "message": message,
         }
 
     except Exception as e:
         logger.error(f"❌ خطأ في إعادة نشر النسخة: {e}")
-        return {"success": False, "message": f"خطأ: {e}"}
+        return {"success": False, "status": "error", "message": f"خطأ: {e}"}
 
 
 # ============================================================
@@ -404,6 +707,10 @@ def health_check() -> dict:
     """فحص صحة نظام النسخ الاحتياطي الذكي"""
     index = _load_stable_index()
     versions = index.get("versions", [])
+    # Phase 4: معلومات إضافية
+    latest_commit = ""
+    if versions:
+        latest_commit = versions[-1].get("commit_id", "")[:12]
     return {
         "total_versions": len(versions),
         "max_versions": MAX_STABLE_VERSIONS,
@@ -411,4 +718,10 @@ def health_check() -> dict:
         "current_state_hash": _compute_state_hash()[:16],
         "has_changes": _compute_state_hash() != index.get("last_state_hash", ""),
         "backups_dir_exists": STABLE_BACKUPS_DIR.exists(),
+        # Phase 4
+        "latest_version_commit": latest_commit,
+        "latest_version_has_system_state": bool(versions and versions[-1].get("system_state")),
+        "latest_version_has_diff": bool(versions and versions[-1].get("diff_from_previous")),
+        "current_git_commit": _get_git_commit_id()[:12],
+        "current_python_version": sys.version.split()[0] if sys.version else "",
     }

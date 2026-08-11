@@ -1,0 +1,130 @@
+{
+  "verifications": [
+    {
+      "offer_id": "FRM-001",
+      "passed": false,
+      "all_passed": false,
+      "checks": [
+        {
+          "check": "in_database",
+          "passed": true,
+          "detail": "العرض FRM-001 موجود في offers.json"
+        },
+        {
+          "check": "in_published_list",
+          "passed": false,
+          "detail": "العرض FRM-001 غير موجود في bot_offers.json"
+        },
+        {
+          "check": "visible_on_website",
+          "passed": true,
+          "detail": "العنوان: ✓، السعر: ✓"
+        },
+        {
+          "check": "correct_section",
+          "passed": false,
+          "detail": "النوع: متوقع مزرعة، موجود farm"
+        },
+        {
+          "check": "images_visible",
+          "passed": true,
+          "detail": "1 صورة كلها موجودة",
+          "missing_images": []
+        },
+        {
+          "check": "on_map",
+          "passed": true,
+          "detail": "رابط خريطة موجود"
+        },
+        {
+          "check": "details_page",
+          "passed": true,
+          "detail": "صفحة property.html: موجودة؛ الرابط: صالح",
+          "final_url": "/property/FRM-001"
+        },
+        {
+          "check": "contact_link",
+          "passed": false,
+          "detail": "هاتف: ✗، اسم: ✗"
+        },
+        {
+          "check": "offer_id_exists",
+          "passed": true,
+          "detail": "تنسيق: ✓، فريد: ✓"
+        }
+      ],
+      "failed_checks": [
+        "in_published_list",
+        "correct_section",
+        "contact_link"
+      ],
+      "timestamp": "2026-08-11T11:49:54.908760",
+      "summary": "❌ فشل التحقق من نشر العرض FRM-001:\n  ✅ in_database: العرض FRM-001 موجود في offers.json\n  ❌ in_published_list: العرض FRM-001 غير موجود في bot_offers.json\n  ✅ visible_on_website: العنوان: ✓، السعر: ✓\n  ❌ correct_section: النوع: متوقع مزرعة، موجود farm\n  ✅ images_visible: 1 صورة كلها موجودة\n  ✅ on_map: رابط خريطة موجود\n  ✅ details_page: صفحة property.html: موجودة؛ الرابط: صالح\n  ❌ contact_link: هاتف: ✗، اسم: ✗\n  ✅ offer_id_exists: تنسيق: ✓، فريد: ✓"
+    },
+    {
+      "offer_id": "NONEXIST-999",
+      "passed": false,
+      "all_passed": false,
+      "checks": [
+        {
+          "check": "in_database",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود في offers.json"
+        },
+        {
+          "check": "in_published_list",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود في bot_offers.json"
+        },
+        {
+          "check": "visible_on_website",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود في البيانات المنشورة"
+        },
+        {
+          "check": "correct_section",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود"
+        },
+        {
+          "check": "images_visible",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود"
+        },
+        {
+          "check": "on_map",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود"
+        },
+        {
+          "check": "details_page",
+          "passed": true,
+          "detail": "صفحة property.html: موجودة؛ الرابط: صالح",
+          "final_url": "/property/NONEXIST-999"
+        },
+        {
+          "check": "contact_link",
+          "passed": false,
+          "detail": "العرض NONEXIST-999 غير موجود"
+        },
+        {
+          "check": "offer_id_exists",
+          "passed": false,
+          "detail": "تنسيق: ✓، فريد: ✗ (مكرر 0)"
+        }
+      ],
+      "failed_checks": [
+        "in_database",
+        "in_published_list",
+        "visible_on_website",
+        "correct_section",
+        "images_visible",
+        "on_map",
+        "contact_link",
+        "offer_id_exists"
+      ],
+      "timestamp": "2026-08-11T11:49:54.910846",
+      "summary": "❌ فشل التحقق من نشر العرض NONEXIST-999:\n  ❌ in_database: العرض NONEXIST-999 غير موجود في offers.json\n  ❌ in_published_list: العرض NONEXIST-999 غير موجود في bot_offers.json\n  ❌ visible_on_website: العرض NONEXIST-999 غير موجود في البيانات المنشورة\n  ❌ correct_section: العرض NONEXIST-999 غير موجود\n  ❌ images_visible: العرض NONEXIST-999 غير موجود\n  ❌ on_map: العرض NONEXIST-999 غير موجود\n  ✅ details_page: صفحة property.html: موجودة؛ الرابط: صالح\n  ❌ contact_link: العرض NONEXIST-999 غير موجود\n  ❌ offer_id_exists: تنسيق: ✓، فريد: ✗ (مكرر 0)"
+    }
+  ]
+}

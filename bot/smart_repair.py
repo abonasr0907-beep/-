@@ -492,3 +492,156 @@ def health_check() -> dict:
         "completed": len(completed),
         "failed": len(failed),
     }
+
+
+
+# ============================================================
+# Phase 4 — تحسينات الإصلاح الذكي
+# ============================================================
+def generate_failure_report(repair_id: str) -> dict:
+    """
+    Phase 4: إنشاء تقرير واضح عند فشل الإصلاح.
+    - يحفظ سجل الأخطاء في ملف مخصص.
+    - لا يحذف أي بيانات.
+    - لا يعين الحالة إلى success.
+    - ينشئ تقريراً واضحاً بالسبب والخطوات المقترحة.
+    """
+    queue = _load_repair_queue()
+    found = None
+    for item in queue["queue"]:
+        if item["repair_id"] == repair_id:
+            found = item
+            break
+    if not found:
+        return {"success": False, "message": "الإصلاح غير موجود"}
+
+    exec_details = found.get("execution_details", {})
+    errors = exec_details.get("errors", [])
+
+    report = {
+        "repair_id": repair_id,
+        "status": "failed",
+        "issue_type": found.get("issue_type", ""),
+        "issue": found.get("issue", ""),
+        "causing_file": found.get("causing_file", ""),
+        "executed_at": found.get("executed_at", ""),
+        "errors": errors,
+        "backup_created": found.get("backup_created", ""),
+        "test_result": exec_details.get("test_result", {}),
+        "repair_executed": exec_details.get("repair_executed", False),
+        "test_passed": exec_details.get("test_passed", False),
+        "suggested_next_steps": _suggest_failure_recovery(found, errors),
+        "data_preserved": True,  # لا يتم حذف أي بيانات
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    # حفظ سجل الأخطاء في ملف مخصص
+    error_log_file = DATA_DIR / "repair_error_log.json"
+    try:
+        import json as _json
+        existing = {}
+        if error_log_file.exists():
+            with open(error_log_file, "r", encoding="utf-8") as f:
+                existing = _json.load(f)
+        log_entries = existing.get("entries", [])
+        log_entries.append(report)
+        # الاحتفاظ بآخر 100 إدخال
+        log_entries = log_entries[-100:]
+        with open(error_log_file, "w", encoding="utf-8") as f:
+            _json.dump({"entries": log_entries}, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"خطأ في حفظ سجل أخطاء الإصلاح: {e}")
+
+    return report
+
+
+def _suggest_failure_recovery(repair: dict, errors: list) -> list:
+    """
+    Phase 4: اقتراح خطوات الاستعادة عند فشل الإصلاح.
+    """
+    steps = []
+    issue_type = repair.get("issue_type", "")
+
+    # إذا تم إنشاء نسخة احتياطية، اقترح الاستعادة
+    if repair.get("backup_created"):
+        steps.append(f"استعد النسخة الاحتياطية {repair['backup_created']} باستخدام smart_backup.redeploy_version")
+
+    if issue_type == "corrupt_json":
+        steps.append("تحقق من محتوى الملف يدوياً قبل إعادة التعيين")
+        steps.append("إذا كانت البيانات مهمة، حاول استخراجها من النسخة الاحتياطية")
+    elif issue_type == "syntax_error":
+        steps.append("راجع الكود يدوياً وأصلح الخطأ النحوي")
+        steps.append("استخدم python -m py_compile للتحقق من الصحة")
+    elif issue_type == "missing_json":
+        steps.append("تأكد من أن النظام يعمل من الدليل الصحيح")
+        steps.append("تحقق من صلاحيات الكتابة على المجلد")
+
+    # إضافة الأخطاء المحددة
+    if errors:
+        steps.append(f"راجع الأخطاء التالية: {'; '.join(errors[:3])}")
+
+    if not steps:
+        steps.append("راجع تقرير الإصلاح وحاول إعادة المحاولة بعد فهم السبب")
+
+    return steps
+
+
+def create_phase4_repair_report(issue_type: str, issue: str, causing_file: str = "",
+                                 suggested_fix: str = "", context: dict = None) -> dict:
+    """
+    Phase 4: إنشاء تقرير إصلاح لأنواع أخطاء Phase 4 الجديدة:
+    - property_storage_error: خطأ في التخزين الدائم للعقارات.
+    - publish_verification_failed: فشل التحقق من النشر.
+    - image_upload_error: خطأ في رفع الصور.
+    - sync_error: خطأ في المزامنة.
+    - permanent_image_missing: صورة دائمة مفقودة.
+
+    لا يتم تنفيذ الإصلاح تلقائياً — يتطلب موافقة الأدمن.
+    """
+    return create_repair_report({
+        "type": issue_type,
+        "severity": "critical",
+        "issue": issue,
+        "file": causing_file,
+        "fix": suggested_fix,
+        "context": context or {},
+    })
+
+
+def get_failure_reports(limit: int = 20) -> list:
+    """
+    Phase 4: الحصول على تقارير الفشل المحفوظة.
+    """
+    error_log_file = DATA_DIR / "repair_error_log.json"
+    try:
+        if not error_log_file.exists():
+            return []
+        with open(error_log_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        entries = data.get("entries", [])
+        return entries[-limit:]
+    except Exception as e:
+        logger.error(f"خطأ في قراءة سجل أخطاء الإصلاح: {e}")
+        return []
+
+
+def get_repair_stats() -> dict:
+    """
+    Phase 4: إحصائيات شاملة عن الإصلاحات.
+    """
+    queue = _load_repair_queue()
+    items = queue.get("queue", [])
+    stats = {
+        "total": len(items),
+        "pending_approval": sum(1 for i in items if i["status"] == "pending_approval"),
+        "approved": sum(1 for i in items if i["status"] == "approved"),
+        "executing": sum(1 for i in items if i["status"] == "executing"),
+        "completed": sum(1 for i in items if i["status"] == "completed"),
+        "failed": sum(1 for i in items if i["status"] == "failed"),
+        "rejected": sum(1 for i in items if i["status"] == "rejected"),
+        "success_rate": 0,
+    }
+    completed_or_failed = stats["completed"] + stats["failed"]
+    if completed_or_failed > 0:
+        stats["success_rate"] = f"{(stats['completed'] / completed_or_failed * 100):.1f}%"
+    return stats

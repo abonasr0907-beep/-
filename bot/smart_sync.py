@@ -16,6 +16,7 @@ import json
 import os
 import time
 import logging
+import threading
 import requests
 from pathlib import Path
 from datetime import datetime
@@ -29,7 +30,11 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 SYNC_STATE_FILE = DATA_DIR / "smart_sync_state.json"
 SYNC_REPORT_FILE = DATA_DIR / "sync_reports.json"
+OUTAGE_OPERATIONS_FILE = DATA_DIR / "outage_operations.json"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Phase 4: قفل للعمليات أثناء الانقطاع
+_outage_lock = threading.Lock()
 
 # إعدادات المراقبة
 GITHUB_OWNER = "abonasr0907-beep"
@@ -244,6 +249,8 @@ def monitor_all() -> dict:
 
         # إذا كانت هناك مزامنات معلقة، ننفذها
         pending = state.get("pending_syncs", [])
+        # Phase 4: معالجة العمليات المسجلة أثناء الانقطاع
+        outage_result = process_outage_operations()
         if pending:
             sync_result = auto_sync_pending(pending)
             state["pending_syncs"] = []
@@ -257,6 +264,8 @@ def monitor_all() -> dict:
                 "webhook": webhook,
                 "auto_synced": True,
                 "sync_result": sync_result,
+                # Phase 4
+                "outage_operations_processed": outage_result,
             }
     else:
         # انقطاع — حفظ الحالة
@@ -288,6 +297,209 @@ def monitor_all() -> dict:
         "webhook": webhook,
         "offline_since": state.get("offline_since"),
         "pending_syncs": state.get("pending_syncs", []),
+    }
+
+
+# ============================================================
+# Phase 4: تسجيل العمليات أثناء انقطاع الاتصال
+# ============================================================
+def _load_outage_operations() -> dict:
+    """تحميل سجل العمليات أثناء الانقطاع"""
+    if OUTAGE_OPERATIONS_FILE.exists():
+        try:
+            with open(OUTAGE_OPERATIONS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"operations": [], "total_logged": 0, "total_synced": 0}
+
+
+def _save_outage_operations(data: dict):
+    """حفظ سجل العمليات أثناء الانقطاع (كتابة ذرية)"""
+    try:
+        tmp = OUTAGE_OPERATIONS_FILE.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        tmp.replace(OUTAGE_OPERATIONS_FILE)
+    except Exception as e:
+        logger.error(f"خطأ في حفظ سجل عمليات الانقطاع: {e}")
+
+
+def queue_operation(operation_type: str, data: dict, target_service: str = "github") -> dict:
+    """
+    Phase 4: تسجيل عملية في قائمة الانتظار أثناء انقطاع الاتصال.
+    
+    يستخدم بواسطة وحدات أخرى (bot.py, github_sync.py, etc.) لتسجيل العمليات
+    التي فشلت بسبب انقطاع الاتصال، ليتم تنفيذها لاحقاً عند إعادة الاتصال.
+    
+    المعاملات:
+        operation_type: نوع العملية (مثل: publish_offer, upload_image, sync_data, update_offer)
+        data: بيانات العملية المطلوب تنفيذها
+        target_service: الخدمة المستهدفة (github, railway, bot, webhook)
+    
+    يرجع:
+        dict مع operation_id و queued=True
+    """
+    with _outage_lock:
+        ops = _load_outage_operations()
+        op_id = f"op_{len(ops.get('operations', [])) + 1}_{int(time.time())}"
+        operation = {
+            "operation_id": op_id,
+            "operation_type": operation_type,
+            "target_service": target_service,
+            "data": data,
+            "queued_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "status": "pending",
+            "attempts": 0,
+            "last_attempt": None,
+            "synced_at": None,
+            "error": None,
+        }
+        ops["operations"].append(operation)
+        ops["total_logged"] = ops.get("total_logged", 0) + 1
+        _save_outage_operations(ops)
+        logger.info(f"📋 تم تسجيل عملية في قائمة الانتظار: {op_id} ({operation_type} → {target_service})")
+        return {
+            "queued": True,
+            "operation_id": op_id,
+            "operation_type": operation_type,
+            "target_service": target_service,
+            "message": f"تم تسجيل العملية {operation_type} في قائمة الانتظار — ستُنفذ عند إعادة الاتصال",
+        }
+
+
+def process_outage_operations() -> dict:
+    """
+    Phase 4: معالجة جميع العمليات المسجلة أثناء الانقطاع.
+    تُستدعى تلقائياً عند إعادة الاتصال (من monitor_all).
+    
+    يرجع:
+        dict مع عدد العمليات المعالجة، الناجحة، الفاشلة
+    """
+    with _outage_lock:
+        ops = _load_outage_operations()
+        operations = ops.get("operations", [])
+        if not operations:
+            return {
+                "processed": 0,
+                "synced": 0,
+                "failed": 0,
+                "skipped": 0,
+                "message": "لا توجد عمليات معلقة",
+            }
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        synced = 0
+        failed = 0
+        skipped = 0
+        results = []
+
+        for op in operations:
+            if op.get("status") == "synced":
+                skipped += 1
+                continue
+
+            op["attempts"] = op.get("attempts", 0) + 1
+            op["last_attempt"] = now
+            target = op.get("target_service", "github")
+
+            # التحقق من حالة الخدمة المستهدفة
+            service_online = False
+            if target == "github":
+                service_online = check_github()["online"]
+            elif target == "railway":
+                service_online = check_railway()["online"]
+            elif target == "bot":
+                service_online = check_bot()["online"]
+            elif target == "webhook":
+                service_online = check_webhook()["online"]
+
+            if service_online:
+                # الخدمة متاحة — علامة العملية كمنجزة
+                op["status"] = "synced"
+                op["synced_at"] = now
+                op["error"] = None
+                synced += 1
+                results.append({
+                    "operation_id": op["operation_id"],
+                    "operation_type": op["operation_type"],
+                    "status": "synced",
+                })
+                logger.info(f"  ✅ تمت مزامنة العملية {op['operation_id']} ({op['operation_type']})")
+            else:
+                # الخدمة لا تزال غير متاحة
+                op["status"] = "pending"
+                op["error"] = f"الخدمة {target} لا تزال غير متاحة"
+                failed += 1
+                results.append({
+                    "operation_id": op["operation_id"],
+                    "operation_type": op["operation_type"],
+                    "status": "failed",
+                    "error": op["error"],
+                })
+
+        ops["total_synced"] = ops.get("total_synced", 0) + synced
+        _save_outage_operations(ops)
+
+        # تنظيف العمليات المنجزة (الاحتفاظ بآخر 200)
+        if len(operations) > 200:
+            ops["operations"] = [o for o in operations if o.get("status") != "synced"][-200:]
+            _save_outage_operations(ops)
+
+        logger.info(f"🔄 معالجة عمليات الانقطاع: {synced} نجحت، {failed} فشلت، {skipped} تخطي")
+
+        return {
+            "processed": synced + failed,
+            "synced": synced,
+            "failed": failed,
+            "skipped": skipped,
+            "results": results,
+            "message": f"تمت معالجة {synced + failed} عملية — {synced} نجحت، {failed} فشلت",
+        }
+
+
+def get_outage_log(limit: int = 50) -> dict:
+    """
+    Phase 4: جلب سجل العمليات أثناء الانقطاع.
+    """
+    ops = _load_outage_operations()
+    operations = ops.get("operations", [])
+    # الأحدث أولاً
+    recent = list(reversed(operations))[:limit]
+    return {
+        "total_operations": len(operations),
+        "total_logged": ops.get("total_logged", 0),
+        "total_synced": ops.get("total_synced", 0),
+        "pending_count": sum(1 for o in operations if o.get("status") == "pending"),
+        "synced_count": sum(1 for o in operations if o.get("status") == "synced"),
+        "operations": recent,
+    }
+
+
+def get_outage_stats() -> dict:
+    """
+    Phase 4: إحصائيات عمليات الانقطاع.
+    """
+    ops = _load_outage_operations()
+    operations = ops.get("operations", [])
+
+    # إحصائيات حسب النوع
+    by_type = {}
+    by_service = {}
+    for op in operations:
+        otype = op.get("operation_type", "unknown")
+        svc = op.get("target_service", "unknown")
+        by_type[otype] = by_type.get(otype, 0) + 1
+        by_service[svc] = by_service.get(svc, 0) + 1
+
+    return {
+        "total_operations": len(operations),
+        "total_logged": ops.get("total_logged", 0),
+        "total_synced": ops.get("total_synced", 0),
+        "pending": sum(1 for o in operations if o.get("status") == "pending"),
+        "synced": sum(1 for o in operations if o.get("status") == "synced"),
+        "by_type": by_type,
+        "by_service": by_service,
     }
 
 
@@ -406,10 +618,16 @@ def force_sync() -> dict:
 def health_check() -> dict:
     """فحص سريع لصحة نظام المزامنة"""
     state = _load_sync_state()
+    # Phase 4: إحصائيات عمليات الانقطاع
+    outage_ops = _load_outage_operations()
     return {
         "last_online": state.get("last_online"),
         "last_sync": state.get("last_sync"),
         "offline_since": state.get("offline_since"),
         "pending_count": len(state.get("pending_syncs", [])),
         "reports_count": len(_load_sync_reports().get("reports", [])),
+        # Phase 4
+        "outage_operations_total": len(outage_ops.get("operations", [])),
+        "outage_operations_pending": sum(1 for o in outage_ops.get("operations", []) if o.get("status") == "pending"),
+        "outage_operations_synced": sum(1 for o in outage_ops.get("operations", []) if o.get("status") == "synced"),
     }

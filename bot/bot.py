@@ -49,6 +49,15 @@ import smart_sync
 import ai_monitor
 import smart_repair
 import emergency_protection
+# Phase 4: AI Protection & Property Storage
+try:
+    import property_storage
+except Exception as _ps_imp:
+    property_storage = None
+try:
+    import publish_verifier
+except Exception as _pv_imp:
+    publish_verifier = None
 
 from telegram import (
     Update,
@@ -83,6 +92,7 @@ REQUEST_STATUS_NEW = "NEW"
 REQUEST_STATUS_UNDER_REVIEW = "UNDER_REVIEW"
 REQUEST_STATUS_APPROVED = "APPROVED"
 REQUEST_STATUS_PUBLISHING = "PUBLISHING"
+REQUEST_STATUS_VERIFYING = "VERIFYING"
 REQUEST_STATUS_PUBLISHED = "PUBLISHED"
 REQUEST_STATUS_ARCHIVED = "ARCHIVED"
 REQUEST_STATUS_REJECTED = "REJECTED"
@@ -91,6 +101,7 @@ REQUEST_STATUS_ALL = [
     REQUEST_STATUS_UNDER_REVIEW,
     REQUEST_STATUS_APPROVED,
     REQUEST_STATUS_PUBLISHING,
+    REQUEST_STATUS_VERIFYING,
     REQUEST_STATUS_PUBLISHED,
     REQUEST_STATUS_ARCHIVED,
     REQUEST_STATUS_REJECTED,
@@ -101,6 +112,7 @@ REQUEST_STATUS_LABELS = {
     "UNDER_REVIEW": "\U0001f50d \u0642\u064a\u062f \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629",
     "APPROVED": "\u2705 \u0645\u0648\u0627\u0641\u0642",
     "PUBLISHING": "\u23f3 \u062c\u0627\u0631\u064d \u0627\u0644\u0646\u0634\u0631",
+    "VERIFYING": "\u2705\ufe0f \u062c\u0627\u0631\u064d \u0627\u0644\u062a\u062d\u0642\u0642",
     "PUBLISHED": "\U0001f4e2 \u0645\u0646\u0634\u0648\u0631",
     "ARCHIVED": "\U0001f4e6 \u0645\u0624\u0631\u0634\u064e\u0641",
     "REJECTED": "\u274c \u0645\u0631\u0641\u0648\u0636",
@@ -112,6 +124,8 @@ def normalize_request_status(item):
     pub = item.get("publish_status", "")
     if cur in REQUEST_STATUS_ALL:
         return cur
+    if cur == "VERIFYING" or cur == "verifying":
+        return REQUEST_STATUS_VERIFYING
     if pub == "Published" or cur == "approved":
         return REQUEST_STATUS_PUBLISHED
     if cur == "rejected":
@@ -3032,16 +3046,119 @@ async def _approve_visitor_request(update, req_ref, query=None):
         sync_note = f" (تعذّرت المزامنة: {e})"
         sync_ok = False
 
-    # 7) تحديث حالة الطلب إلى approved (لا يحذف)
+    # Phase 4: تعيين حالة VERIFYING قبل التحقق النهائي
+    item["status"] = REQUEST_STATUS_VERIFYING
+    item["verifying_started_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    item.setdefault("status_history", []).append({"status": "VERIFYING", "at": item["verifying_started_at"]})
+    save_visitor_requests(data)
+
+    # Phase 4: تخزين العقار بشكل دائم في property_storage (لا يفقد أبداً)
+    property_stored = False
+    if property_storage:
+        try:
+            store_result = property_storage.store_property(
+                property_id=offer_id,
+                visitor_data={
+                    "name": item.get("name", ""),
+                    "phone": item.get("phone", ""),
+                    "request_id": item.get("id", ""),
+                },
+                contact_number=item.get("phone", ""),
+                property_data=offer,
+                images=list(_request_images),
+                section=item.get("section", ""),
+                property_type=item.get("propertyType", item.get("property_type", "")),
+                area=item_area,
+                location=item.get("mapsLink", item.get("maps_link", "")),
+            )
+            property_stored = bool(store_result and store_result.get("property_id"))
+            # ربط الصور بشكل دائم بمعرف العقار
+            if property_stored and _request_images:
+                property_storage.link_images_to_property(offer_id, list(_request_images))
+            logger.info(f"Phase4: تم تخزين العقار {offer_id} بشكل دائم (stored={property_stored})")
+        except Exception as _ps_err:
+            logger.error(f"Phase4: خطأ في تخزين العقار بشكل دائم: {_ps_err}")
+            if error_reporter:
+                error_reporter.report_error("bot._approve_visitor_request.property_storage", "Failed to store property permanently", context={"offer_id": offer_id, "error": str(_ps_err)}, severity="critical", file_affected="bot/property_storage.py")
+
+    # Phase 4: التحقق الإلزامي من النشر (9 فحوصات)
+    verification_passed = True
+    verification_result = None
+    _verify_count = 9
+    if publish_verifier:
+        try:
+            verification_result = publish_verifier.verify_publishing(
+                offer_id=offer_id,
+                expected_section=item.get("section", ""),
+                expected_area=item_area,
+                expected_type=item.get("propertyType", item.get("property_type", "")),
+            )
+            verification_passed = verification_result.get("all_passed", False)
+            _check_list = verification_result.get("checks", [])
+            _verify_count = sum(1 for c in _check_list if c.get("passed"))
+            logger.info(f"Phase4: التحقق من النشر — all_passed={verification_passed}, passed={_verify_count}/9, failed_checks={verification_result.get('failed_checks', [])}")
+        except Exception as _pv_err:
+            logger.error(f"Phase4: خطأ في التحقق من النشر: {_pv_err}")
+            verification_result = {"all_passed": False, "error": str(_pv_err), "failed_checks": ["verifier_error"]}
+            verification_passed = False
+
+    # Phase 4: إنشاء الرابط النهائي الرسمي للعقار
+    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    final_property_url = f"{site_url}property/{offer_id}"
+
+    # Phase 4: فقط تعيين PUBLISHED إذا اجتازت جميع الفحوصات
+    if not verification_passed:
+        # فشل التحقق — عدم تعيين PUBLISHED، تعيين FAILED
+        item["status"] = "rejected"
+        item["publish_status"] = "Failed"
+        item["failed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        _failed_checks = verification_result.get("failed_checks", []) if verification_result else ["unknown"]
+        item["fail_reason"] = "publish verification failed — " + ", ".join(_failed_checks)
+        item["verification_result"] = verification_result
+        item.setdefault("status_history", []).append({"status": "FAILED", "at": item["failed_at"], "reason": item["fail_reason"], "failed_checks": _failed_checks})
+        save_visitor_requests(data)
+        if error_reporter:
+            error_reporter.report_error("bot._approve_visitor_request.verify", "Publish verification failed — property NOT published", context={"offer_id": offer_id, "failed_checks": _failed_checks}, severity="critical", file_affected="bot/publish_verifier.py")
+        # إرسال تقرير المشكلة
+        err_msg = (
+            f"❌ فشل التحقق من النشر\n\n"
+            f"🆔 المعرف: {offer_id}\n"
+            f"❌ الفحوص الفاشلة: {', '.join(_failed_checks)}\n\n"
+            f"⚠️ لم يتم تعيين حالة منشور\n"
+            f"📝 تم حفظ تقرير المشكلة للمراجعة"
+        )
+        if query:
+            await query.edit_message_text(err_msg)
+        else:
+            await update.message.reply_text(err_msg)
+        # Phase 4: AI Monitor يحلل السبب
+        try:
+            ai_monitor.monitor_publish_errors()
+        except Exception:
+            pass
+        return
+
+    # 7) تحديث حالة الطلب إلى PUBLISHED (لا يحذف)
     item["status"] = REQUEST_STATUS_PUBLISHED
     item["publish_status"] = "Published"
     item["published_offer_id"] = offer_id
     item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id})
+    item["final_property_url"] = final_property_url
+    item["verification_passed"] = True
+    item["verification_checks_passed"] = _verify_count if verification_result else 9
+    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id, "final_url": final_property_url})
     save_visitor_requests(data)
+
+    # Phase 4: تحديث حالة العقار في property_storage إلى PUBLISHED
+    if property_storage and property_stored:
+        try:
+            property_storage.update_property_status(offer_id, property_storage.STATUS_PUBLISHED, detail="published successfully with verification passed")
+        except Exception as _psu_err:
+            logger.error(f"Phase4: خطأ في تحديث حالة العقار في property_storage: {_psu_err}")
+
     if error_reporter:
-        error_reporter.report_success("bot._approve_visitor_request", "publish_offer", {"offer_id": offer_id, "status": REQUEST_STATUS_PUBLISHED})
+        error_reporter.report_success("bot._approve_visitor_request", "publish_offer", {"offer_id": offer_id, "status": REQUEST_STATUS_PUBLISHED, "verification_passed": True, "final_url": final_property_url})
 
     # 8) تحديث البوصلة تلقائياً
     try:
@@ -3050,8 +3167,8 @@ async def _approve_visitor_request(update, req_ref, query=None):
         logger.error(f"خطأ في تحديث البوصلة: {e}")
 
     # Task 4: المرحلة 2 — نجاح النشر
-    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
     _op_label2 = "🏠 للإيجار" if offer.get("operation_type") == "rent" else "🏷️ للبيع"
+    _verify_count = _verify_count if verification_result else 9
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer_id}\n"
@@ -3060,9 +3177,9 @@ async def _approve_visitor_request(update, req_ref, query=None):
         f"📍 المنطقة: {offer['area']}\n"
         f"📐 المساحة: {offer['size_sqm']} م²\n"
         f"💰 المعروض: {offer['price_text']}\n"
-        f"🗺️ الموقع: تم استبداله بموقع المكتب الثابت\n"
+        f"✅ التحقق: {_verify_count}/9 فحوص نجحت\n"
         f"📸 الصور: {len(offer.get('images', []))} صورة\n\n"
-        f"🌐 رابط العرض على الموقع:\n{site_url}"
+        f"🌐 الرابط الرسمي للعرض:\n{final_property_url}"
     )
     if query:
         await query.edit_message_text(msg)

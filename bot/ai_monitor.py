@@ -48,6 +48,9 @@ PRE_DEPLOY_FILES = [
     "bot/task_queue.py",
     "bot/image_utils.py",
     "bot/offer_id.py",
+    # Phase 4 AI Protection — new modules
+    "bot/property_storage.py",
+    "bot/publish_verifier.py",
 ]
 
 
@@ -521,22 +524,27 @@ def full_ai_check() -> dict:
     pre_deploy = pre_deploy_check()
     railway = analyze_railway_logs()
     problems = detect_expected_problems()
+    # Phase 4: مراقبة أنظمة الحماية والتخزين
+    phase4 = monitor_all_phase4()
 
     # تحديد الإصلاحات المقترحة
     all_issues = []
     all_issues.extend(pre_deploy.get("issues", []))
     all_issues.extend(railway.get("findings", []))
     all_issues.extend(problems.get("problems", []))
+    all_issues.extend(phase4.get("problems", []))
 
     suggestions = suggest_fixes({"issues": all_issues})
 
     # الحالة العامة
     total_critical = (pre_deploy.get("critical_count", 0) + 
                       railway.get("critical_count", 0) + 
-                      problems.get("critical_count", 0))
+                      problems.get("critical_count", 0) +
+                      phase4.get("total_critical", 0))
     total_warnings = (pre_deploy.get("warning_count", 0) + 
                       railway.get("warning_count", 0) + 
-                      problems.get("warning_count", 0))
+                      problems.get("warning_count", 0) +
+                      phase4.get("total_warnings", 0))
 
     if total_critical > 0:
         overall_status = "critical"
@@ -570,10 +578,448 @@ def full_ai_check() -> dict:
             "status": problems["status"],
             "message": problems["message"],
         },
+        "phase4": {
+            "status": phase4["status"],
+            "message": phase4["message"],
+            "total_critical": phase4.get("total_critical", 0),
+            "total_warnings": phase4.get("total_warnings", 0),
+        },
         "suggestions": suggestions,
         "pending_approvals": len(pending_approvals),
         "auto_fixable": len([s for s in suggestions if not s.get("needs_approval")]),
     }
+
+
+# ============================================================
+# Phase 4 — مراقبة أخطاء التخزين الدائم للعقارات
+# ============================================================
+def monitor_property_storage() -> dict:
+    """
+    مراقبة أخطاء التخزين الدائم للعقارات:
+    - التحقق من وجود ملف التخزين الدائم.
+    - التحقق من سلامة الصور الدائمة المرتبطة بالعقارات.
+    - التحقق من عدم وجود عقارات عالقة في حالة FAILED/PUBLISHING.
+    """
+    problems = []
+
+    storage_file = DATA_DIR / "property_storage.json"
+    if not storage_file.exists():
+        problems.append({
+            "severity": "warning",
+            "type": "missing_property_storage",
+            "file": "bot/data/property_storage.json",
+            "issue": "ملف التخزين الدائم للعقارات غير موجود",
+            "fix": "سيتم إنشاؤه تلقائياً عند أول تخزين — تأكد من استيراد property_storage",
+        })
+    else:
+        try:
+            with open(storage_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            properties = data.get("properties", {})
+            missing_count = 0
+            stuck_failed = 0
+            stuck_publishing = 0
+            for pid, prop in properties.items():
+                for img in prop.get("permanent_images", []):
+                    img_path = Path(img)
+                    if not img_path.is_absolute():
+                        img_path = BASE_DIR.parent / img_path
+                    if not img_path.exists():
+                        missing_count += 1
+                if prop.get("status") == "failed":
+                    stuck_failed += 1
+                if prop.get("status") == "publishing":
+                    stuck_publishing += 1
+            if missing_count > 0:
+                problems.append({
+                    "severity": "critical",
+                    "type": "missing_permanent_images",
+                    "file": "bot/data/properties/",
+                    "issue": f"{missing_count} صورة دائمة مفقودة من التخزين",
+                    "fix": "أعد ربط الصور بالعقارات المتأثرة أو أعد تحميلها من GitHub",
+                })
+            if stuck_failed > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "failed_properties",
+                    "issue": f"{stuck_failed} عقار في حالة FAILED — يحتاج مراجعة",
+                    "fix": "راجع العقارات الفاشلة وأعد محاولة النشر بعد إصلاح السبب",
+                })
+            if stuck_publishing > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "stuck_publishing",
+                    "issue": f"{stuck_publishing} عقار عالق في حالة PUBLISHING",
+                    "fix": "تحقق من حالة النشر لهذه العقارات — قد تحتاج إعادة محاولة",
+                })
+        except json.JSONDecodeError as e:
+            problems.append({
+                "severity": "critical",
+                "type": "corrupt_property_storage",
+                "file": "bot/data/property_storage.json",
+                "issue": f"ملف التخزين الدائم تالف: {e}",
+                "fix": "أصلح JSON أو استعد من نسخة احتياطية مستقرة",
+            })
+        except Exception as e:
+            problems.append({
+                "severity": "warning",
+                "type": "property_storage_error",
+                "issue": f"خطأ في فحص التخزين الدائم: {e}",
+                "fix": "تحقق من نظام التخزين الدائم",
+            })
+
+    critical = [p for p in problems if p["severity"] == "critical"]
+    warnings = [p for p in problems if p["severity"] == "warning"]
+    status = "critical" if critical else ("warning" if warnings else "healthy")
+    report = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": "property_storage_monitor",
+        "status": status,
+        "message": f"مشاكل التخزين الدائم: {len(critical)} حرجة، {len(warnings)} تحذيرات",
+        "problems": problems,
+        "critical_count": len(critical),
+        "warning_count": len(warnings),
+    }
+    reports = _load_reports()
+    reports["reports"].append(report)
+    _save_reports(reports)
+    return report
+
+
+def storage_has_properties() -> bool:
+    """التحقق من وجود عقارات في التخزين الدائم."""
+    try:
+        storage_file = DATA_DIR / "property_storage.json"
+        if not storage_file.exists():
+            return False
+        with open(storage_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return len(data.get("properties", {})) > 0
+    except Exception:
+        return False
+
+
+# ============================================================
+# Phase 4 — مراقبة أخطاء رفع الصور
+# ============================================================
+def monitor_image_uploads() -> dict:
+    """
+    مراقبة أخطاء رفع الصور:
+    - التحقق من وجود مجلدات صور الزوار.
+    - التحقق من وجود صور مسودة معطوبة (حجم 0).
+    - التحقق من مساحة الصور.
+    """
+    problems = []
+    website_dir = BASE_DIR.parent
+
+    visitor_images_dir = website_dir / "images" / "visitor"
+    if visitor_images_dir.exists():
+        try:
+            empty_files = 0
+            total_files = 0
+            for req_dir in visitor_images_dir.iterdir():
+                if req_dir.is_dir():
+                    for img in req_dir.iterdir():
+                        if img.is_file():
+                            total_files += 1
+                            if img.stat().st_size == 0:
+                                empty_files += 1
+            if empty_files > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "empty_image_files",
+                    "file": "images/visitor/",
+                    "issue": f"{empty_files} ملف صورة فارغ (حجم 0) من أصل {total_files}",
+                    "fix": "احذف الملفات الفارغة أو أعد تحميل الصور",
+                })
+        except Exception as e:
+            problems.append({
+                "severity": "warning",
+                "type": "image_scan_error",
+                "issue": f"خطأ في فحص صور الزوار: {e}",
+                "fix": "تحقق من صلاحيات الوصول لمجلد images/visitor/",
+            })
+
+    bot_images_dir = website_dir / "images" / "bot"
+    if bot_images_dir.exists():
+        try:
+            empty_bot = 0
+            total_bot = 0
+            for img in bot_images_dir.iterdir():
+                if img.is_file():
+                    total_bot += 1
+                    if img.stat().st_size == 0:
+                        empty_bot += 1
+            if empty_bot > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "empty_bot_images",
+                    "file": "images/bot/",
+                    "issue": f"{empty_bot} صورة مسودة فارغة من أصل {total_bot}",
+                    "fix": "احذف ملفات الصور الفارغة",
+                })
+        except Exception:
+            pass
+
+    permanent_dir = DATA_DIR / "properties"
+    if permanent_dir.exists():
+        try:
+            total_permanent = sum(1 for _ in permanent_dir.rglob("*") if _.is_file())
+            if total_permanent == 0 and storage_has_properties():
+                problems.append({
+                    "severity": "warning",
+                    "type": "no_permanent_images",
+                    "file": "bot/data/properties/",
+                    "issue": "لا توجد صور دائمة رغم وجود عقارات مخزنة",
+                    "fix": "تأكد من ربط الصور بالعقارات عند النشر",
+                })
+        except Exception:
+            pass
+
+    critical = [p for p in problems if p["severity"] == "critical"]
+    warnings = [p for p in problems if p["severity"] == "warning"]
+    status = "critical" if critical else ("warning" if warnings else "healthy")
+    report = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": "image_upload_monitor",
+        "status": status,
+        "message": f"مشاكل الصور: {len(critical)} حرجة، {len(warnings)} تحذيرات",
+        "problems": problems,
+        "critical_count": len(critical),
+        "warning_count": len(warnings),
+    }
+    reports = _load_reports()
+    reports["reports"].append(report)
+    _save_reports(reports)
+    return report
+
+
+# ============================================================
+# Phase 4 — مراقبة أخطاء المزامنة
+# ============================================================
+def monitor_sync_errors() -> dict:
+    """
+    مراقبة أخطاء المزامنة:
+    - التحقق من وجود عمليات مزامنة معلقة.
+    - التحقق من حالة الاتصال بـ GitHub/Railway.
+    - التحقق من سجل العمليات أثناء الانقطاع.
+    """
+    problems = []
+
+    pending_file = DATA_DIR / "pending_syncs.json"
+    if pending_file.exists():
+        try:
+            with open(pending_file, "r", encoding="utf-8") as f:
+                pending = json.load(f)
+            pending_count = len(pending) if isinstance(pending, list) else len(pending.get("syncs", []))
+            if pending_count > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "pending_syncs",
+                    "file": "bot/data/pending_syncs.json",
+                    "issue": f"{pending_count} عملية مزامنة معلقة — قد يكون الاتصال مقطوعاً",
+                    "fix": "تحقق من اتصال الإنترنت وأعد تشغيل المزامنة",
+                })
+        except Exception:
+            pass
+
+    outage_log = DATA_DIR / "outage_operations.json"
+    if outage_log.exists():
+        try:
+            with open(outage_log, "r", encoding="utf-8") as f:
+                ops = json.load(f)
+            ops_count = len(ops) if isinstance(ops, list) else len(ops.get("operations", []))
+            if ops_count > 50:
+                problems.append({
+                    "severity": "warning",
+                    "type": "many_outage_ops",
+                    "file": "bot/data/outage_operations.json",
+                    "issue": f"{ops_count} عملية مسجلة أثناء الانقطاع — قد تحتاج للمزامنة",
+                    "fix": "تأكد من مزامنة جميع العمليات المعلقة بعد استعادة الاتصال",
+                })
+        except Exception:
+            pass
+
+    gh_token = os.environ.get("GITHUB_TOKEN", "")
+    if not gh_token:
+        problems.append({
+            "severity": "warning",
+            "type": "missing_github_token",
+            "issue": "GITHUB_TOKEN غير مضبوط — المزامنة مع GitHub لن تعمل",
+            "fix": "اضبط GITHUB_TOKEN في متغيرات البيئة",
+        })
+
+    critical = [p for p in problems if p["severity"] == "critical"]
+    warnings = [p for p in problems if p["severity"] == "warning"]
+    status = "critical" if critical else ("warning" if warnings else "healthy")
+    report = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": "sync_error_monitor",
+        "status": status,
+        "message": f"مشاكل المزامنة: {len(critical)} حرجة، {len(warnings)} تحذيرات",
+        "problems": problems,
+        "critical_count": len(critical),
+        "warning_count": len(warnings),
+    }
+    reports = _load_reports()
+    reports["reports"].append(report)
+    _save_reports(reports)
+    return report
+
+
+# ============================================================
+# Phase 4 — مراقبة أخطاء النشر
+# ============================================================
+def monitor_publish_errors() -> dict:
+    """
+    مراقبة أخطاء النشر:
+    - التحقق من نتائج التحقق من النشر (publish_verification_log.json).
+    - التحقق من طلبات عالقة في PUBLISHING أو فاشلة.
+    - التحقق من التطابق بين offers.json و bot_offers.json.
+    """
+    problems = []
+
+    verify_log = DATA_DIR / "publish_verification_log.json"
+    if verify_log.exists():
+        try:
+            with open(verify_log, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            verifications = data.get("verifications", [])
+            failed_verifications = [v for v in verifications if not v.get("passed")]
+            if len(failed_verifications) > 0:
+                recent_failed = failed_verifications[-5:]
+                for v in recent_failed:
+                    problems.append({
+                        "severity": "critical",
+                        "type": "publish_verification_failed",
+                        "file": "offers-data/offers.json",
+                        "issue": f"فشل التحقق من نشر العرض {v.get('offer_id', '?')}: {', '.join(v.get('failed_checks', []))}",
+                        "fix": "راجع فحوصات النشر الفاشلة وأعد المحاولة بعد الإصلاح",
+                    })
+        except Exception:
+            pass
+
+    visitor_file = DATA_DIR / "visitor_requests.json"
+    if visitor_file.exists():
+        try:
+            with open(visitor_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            all_items = list(data.get("requests", [])) + list(data.get("inquiries", []))
+            publishing = [i for i in all_items if i.get("status") == "PUBLISHING"]
+            failed = [i for i in all_items if i.get("status") == "rejected" and i.get("publish_status") == "Failed"]
+            if len(publishing) > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "stuck_in_publishing",
+                    "file": "bot/data/visitor_requests.json",
+                    "issue": f"{len(publishing)} طلب عالق في حالة PUBLISHING",
+                    "fix": "أعد محاولة النشر أو حدّث الحالة يدوياً",
+                })
+            if len(failed) > 0:
+                problems.append({
+                    "severity": "warning",
+                    "type": "failed_publishes",
+                    "file": "bot/data/visitor_requests.json",
+                    "issue": f"{len(failed)} طلب فشل في النشر — يحتاج مراجعة",
+                    "fix": "راجع سبب الفشل (fail_reason) وأعد المحاولة بعد الإصلاح",
+                })
+        except Exception:
+            pass
+
+    offers_file = BASE_DIR.parent / "offers-data" / "offers.json"
+    bot_offers_file = DATA_DIR / "bot_offers.json"
+    try:
+        with open(offers_file, "r", encoding="utf-8") as f:
+            site_offers = json.load(f).get("offers", [])
+        with open(bot_offers_file, "r", encoding="utf-8") as f:
+            bot_offers = json.load(f).get("offers", [])
+        site_ids = {o.get("id") for o in site_offers}
+        bot_ids = {o.get("id") for o in bot_offers}
+        only_in_site = site_ids - bot_ids
+        if len(only_in_site) > 5:
+            problems.append({
+                "severity": "warning",
+                "type": "offer_mismatch",
+                "file": "bot/data/bot_offers.json",
+                "issue": f"{len(only_in_site)} عرض في offers.json غير موجودة في bot_offers.json",
+                "fix": "مزامنة bot_offers.json مع offers.json",
+            })
+    except Exception:
+        pass
+
+    critical = [p for p in problems if p["severity"] == "critical"]
+    warnings = [p for p in problems if p["severity"] == "warning"]
+    status = "critical" if critical else ("warning" if warnings else "healthy")
+    report = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": "publish_error_monitor",
+        "status": status,
+        "message": f"مشاكل النشر: {len(critical)} حرجة، {len(warnings)} تحذيرات",
+        "problems": problems,
+        "critical_count": len(critical),
+        "warning_count": len(warnings),
+    }
+    reports = _load_reports()
+    reports["reports"].append(report)
+    _save_reports(reports)
+    return report
+
+
+# ============================================================
+# Phase 4 — مراقبة شاملة لأنظمة Phase 4
+# ============================================================
+def monitor_all_phase4() -> dict:
+    """
+    مراقبة شاملة لجميع أنظمة Phase 4:
+    - أخطاء التخزين الدائم للعقارات.
+    - أخطاء رفع الصور.
+    - أخطاء المزامنة.
+    - أخطاء النشر.
+    """
+    storage = monitor_property_storage()
+    images = monitor_image_uploads()
+    sync = monitor_sync_errors()
+    publish = monitor_publish_errors()
+
+    all_problems = []
+    all_problems.extend(storage.get("problems", []))
+    all_problems.extend(images.get("problems", []))
+    all_problems.extend(sync.get("problems", []))
+    all_problems.extend(publish.get("problems", []))
+
+    total_critical = (storage.get("critical_count", 0) + images.get("critical_count", 0) +
+                      sync.get("critical_count", 0) + publish.get("critical_count", 0))
+    total_warnings = (storage.get("warning_count", 0) + images.get("warning_count", 0) +
+                      sync.get("warning_count", 0) + publish.get("warning_count", 0))
+
+    if total_critical > 0:
+        status = "critical"
+        message = f"مشاكل حرجة: {total_critical} — يتطلب إصلاح"
+    elif total_warnings > 0:
+        status = "warning"
+        message = f"تحذيرات: {total_warnings} — ينبغي المتابعة"
+    else:
+        status = "healthy"
+        message = "جميع أنظمة Phase 4 تعمل بشكل سليم"
+
+    report = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "type": "phase4_full_monitor",
+        "status": status,
+        "message": message,
+        "total_critical": total_critical,
+        "total_warnings": total_warnings,
+        "property_storage": {"status": storage["status"], "count": storage.get("critical_count", 0) + storage.get("warning_count", 0)},
+        "image_uploads": {"status": images["status"], "count": images.get("critical_count", 0) + images.get("warning_count", 0)},
+        "sync": {"status": sync["status"], "count": sync.get("critical_count", 0) + sync.get("warning_count", 0)},
+        "publish": {"status": publish["status"], "count": publish.get("critical_count", 0) + publish.get("warning_count", 0)},
+        "problems": all_problems,
+        "suggestions": suggest_fixes({"issues": all_problems}),
+    }
+    reports = _load_reports()
+    reports["reports"].append(report)
+    _save_reports(reports)
+    return report
 
 
 # ============================================================

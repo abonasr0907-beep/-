@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إعادة توجيه | مكتب آفاق الإنجاز العقاري</title>
+    <!--
+        GitHub Pages 404 redirect handler.
+        When a user visits /property/{id}, GitHub Pages serves this 404.html.
+        We redirect to property.html?id={id} for client-side rendering.
+    -->
+    <script>
+        (function() {
+            var path = window.location.pathname;
+            // Handle /property/{id} pattern
+            var match = path.match(/\/property\/([^\/\?#]+)/);
+            if (match) {
+                var propertyId = match[1];
+                // Determine base path (handles subdirectory hosting like /-/)
+                var basePath = path.replace(/property\/.*$/, '');
+                var redirectUrl = basePath + 'property.html?id=' + encodeURIComponent(propertyId);
+                window.location.replace(redirectUrl);
+                return;
+            }
+            // Default: redirect to home
+            var homePath = path.split('/').slice(0, -1).join('/') + '/';
+            window.location.replace(homePath || './');
+        })();
+    </script>
+    <meta name="robots" content="noindex">
+    <style>
+        body {
+            font-family: 'Tajawal', Arial, sans-serif;
+            text-align: center;
+            padding: 60px 20px;
+            background: #F5F1E8;
+            color: #2A5050;
+        }
+        .loader {
+            font-size: 40px;
+            color: #C4A956;
+            margin-bottom: 20px;
+        }
+    </style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+    <div class="loader">⏳</div>
+    <h2>جاري إعادة التوجيه...</h2>
+    <p>إذا لم يتم إعادة توجيهك تلقائياً، <a href="./">اضغط هنا</a></p>
+</body>
+</html>
