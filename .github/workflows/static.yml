@@ -3,8 +3,15 @@ name: Deploy static content to Pages
 
 on:
   # Runs on pushes targeting the default branch
+  # NOTE: Ignore offers-data/news.json to prevent the frequent news-bot
+  # commits (~every 15s) from constantly re-triggering and cancelling
+  # the Pages deployment. news.json is still included in every deploy
+  # because the entire repo is uploaded as the artifact.
   push:
     branches: ["main"]
+    paths-ignore:
+      - "offers-data/news.json"
+      - "offers-data/news-*.json"
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -22,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
+  # Single deploy job since we're just deploying static content
   deploy:
     environment:
       name: github-pages
