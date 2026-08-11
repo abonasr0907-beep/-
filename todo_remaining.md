@@ -37,7 +37,7 @@
 - [x] **6. نظام الإبلاغ عن الأخطاء**
   - أي مشكلة → smart_repair.py + AI Monitor مع تقرير نجاح/فشل.
 
-- [ ] **7. Commit + Push + Railway**
+- [x] **7. Commit + Push + Railway**
   - إنشاء فرع feature، commit، push، PR، دمج، التحقق من Railway.
 
-- [ ] **8. تقرير FINAL_REMAINING_TASKS.md**
+- [x] **8. تقرير FINAL_REMAINING_TASKS.md**
