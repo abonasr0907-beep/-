@@ -604,6 +604,33 @@
       "operation_type": "sale",
       "visitor_name": "اختبار Railway",
       "visitor_phone": "0509998888"
+    },
+    {
+      "id": "LND-142D0E",
+      "type": "land",
+      "category": "أرض تجارية",
+      "title": "أرض تجارية — الخرج (منطقة أخرى)",
+      "area": "الخرج (منطقة أخرى)",
+      "area_en": "",
+      "size_sqm": "5000",
+      "price": "640000",
+      "price_text": "640000 ريال",
+      "original_price": "640000",
+      "description": "🗺️ أرض سكنية للبيع في الخرج (منطقة أخرى) بالخرج!\n\nمساحة 5000 م²، على شارعين، صك إلكتروني. جاهزة للبناء.\n\nفرصة ذهبية — تواصل: 0545888931\n\n📝 والان لقد جمعت توكنج البوت",
+      "features": [],
+      "images": [],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "visitor_map_link": "https://www.google.com/maps?q=24.190182,47.155838",
+      "visitor_lat": "24.190182",
+      "visitor_lng": "47.155838",
+      "date_added": "2026-08-11",
+      "featured": false,
+      "source": "visitor_request",
+      "priceType": "fixed",
+      "highestBid": "",
+      "operation_type": "sale",
+      "visitor_name": "افاق العقاري بعد التحديث",
+      "visitor_phone": "0561610748"
     }
   ]
 }
