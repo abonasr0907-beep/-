@@ -219,6 +219,7 @@ async function loadOffers(defaultFilter = 'all') {
     }
     renderOffers(defaultFilter);
     updateStats();
+    updatePropertyTypeFilter();
 }
 
 // ===== العروض الافتراضية =====
@@ -231,7 +232,7 @@ function getDefaultOffers() {
 }
 
 // ===== عرض العروض =====
-function renderOffers(filter = 'all', areaFilter = 'all') {
+function renderOffers(filter = 'all', areaFilter = 'all', propTypeFilter = 'all') {
     const grid = document.getElementById('offers-grid');
     if (!grid) return;
 
@@ -241,6 +242,10 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
     }
     if (areaFilter !== 'all') {
         filtered = filtered.filter(o => o.area === areaFilter);
+    }
+    // Phase 4: فلتر نوع العقار
+    if (propTypeFilter !== 'all') {
+        filtered = filtered.filter(o => (o.property_type || o.category) === propTypeFilter);
     }
 
     if (filtered.length === 0) {
@@ -316,7 +321,8 @@ function filterOffers(type) {
 
     const activeArea = document.querySelector('.area-filter-btn.active');
     const areaFilter = activeArea ? activeArea.dataset.area : 'all';
-    renderOffers(type, areaFilter);
+    const propTypeFilter = document.getElementById('property-type-select') ? document.getElementById('property-type-select').value : 'all';
+    renderOffers(type, areaFilter, propTypeFilter);
 }
 
 function filterByArea(area) {
@@ -327,7 +333,8 @@ function filterByArea(area) {
     }
     const activeType = document.querySelector('.filter-btn.active');
     const typeFilter = activeType ? activeType.dataset.filter : 'all';
-    renderOffers(typeFilter, area);
+    const propTypeFilter = document.getElementById('property-type-select') ? document.getElementById('property-type-select').value : 'all';
+    renderOffers(typeFilter, area, propTypeFilter);
 }
 
 // ===== تحديث الإحصائيات =====
@@ -731,6 +738,9 @@ function initPropertyMap() {
     propertyMap.on('mouseup', function() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
     propertyMap.on('dragstart', function() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
     propertyMap.on('zoomstart', function() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
+
+    // Phase 4: تهيئة البحث على الخريطة
+    setTimeout(initMapSearch, 100);
 }
 
 // ===== تحديد الموقع على الخريطة =====
@@ -766,6 +776,161 @@ function setMapLocation(lat, lng) {
     if (display) display.style.display = 'flex';
     if (coordsText) coordsText.textContent = `خط العرض: ${lat.toFixed(6)} | خط الطول: ${lng.toFixed(6)}`;
     if (mapsLinkEl) mapsLinkEl.href = mapsLink;
+}
+
+// ===== البحث على الخريطة (Task 4: Phase 4) =====
+let mapSearchTimer = null;
+let propertiesLayer = null;
+let propertiesOnMapVisible = false;
+
+function initMapSearch() {
+    const searchInput = document.getElementById('map-search-input');
+    const searchResults = document.getElementById('map-search-results');
+    if (!searchInput || !searchResults) return;
+
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length < 3) {
+            searchResults.style.display = 'none';
+            searchResults.innerHTML = '';
+            return;
+        }
+        if (mapSearchTimer) clearTimeout(mapSearchTimer);
+        mapSearchTimer = setTimeout(function() {
+            searchMapLocation(query, searchResults);
+        }, 500);
+    });
+
+    // Hide results when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.map-search-box')) {
+            searchResults.style.display = 'none';
+        }
+    });
+}
+
+async function searchMapLocation(query, resultsEl) {
+    try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&limit=5&accept-language=ar';
+        const response = await fetch(url);
+        const results = await response.json();
+        
+        if (results.length === 0) {
+            resultsEl.innerHTML = '<div style="padding:10px;color:#999;text-align:center;">لا توجد نتائج</div>';
+            resultsEl.style.display = 'block';
+            return;
+        }
+
+        resultsEl.innerHTML = results.map(function(r, idx) {
+            return '<div class="map-search-item" data-lat="' + r.lat + '" data-lon="' + r.lon + '" data-name="' + r.display_name.replace(/"/g, '&quot;') + '" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #eee;font-size:13px;">' +
+                '<i class="fas fa-map-marker-alt" style="color:#2A5050;margin-left:6px;"></i>' + r.display_name.substring(0, 80) +
+                '</div>';
+        }).join('');
+        resultsEl.style.display = 'block';
+
+        // Add click handlers
+        resultsEl.querySelectorAll('.map-search-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                const lat = parseFloat(this.dataset.lat);
+                const lon = parseFloat(this.dataset.lon);
+                if (propertyMap) {
+                    propertyMap.setView([lat, lon], 15);
+                    setMapLocation(lat, lon);
+                }
+                resultsEl.style.display = 'none';
+                document.getElementById('map-search-input').value = this.dataset.name.substring(0, 50);
+            });
+            item.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f0f7f7';
+            });
+            item.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+        });
+    } catch (e) {
+        console.error('Map search error:', e);
+        resultsEl.innerHTML = '<div style="padding:10px;color:#c00;text-align:center;">خطأ في البحث</div>';
+        resultsEl.style.display = 'block';
+    }
+}
+
+// ===== عرض العقارات على الخريطة (Task 4: Phase 4) =====
+async function togglePropertiesOnMap() {
+    if (propertiesOnMapVisible) {
+        // Hide properties
+        if (propertiesLayer) {
+            propertyMap.removeLayer(propertiesLayer);
+            propertiesLayer = null;
+        }
+        propertiesOnMapVisible = false;
+        showToast('تم إخفاء العقارات من الخريطة', '');
+        return;
+    }
+
+    showToast('جاري تحميل العقارات...', '');
+    
+    try {
+        const response = await fetch('offers-data/offers.json');
+        const data = await response.json();
+        const offers = data.offers || [];
+        
+        const validOffers = offers.filter(function(o) {
+            return o.visitor_lat && o.visitor_lng && 
+                   parseFloat(o.visitor_lat) && parseFloat(o.visitor_lng);
+        });
+
+        if (validOffers.length === 0) {
+            showToast('لا توجد عقارات بإحداثيات معروفة', 'error');
+            return;
+        }
+
+        propertiesLayer = L.layerGroup().addTo(propertyMap);
+        
+        validOffers.forEach(function(offer) {
+            const lat = parseFloat(offer.visitor_lat);
+            const lng = parseFloat(offer.visitor_lng);
+            
+            const typeIcon = {
+                'farm': '🌾', 'land': '🗺️', 'villa': '🏠', 
+                'apartment': '🏢', 'resthouse': '🏡', 'store': '🏪'
+            };
+            const icon = typeIcon[offer.type] || '📍';
+            
+            const marker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'afaq-property-marker',
+                    html: '<div style="font-size:24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">' + icon + '</div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            });
+            
+            const priceText = offer.price_text || (offer.price ? offer.price + ' ريال' : '');
+            const popupContent = '<div style="direction:rtl;text-align:right;min-width:180px;">' +
+                '<strong>' + (offer.title || offer.category || 'عقار') + '</strong><br>' +
+                (offer.area ? '<span style="color:#666;">المنطقة: ' + offer.area + '</span><br>' : '') +
+                (priceText ? '<span style="color:#2A5050;font-weight:bold;">' + priceText + '</span><br>' : '') +
+                (offer.size_sqm ? '<span style="color:#666;font-size:12px;">المساحة: ' + offer.size_sqm + ' م²</span>' : '') +
+                '</div>';
+            
+            marker.bindPopup(popupContent);
+            propertiesLayer.addLayer(marker);
+        });
+
+        propertiesOnMapVisible = true;
+        showToast('تم عرض ' + validOffers.length + ' عقار على الخريطة', 'success');
+        
+        // Fit bounds to show all properties
+        if (validOffers.length > 1) {
+            const bounds = L.latLngBounds(validOffers.map(function(o) {
+                return [parseFloat(o.visitor_lat), parseFloat(o.visitor_lng)];
+            }));
+            propertyMap.fitBounds(bounds, { padding: [50, 50] });
+        }
+    } catch (e) {
+        console.error('Error loading properties on map:', e);
+        showToast('خطأ في تحميل العقارات', 'error');
+    }
 }
 
 // ===== استخدام GPS لتحديد موقع المستخدم =====
@@ -1355,4 +1520,40 @@ function initLightbox() {
             }
         }
     });
+}
+
+// Phase 4: فلتر نوع العقار
+let currentPropertyTypeFilter = 'all';
+
+function filterByPropertyType(propType) {
+    currentPropertyTypeFilter = propType;
+    const typeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+    const areaFilter = document.querySelector('.area-filter-btn.active')?.dataset.area || 'all';
+    renderOffers(typeFilter, areaFilter, propType);
+}
+
+// Phase 4: تحديث قائمة أنواع العقارات ديناميكياً
+function updatePropertyTypeFilter() {
+    const select = document.getElementById('property-type-select');
+    if (!select) return;
+    
+    // Collect unique property types from current offers
+    const types = new Set();
+    OFFERS.forEach(function(o) {
+        if (o.property_type) types.add(o.property_type);
+        else if (o.category) types.add(o.category);
+    });
+    
+    // Preserve current selection
+    const currentVal = select.value;
+    select.innerHTML = '<option value="all">كل أنواع العقارات</option>';
+    
+    Array.from(types).sort().forEach(function(t) {
+        const opt = document.createElement('option');
+        opt.value = t;
+        opt.textContent = t;
+        select.appendChild(opt);
+    });
+    
+    select.value = currentVal;
 }

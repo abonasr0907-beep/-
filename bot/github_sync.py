@@ -341,3 +341,70 @@ def sync_offer_to_github(offer, local_image_paths):
         logger.error(f"github_sync: فشل مزامنة offers.json: {e}")
         log_sync(f"offer:{offer_id}", "failed", str(e))
         return False
+
+
+# ============================================================
+#  جلب صور طلبات الزوار من GitHub (Phase 4)
+# ============================================================
+def fetch_visitor_request_images(request_id):
+    """
+    جلب مسارات صور طلب زائر من visitor_requests.json على GitHub.
+    يُرجع قائمة بمسارات الصور (relative paths) مثل images/visitor/REQ-xxx/img_0_xxx.jpg
+    """
+    if not is_enabled():
+        return []
+    try:
+        url = f"{GITHUB_API}/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/bot/data/visitor_requests.json"
+        r = _retry_request("get", url, headers=_headers(), params={"ref": GITHUB_BRANCH})
+        if r and r.status_code == 200:
+            import base64 as _b64
+            data = r.json()
+            content_text = _b64.b64decode(data.get("content", "")).decode("utf-8")
+            vdata = json.loads(content_text)
+            # البحث في requests و inquiries
+            for section in ("requests", "inquiries", "offer_submissions"):
+                for item in vdata.get(section, []):
+                    if item.get("id") == request_id:
+                        imgs = item.get("images", [])
+                        if imgs:
+                            return imgs
+        return []
+    except Exception as e:
+        logger.error(f"github_sync: فشل جلب صور الطلب {request_id}: {e}")
+        return []
+
+
+def download_visitor_image(repo_path, local_dir):
+    """
+    تنزيل صورة من GitHub إلى المسار المحلي.
+    repo_path: مسار الصورة في المستودع (مثل images/visitor/REQ-xxx/img.jpg)
+    local_dir: المجلد الأساسي للموقع (Path)
+    يُرجع المسار النسبي للصورة محلياً أو None عند الفشل.
+    """
+    if not is_enabled():
+        return None
+    try:
+        url = f"{GITHUB_API}/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{repo_path}"
+        r = _retry_request("get", url, headers=_headers(), params={"ref": GITHUB_BRANCH})
+        if r and r.status_code == 200:
+            import base64 as _b64
+            data = r.json()
+            if data.get("encoding") == "base64" or data.get("content"):
+                img_bytes = _b64.b64decode(data.get("content", ""))
+                # تحديد المسار المحلي: نُخزّن الصور في images/visitor/ محلياً
+                local_full = local_dir / repo_path
+                local_full.parent.mkdir(parents=True, exist_ok=True)
+                local_full.write_bytes(img_bytes)
+                return repo_path
+        # محاولة تنزيل عبر raw URL
+        raw_url = f"https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{repo_path}"
+        r2 = _retry_request("get", raw_url, headers=_headers())
+        if r2 and r2.status_code == 200:
+            local_full = local_dir / repo_path
+            local_full.parent.mkdir(parents=True, exist_ok=True)
+            local_full.write_bytes(r2.content)
+            return repo_path
+        return None
+    except Exception as e:
+        logger.error(f"github_sync: فشل تنزيل الصورة {repo_path}: {e}")
+        return None

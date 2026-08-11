@@ -34,6 +34,10 @@ import requests
 from PIL import Image, ImageEnhance, ImageFilter
 
 import github_sync
+try:
+    import error_reporter
+except Exception as _er_imp:
+    error_reporter = None
 import persistence
 import task_queue
 import image_utils
@@ -73,6 +77,49 @@ OFFERS_JSON = WEBSITE_DIR / "offers-data" / "offers.json"
 IMAGES_DIR = WEBSITE_DIR / "images" / "bot"  # صور العروض المرفوعة
 DATA_DIR = BASE_DIR / "data"
 VISITOR_REQUESTS = DATA_DIR / "visitor_requests.json"
+
+# ===== Phase 4: حالات إدارة الطلبات =====
+REQUEST_STATUS_NEW = "NEW"
+REQUEST_STATUS_UNDER_REVIEW = "UNDER_REVIEW"
+REQUEST_STATUS_APPROVED = "APPROVED"
+REQUEST_STATUS_PUBLISHING = "PUBLISHING"
+REQUEST_STATUS_PUBLISHED = "PUBLISHED"
+REQUEST_STATUS_ARCHIVED = "ARCHIVED"
+REQUEST_STATUS_REJECTED = "REJECTED"
+REQUEST_STATUS_ALL = [
+    REQUEST_STATUS_NEW,
+    REQUEST_STATUS_UNDER_REVIEW,
+    REQUEST_STATUS_APPROVED,
+    REQUEST_STATUS_PUBLISHING,
+    REQUEST_STATUS_PUBLISHED,
+    REQUEST_STATUS_ARCHIVED,
+    REQUEST_STATUS_REJECTED,
+]
+
+REQUEST_STATUS_LABELS = {
+    "NEW": "\U0001f195 \u062c\u062f\u064a\u062f",
+    "UNDER_REVIEW": "\U0001f50d \u0642\u064a\u062f \u0627\u0644\u0645\u0631\u0627\u062c\u0639\u0629",
+    "APPROVED": "\u2705 \u0645\u0648\u0627\u0641\u0642",
+    "PUBLISHING": "\u23f3 \u062c\u0627\u0631\u064d \u0627\u0644\u0646\u0634\u0631",
+    "PUBLISHED": "\U0001f4e2 \u0645\u0646\u0634\u0648\u0631",
+    "ARCHIVED": "\U0001f4e6 \u0645\u0624\u0631\u0634\u064e\u0641",
+    "REJECTED": "\u274c \u0645\u0631\u0641\u0648\u0636",
+}
+
+def normalize_request_status(item):
+    """تطبيع حالة الطلب القديمة إلى نظام الحالات الجديد (Phase 4)."""
+    cur = item.get("status", "")
+    pub = item.get("publish_status", "")
+    if cur in REQUEST_STATUS_ALL:
+        return cur
+    if pub == "Published" or cur == "approved":
+        return REQUEST_STATUS_PUBLISHED
+    if cur == "rejected":
+        return REQUEST_STATUS_REJECTED
+    if cur == "pending":
+        return REQUEST_STATUS_UNDER_REVIEW
+    return REQUEST_STATUS_NEW
+
 BOT_OFFERS = DATA_DIR / "bot_offers.json"
 NEWS_JSON = WEBSITE_DIR / "offers-data" / "news.json"  # الأخبار العقارية التلقائية
 OFFICE_DATA_JSON = WEBSITE_DIR / "offers-data" / "office-data.json"  # بوصلة الأسعار
@@ -2796,6 +2843,28 @@ async def _approve_visitor_request(update, req_ref, query=None):
             bousla_price = f"{item_price} ريال"
         # وإلا تبقى متوسط البوصلة (bousla_price الذي تم حسابه)
 
+    # Phase 4: جلب صور الطلب من GitHub إذا لم تكن موجودة محلياً
+    _request_images = list(item.get("images", []))
+    _img_source_note = ""
+    if not _request_images and github_sync.is_enabled():
+        try:
+            gh_images = await asyncio.to_thread(github_sync.fetch_visitor_request_images, item.get("id", ""))
+            if gh_images:
+                downloaded = []
+                for gh_path in gh_images[:CONFIG.get("max_images", 5)]:
+                    local_rel = await asyncio.to_thread(github_sync.download_visitor_image, gh_path, str(WEBSITE_DIR))
+                    if local_rel:
+                        downloaded.append(local_rel)
+                if downloaded:
+                    _request_images = downloaded
+                    item["images"] = _request_images
+                    _img_source_note = f" 📎 {len(_request_images)} صورة من GitHub"
+                    logger.info(f"Phase4: تم جلب {len(_request_images)} صورة للطلب {item.get('id')}")
+        except Exception as _gie:
+            logger.error(f"Phase4: خطأ جلب صور الطلب: {_gie}")
+            if error_reporter:
+                error_reporter.report_error("bot._approve_visitor_request.fetch_images", _gie, context={"request_id": item.get("id", "")}, severity="warning", file_affected="bot/bot.py")
+
     # 3) بناء كائن العرض
     offer = {
         "id": offer_id,
@@ -2814,7 +2883,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
             str(item_size),
         ),
         "features": [],
-        "images": list(item.get("images", [])),
+        "images": list(_request_images),
         # إخفاء الموقع الحقيقي — استخدام موقع المكتب
         "map_link": CONFIG.get("office_location", ""),
         "visitor_map_link": item.get("mapsLink", item.get("maps_link", "")),
@@ -2858,6 +2927,11 @@ async def _approve_visitor_request(update, req_ref, query=None):
             await update.message.reply_text(err_msg)
         return
 
+    # Phase 4: تعيين حالة PUBLISHING قبل النشر
+    item["status"] = REQUEST_STATUS_PUBLISHING
+    item["publishing_started_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    save_visitor_requests(data)
+
     # 5) نشر مباشر على الموقع
     try:
         site_data = load_offers_json()
@@ -2874,12 +2948,23 @@ async def _approve_visitor_request(update, req_ref, query=None):
     # Task 4: التحقق من نجاح النشر — تأكد أن العرض موجود في offers.json
     verify_data = load_offers_json()
     verify_ok = any(o.get("id") == offer_id for o in verify_data.get("offers", []))
-    if not verify_ok:
+    # Phase 4: التحقق من القسم الصحيح
+    verify_offer = next((o for o in verify_data.get("offers", []) if o.get("id") == offer_id), None)
+    verify_section_ok = True
+    if verify_offer:
+        _v_type = verify_offer.get("type", "").lower()
+        _expected = offer.get("type", "").lower()
+        if _v_type != _expected:
+            verify_section_ok = False
+            logger.error(f"Phase4: خطأ القسم: متوقع {_expected} موجود {_v_type}")
+    if not verify_ok or not verify_section_ok:
         err_msg = "❌ فشل النشر\n\nالسبب: العرض غير موجود في بيانات الموقع بعد الحفظ"
         if query:
             await query.edit_message_text(err_msg)
         else:
             await update.message.reply_text(err_msg)
+        if error_reporter:
+            error_reporter.report_error("bot._approve_visitor_request.verify", "Publish verification failed", context={"offer_id": offer_id, "section_ok": False}, severity="critical", file_affected="offers-data/offers.json")
         return
 
     # 6) مزامنة مع GitHub — Task 5: تنفيذ غير متزامن (non-blocking) باستخدام asyncio.to_thread
@@ -2901,11 +2986,14 @@ async def _approve_visitor_request(update, req_ref, query=None):
         sync_ok = False
 
     # 7) تحديث حالة الطلب إلى approved (لا يحذف)
-    item["status"] = "approved"
+    item["status"] = REQUEST_STATUS_PUBLISHED
     item["publish_status"] = "Published"
     item["published_offer_id"] = offer_id
     item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    item["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     save_visitor_requests(data)
+    if error_reporter:
+        error_reporter.report_success("bot._approve_visitor_request", "publish_offer", {"offer_id": offer_id, "status": REQUEST_STATUS_PUBLISHED})
 
     # 8) تحديث البوصلة تلقائياً
     try:
@@ -2933,12 +3021,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
     else:
         await update.message.reply_text(msg)
 
-    # Task 4: حذف رسالة الطلب الأصلية بعد نجاح النشر
-    if query and query.message:
-        try:
-            await query.message.delete()
-        except Exception as de:
-            logger.warning(f"⚠️ تعذّر حذف رسالة الطلب الأصلية: {de}")
+    # Phase 4: عدم حذف رسالة الطلب الأصلية — الابقاء سجل الطلب
 
     # إعادة تعيين جلسة المستخدم الحالي (الإدارة)
     try:
