@@ -8,6 +8,17 @@ Allow: /services.html
 Allow: /list-property.html
 Allow: /inquiry.html
 Allow: /contact.html
+Allow: /real-estate-riyadh/
+Allow: /real-estate-alkharj/
+Allow: /farms-riyadh/
+Allow: /farms-alkharj/
+Allow: /resthouses-riyadh/
+Allow: /resthouses-alkharj/
+Allow: /lands-riyadh/
+Allow: /lands-alkharj/
+Allow: /property-management-riyadh/
+Allow: /well-drilling-services/
+Allow: /well-location-services/
 Allow: /css/
 Allow: /js/
 Allow: /images/

@@ -21,6 +21,24 @@
                 window.location.replace(redirectUrl);
                 return;
             }
+            // Handle SEO landing page clean URLs (without trailing slash)
+            // e.g. /farms-riyadh → /farms-riyadh/
+            var landingPages = [
+                'farms-riyadh', 'farms-alkharj',
+                'resthouses-riyadh', 'resthouses-alkharj',
+                'lands-riyadh', 'lands-alkharj',
+                'real-estate-riyadh', 'real-estate-alkharj',
+                'property-management-riyadh',
+                'well-drilling-services', 'well-location-services'
+            ];
+            var pathSegments = path.replace(/\/+$/, '').split('/');
+            var lastSegment = pathSegments[pathSegments.length - 1];
+            if (landingPages.indexOf(lastSegment) !== -1) {
+                var basePath = path.replace(new RegExp(lastSegment + '.*$'), '');
+                var redirectUrl = basePath + lastSegment + '/' + window.location.search + window.location.hash;
+                window.location.replace(redirectUrl);
+                return;
+            }
             // Default: redirect to home
             var homePath = path.split('/').slice(0, -1).join('/') + '/';
             window.location.replace(homePath || './');
