@@ -461,6 +461,25 @@ def get_repair(repair_id: str) -> dict:
             return item
     return None
 
+def reject_repair(repair_id: str, admin_id: int = 0, notes: str = "") -> dict:
+    """Phase Completion: رفض تقرير إصلاح — تغيير الحالة إلى rejected"""
+    try:
+        queue = _load_repair_queue()
+        for item in queue["queue"]:
+            if item["repair_id"] == repair_id:
+                item["status"] = "rejected"
+                item["rejected_by"] = admin_id
+                item["rejected_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if notes:
+                    item["rejection_notes"] = notes
+                _save_repair_queue(queue)
+                logger.info(f"Phase Completion: تم رفض إصلاح {repair_id}")
+                return {"success": True, "repair_id": repair_id, "message": "تم رفض الإصلاح"}
+        return {"success": False, "message": "الإصلاح غير موجود"}
+    except Exception as e:
+        logger.error(f"خطأ في رفض الإصلاح: {e}")
+        return {"success": False, "message": str(e)}
+
 
 def health_check() -> dict:
     queue = _load_repair_queue()

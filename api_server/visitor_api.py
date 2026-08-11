@@ -132,6 +132,12 @@ def build_notification_html(req):
     html += f"<b>\U0001f502 عملية:</b> {_op_label}\n"
 
     html += f"<b>\U0001f3f7\ufe0f نوع العقار:</b> {req.get('propertyType', 'غير محدد')}\n"
+    _section = req.get("section", "")
+    if _section:
+        html += f"<b>\U0001f4cb \u0627\u0644\u0642\u0633\u0645:</b> {_section}\n"
+    _classification = req.get("classification", "")
+    if _classification:
+        html += f"<b>\U0001f3f7\ufe0f \u0627\u0644\u062a\u0635\u0646\u064a\u0641:</b> {_classification}\n"
     html += f"<b>\U0001f4cd الموقع:</b> {req.get('location', 'غير محدد')}\n"
     html += f"<b>\U0001f4d0 المساحة:</b> {req.get('area', 'غير محدد')} م\u00b2\n"
 
@@ -330,6 +336,8 @@ async def handle_visitor_request(request):
         "currentHighestBid": str(data.get("currentHighestBid", data.get("current_highest_bid", ""))),
         "bidAmount": str(data.get("bidAmount", data.get("bid_amount", ""))),
         "bidNotes": str(data.get("bidNotes", data.get("bid_notes", data.get("notes", "")))),
+        "section": str(data.get("section", "")),  # Phase Completion: section
+        "classification": str(data.get("classification", "")),  # Phase Completion: full classification
         "source": str(data.get("source", "website_api")),
         "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "status": "pending",

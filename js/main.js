@@ -1056,7 +1056,7 @@ function submitPropertyForm(event) {
     const priceDisplay = formatNumber(data.price); // النسخة المنسقة للعرض
 
     // التحقق من الحقول المطلوبة
-    if (!data.name || !data.phone || !data.location || !data.propertyType || !data.area || !data.price) {
+    if (!data.name || !data.phone || !data.section || !data.location || !data.propertyType || !data.area || !data.price) {
         showToast('يرجى تعبئة جميع الحقول المطلوبة', 'error');
         return false;
     }
@@ -1103,6 +1103,7 @@ function submitPropertyForm(event) {
     let msg = `*\u{1F3E0} طلب عرض عقار جديد*\n\n`;
     msg += `*\u{1F464} الاسم:* ${data.name}\n`;
     msg += `*\u{1F4DE} الجوال:* ${data.phone}\n`;
+    msg += `*\u{1F4CB} القسم:* ${data.section || 'غير محدد'}\n`;
     msg += `*\u{1F3F7}\u{FE0F} نوع العقار:* ${data.propertyType || 'غير محدد'}\n`;
     msg += `*\u{1F502} عملية:* ${data.operation_type === 'rent' ? 'للإيجار' : 'للبيع'}\n`;
     msg += `*\u{1F4CD} الموقع:* ${data.location || 'غير محدد'}\n`;
@@ -1150,6 +1151,8 @@ function submitPropertyForm(event) {
                 id: data.id,
                 name: data.name,
                 phone: data.phone,
+                section: data.section,
+                classification: (data.section ? data.section + ' / ' : '') + (data.location || '') + ' / ' + (data.propertyType || ''),
                 propertyType: data.propertyType,
                 location: data.location,
                 area: data.area,

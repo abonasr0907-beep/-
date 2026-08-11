@@ -1568,6 +1568,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if details.get("errors"):
             msg += f"\u26a0\ufe0f أخطاء: {len(details['errors'])}\n"
         await query.edit_message_text(msg)
+    elif data.startswith("repair_reject_"):
+        repair_id = data[len("repair_reject_"):]
+        reject_result = smart_repair.reject_repair(repair_id, update.effective_user.id, notes="\u062a\u0645 \u0631\u0641\u0636 \u0627\u0644\u0625\u0635\u0644\u0627\u062d \u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0645\u062f\u064a\u0631")
+        await query.edit_message_text(f"\u274c \u062a\u0645 \u0631\u0641\u0636 \u0625\u0635\u0644\u0627\u062d {repair_id}")
+    elif data == "repair_list":
+        pending = smart_repair.list_pending_repairs()
+        if not pending:
+            await query.edit_message_text("\u2705 \u0644\u0627 \u062a\u0648\u062c\u062f \u0625\u0635\u0644\u0627\u062d\u0627\u062a \u0645\u0639\u0644\u0642\u0629")
+            return
+        msg = "\U0001f4cb \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0625\u0635\u0644\u0627\u062d\u0627\u062a \u0627\u0644\u0645\u0639\u0644\u0642\u0629:\n\n"
+        for r in pending[:10]:
+            msg += f"\u2022 {r['repair_id'][:30]} \u2014 {r.get('issue_type', '')}\n"
+        await query.edit_message_text(msg)
 
     # ── Phase 3: حماية الطوارئ ──
     elif data == "emergency_scan":

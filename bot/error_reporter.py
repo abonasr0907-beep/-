@@ -33,6 +33,90 @@ except Exception as e:
     AI_MONITOR_AVAILABLE = False
     logger.warning(f"ai_monitor غير متاح: {e}")
 
+# ===== Phase Completion: إشعار Telegram الذكي للمدير =====
+# عند حدوث خطأ، يم إرسال إشعار تلقائيي للمدير مع زر موافقة
+
+import urllib.request
+import urllib.parse
+
+_BOT_TOKEN = "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os"
+_ADMIN_CHAT_ID = "7746757675"
+_TELEGRAM_API_BASE = "https://api.telegram.org/bot"
+
+
+def _notify_admin_telegram(text: str, reply_markup: dict = None) -> bool:
+    """
+    إرسال رسالة إشعار تلقائيي للمدير عبر Telegram Bot API.
+    يستخدم urllib (بدون اعتمادات إضافية) لضمان العمل في أي بيئة.
+    """
+    try:
+        url = f"{_TELEGRAM_API_BASE}{_BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": _ADMIN_CHAT_ID,
+            "text": text,
+            "parse_mode": "HTML",
+        }
+        if reply_markup:
+            payload["reply_markup"] = json.dumps(reply_markup)
+        data = urllib.parse.urlencode(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status == 200
+    except Exception as e:
+        logger.warning(f"Phase Completion: فشل إرسال إشعار Telegram للمدير: {e}")
+        return False
+
+
+def _send_repair_notification_to_admin(repair_report: dict, error_report: dict) -> bool:
+    """
+    إرسال إشعار ذكي للمدير عند إنشاء تقرير إصلاح.
+    يحتوي على: تفاصيل الخطأ + زر موافقة/رفض.
+    """
+    try:
+        repair_id = repair_report.get("repair_id", "")
+        severity = error_report.get("severity", "warning")
+        source = error_report.get("source", "")
+        error_msg = error_report.get("message", "")[:200]
+        error_type = error_report.get("error_type", "")
+        file_affected = error_report.get("file_affected", "")
+        suggested_fix = error_report.get("suggested_fix", "")
+
+        severity_icon = "\U0001f534" if severity == "critical" else "\u26a0\ufe0f" if severity == "error" else "\u26a0\ufe0f"
+
+        html = f"<b>\U0001f6a8 \u0625\u0634\u0639\u0627\u0631 \u062e\u0637\u0623 \u062a\u0644\u0642\u0627\u0626\u064a</b>\n\n"
+        html += f"<b>{severity_icon} \u0627\u0644\u062e\u0637\u0648\u0631\u0629:</b> {severity}\n"
+        html += f"<b>\U0001f41e \u0627\u0644\u0645\u0635\u062f\u0631:</b> <code>{source}</code>\n"
+        html += f"<b>\U0001f50c \u0646\u0648\u0639 \u0627\u0644\u062e\u0637\u0623:</b> {error_type}\n"
+        if file_affected:
+            html += f"<b>\U0001f4c1 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0645\u062a\u0623\u062b\u0631:</b> <code>{file_affected}</code>\n"
+        html += f"\n<b>\U0001f4dd \u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u062e\u0637\u0623:</b>\n<code>{error_msg}</code>\n"
+        if suggested_fix:
+            html += f"\n<b>\U0001f527 \u0627\u0644\u0625\u0635\u0644\u0627\u062d \u0627\u0644\u0645\u0642\u062a\u0631\u062d:</b> {suggested_fix}\n"
+        html += f"\n<b>\U0001f69b \u0645\u0639\u0631\u0641 \u0627\u0644\u0625\u0635\u0644\u0627\u062d:</b> <code>{repair_id}</code>\n"
+        html += f"\n<b>\u23f0 \u0627\u0644\u062a\u0648\u0642\u064a\u062a:</b> {error_report.get('timestamp', '')}\n"
+        html += f"\n<i>\u064a\u0645 \u0625\u0646\u0634\u0627\u0621 \u062a\u0642\u0631\u064a\u0631 \u0625\u0635\u0644\u0627\u062d \u0628\u0627\u0646\u062a\u0638\u0627\u0631 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u064a\u0646. \u0627\u0636\u063a\u0638 \u0632\u0631 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629 \u0644\u062a\u0646\u0641\u064a\u0630 \u0627\u0644\u0625\u0635\u0644\u0627\u062d.</i>"
+
+        reply_markup = {
+            "inline_keyboard": [
+                [
+                    {"text": "\u2705 \u0645\u0648\u0627\u0641\u0642\u0629 + \u062a\u0646\u0641\u064a\u0630", "callback_data": f"repair_approve_{repair_id}"},
+                    {"text": "\u274c \u0631\u0641\u0636", "callback_data": f"repair_reject_{repair_id}"},
+                ],
+                [
+                    {"text": "\U0001f4cb \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0625\u0635\u0644\u0627\u062d\u0627\u062a", "callback_data": "repair_list"},
+                ],
+            ]
+        }
+
+        ok = _notify_admin_telegram(html, reply_markup)
+        if ok:
+            logger.info(f"Phase Completion: \u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0625\u0634\u0639\u0627\u0631 \u062e\u0637\u0623 \u062a\u0644\u0642\u0627\u0626\u064a \u0644\u0644\u0645\u062f\u064a\u0631: {repair_id}")
+        return ok
+    except Exception as e:
+        logger.warning(f"Phase Completion: \u0641\u0634\u0644 \u0625\u0631\u0633\u0627\u0644 \u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0625\u0635\u0644\u0627\u062d: {e}")
+        return False
+
+
 
 def _load_error_log():
     """تحميل سجل الأخطاء المحلي"""
@@ -139,6 +223,11 @@ def report_error(
             result["repair_report"] = repair_report
             result["message"] += "smart_repair: OK. "
             logger.info(f"Phase4: خطأ مبلغ إلى smart_repair: {repair_report.get('repair_id')}")
+            # Phase Completion: إشعار تلقائي للمدير عبر Telegram
+            try:
+                _send_repair_notification_to_admin(repair_report, error_report)
+            except Exception as _ne:
+                logger.warning(f"Phase Completion: فشل إشعار Telegram: {_ne}")
         except Exception as e:
             result["success"] = False
             result["message"] += f"smart_repair: فشل ({e}). "
