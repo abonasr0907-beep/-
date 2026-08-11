@@ -265,6 +265,12 @@
             <button class="filter-btn" data-filter="resthouse" onclick="filterOffers('resthouse')"><i class="fas fa-home"></i> استراحات</button>
             <button class="filter-btn" data-filter="land" onclick="filterOffers('land')"><i class="fas fa-map"></i> أراضي سكنية</button>
         </div>
+        <!-- Phase 4: فلتر نوع العقار -->
+        <div class="property-type-filter" style="margin: 10px 0; text-align: center;">
+            <select id="property-type-select" onchange="filterByPropertyType(this.value)" style="padding: 8px 16px; border: 2px solid #2A5050; border-radius: 8px; font-size: 14px; font-family: inherit; background: #fff; color: #2A5050; cursor: pointer; min-width: 200px;">
+                <option value="all">كل أنواع العقارات</option>
+            </select>
+        </div>
 
         <div class="offers-grid" id="offers-grid">
             <p style="text-align:center; grid-column:1/-1; padding:40px; color:#555;">جاري تحميل العروض...</p>

@@ -16,6 +16,12 @@ import json
 import time
 import base64
 import asyncio
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + '/bot')
+try:
+    import error_reporter
+except Exception:
+    error_reporter = None
 from datetime import datetime
 from aiohttp import web, ClientSession
 
@@ -200,55 +206,89 @@ async def send_telegram_notification(req):
 
 async def send_telegram_images(request_id, image_data_list):
     """
-    إرسال صور الطلب للمدير عبر Telegram sendMediaGroup API
+    إرسال صور الطلب للمدير عبر Telegram:
+    - أول صورة: sendPhoto مع caption يحتوي ID + أزرار الموافقة/الرفض (reply_markup)
+    - باقي الصور: sendMediaGroup مع caption مرتبط برقم الطلب
     image_data_list: قائمة من (filename, bytes)
     """
     if not image_data_list:
         return True
 
-    url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendMediaGroup"
+    first_ok = True
+    group_ok = True
 
-    # بناء حقل media كـ JSON يحتوي على مراجع attach:// للصور
-    import json as _json
-    media = []
-    for idx, (filename, data) in enumerate(image_data_list[:10]):
-        media.append({
-            "type": "photo",
-            "media": f"attach://photo_{idx}",
-        })
-
-    # إضافة عنوان تشتيلي على أول صورة
-    if media:
-        media[0]["caption"] = f"📸 صور طلب زائر: {request_id}"
-
-    form = aiohttp.FormData()
-    form.add_field("chat_id", ADMIN_CHAT_ID)
-    form.add_field("media", _json.dumps(media))
-
-    for idx, (filename, data) in enumerate(image_data_list[:10]):
-        form.add_field(
-            f"photo_{idx}",
-            data,
-            filename=filename,
-            content_type="image/jpeg",
-        )
-
+    # 1) إرسال أول صورة مع أزرار الموافقة/الرفض (sendPhoto يدعم reply_markup)
     try:
+        first_filename, first_data = image_data_list[0]
+        photo_url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendPhoto"
+        caption = (
+            f"\U0001f4f8 \u0635\u0648\u0631 \u0637\u0644\u0628 \u0632\u0627\u0626\u0631\n"
+            f"\U0001f4c4 \u0631\u0642\u0645 \u0627\u0644\u0637\u0644\u0628: <code>{request_id}</code>\n"
+            f"\U0001f522 \u0639\u062f\u062f \u0627\u0644\u0635\u0648\u0631: {len(image_data_list)}\n\n"
+            f"\u2705 \u0645\u0648\u0627\u0641\u0642\u0629 \u0648\u0646\u0634\u0631  |  \u274c \u0631\u0641\u0636"
+        )
+        reply_markup = {
+            "inline_keyboard": [
+                [{"text": "\u2705 \u0645\u0648\u0627\u0641\u0642\u0629 \u0648\u0646\u0634\u0631", "callback_data": f"vreq_approve_{request_id}"}],
+                [{"text": "\u274c \u0631\u0641\u0636", "callback_data": f"vreq_reject_{request_id}"}],
+            ]
+        }
+        form1 = aiohttp.FormData()
+        form1.add_field("chat_id", ADMIN_CHAT_ID)
+        form1.add_field("photo", first_data, filename=first_filename, content_type="image/jpeg")
+        form1.add_field("caption", caption)
+        form1.add_field("parse_mode", "HTML")
+        form1.add_field("reply_markup", json.dumps(reply_markup))
         async with ClientSession() as session:
-            async with session.post(url, data=form) as resp:
+            async with session.post(photo_url, data=form1) as resp:
                 result = await resp.json()
-                if result.get("ok"):
-                    print(f"[API] ✅ تم إرسال {len(image_data_list[:10])} صورة للمدير: {request_id}")
-                    return True
+                if not result.get("ok"):
+                    print(f"[API] \u26a0\ufe0f \u0641\u0634\u0644 \u0625\u0631\u0633\u0627\u0644 \u0623\u0648\u0644 \u0635\u0648\u0631\u0629 \u0628\u0623\u0632\u0631\u0627\u0631: {result}")
+                    first_ok = False
                 else:
-                    print(f"[API] ❌ فشل إرسال الصور: {result}")
-                    return False
+                    print(f"[API] \u2705 \u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0623\u0648\u0644 \u0635\u0648\u0631\u0629 \u0628\u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629: {request_id}")
     except Exception as e:
-        print(f"[API] ❌ خطأ في إرسال الصور: {e}")
-        return False
+        print(f"[API] \u26a0\ufe0f \u062e\u0637\u0623 \u0641\u064a \u0625\u0631\u0633\u0627\u0644 \u0623\u0648\u0644 \u0635\u0648\u0631\u0629: {e}")
+        first_ok = False
 
+    # 2) إرسال باقي الصور (إن وُجدت) عبر sendMediaGroup
+    if len(image_data_list) > 1:
+        try:
+            rest = image_data_list[1:10]
+            url = f"{TELEGRAM_API_BASE}{BOT_TOKEN}/sendMediaGroup"
+            media = []
+            for idx, (filename, data) in enumerate(rest):
+                media.append({
+                    "type": "photo",
+                    "media": f"attach://photo_{idx}",
+                })
+            if media:
+                media[0]["caption"] = f"\U0001f4f8 \u0627\u0644\u0645\u0632\u064a\u062f \u0645\u0646 \u0635\u0648\u0631 \u0627\u0644\u0637\u0644\u0628: {request_id}"
 
-# ===== معالج API =====
+            form = aiohttp.FormData()
+            form.add_field("chat_id", ADMIN_CHAT_ID)
+            form.add_field("media", json.dumps(media))
+            for idx, (filename, data) in enumerate(rest):
+                form.add_field(
+                    f"photo_{idx}",
+                    data,
+                    filename=filename,
+                    content_type="image/jpeg",
+                )
+            async with ClientSession() as session:
+                async with session.post(url, data=form) as resp:
+                    result = await resp.json()
+                    if not result.get("ok"):
+                        print(f"[API] \u26a0\ufe0f \u0641\u0634\u0644 \u0625\u0631\u0633\u0627\u0644 \u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0635\u0648\u0631 \u0627\u0644\u0625\u0636\u0627\u0641\u064a\u0629: {result}")
+                        group_ok = False
+                    else:
+                        print(f"[API] \u2705 \u062a\u0645 \u0625\u0631\u0633\u0627\u0644 {len(rest)} \u0635\u0648\u0631\u0629 \u0625\u0636\u0627\u0641\u064a\u0629: {request_id}")
+        except Exception as e:
+            print(f"[API] \u26a0\ufe0f \u062e\u0637\u0623 \u0641\u064a \u0625\u0631\u0633\u0627\u0644 \u0645\u062c\u0645\u0648\u0639\u0629 \u0627\u0644\u0635\u0648\u0631 \u0627\u0644\u0625\u0636\u0627\u0641\u064a\u0629: {e}")
+            group_ok = False
+
+    return first_ok or group_ok
+
 
 async def handle_visitor_request(request):
     """استقبال طلب زائر من الموقع"""

@@ -23,7 +23,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-01",
-      "featured": true
+      "featured": true,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "FRM-002",
@@ -47,7 +50,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-02",
-      "featured": false
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "FRM-003",
@@ -71,7 +77,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-03",
-      "featured": false
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "FRM-004",
@@ -94,7 +103,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-04",
-      "featured": false
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "FRM-005",
@@ -118,7 +130,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-05",
-      "featured": true
+      "featured": true,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "RST-001",
@@ -143,7 +158,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-01",
-      "featured": true
+      "featured": true,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "RST-002",
@@ -167,7 +185,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-02",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "RST-003",
@@ -191,7 +212,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-03",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "RST-004",
@@ -215,7 +239,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-04",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "LND-001",
@@ -240,7 +267,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-01",
-      "featured": true
+      "featured": true,
+      "section": "أراضي",
+      "property_type": "أرض سكنية",
+      "operation_type": "sale"
     },
     {
       "id": "LND-002",
@@ -264,7 +294,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-02",
-      "featured": false
+      "featured": false,
+      "section": "أراضي",
+      "property_type": "أرض سكنية",
+      "operation_type": "sale"
     },
     {
       "id": "LND-003",
@@ -287,7 +320,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-03",
-      "featured": false
+      "featured": false,
+      "section": "أراضي",
+      "property_type": "أرض سكنية",
+      "operation_type": "sale"
     },
     {
       "id": "LND-004",
@@ -310,7 +346,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2025-08-04",
-      "featured": false
+      "featured": false,
+      "section": "أراضي",
+      "property_type": "أرض سكنية",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0001",
@@ -327,7 +366,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0005",
@@ -344,7 +386,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0006",
@@ -365,7 +410,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0008",
@@ -386,7 +434,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0010",
@@ -403,7 +454,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0012",
@@ -420,7 +474,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0013",
@@ -441,7 +498,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "أراضي",
+      "property_type": "أرض سكنية",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0014",
@@ -462,7 +522,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0016",
@@ -483,7 +546,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0017",
@@ -504,7 +570,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0018",
@@ -523,7 +592,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-09",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0020",
@@ -542,7 +614,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "استراحات",
+      "property_type": "استراحة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0022",
@@ -559,7 +634,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "AFQ-2026-0023",
@@ -576,7 +654,10 @@
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
-      "featured": false
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
+      "operation_type": "sale"
     },
     {
       "id": "LND-0AE3E2",
@@ -603,7 +684,9 @@
       "highestBid": "",
       "operation_type": "sale",
       "visitor_name": "اختبار Railway",
-      "visitor_phone": "0509998888"
+      "visitor_phone": "0509998888",
+      "section": "أراضي",
+      "property_type": "قصر"
     },
     {
       "id": "LND-142D0E",
@@ -630,7 +713,9 @@
       "highestBid": "",
       "operation_type": "sale",
       "visitor_name": "افاق العقاري بعد التحديث",
-      "visitor_phone": "0561610748"
+      "visitor_phone": "0561610748",
+      "section": "أراضي",
+      "property_type": "أرض تجارية"
     },
     {
       "id": "FRM-AB0149",
@@ -657,7 +742,9 @@
       "highestBid": "",
       "operation_type": "sale",
       "visitor_name": "افاق العقاري8",
-      "visitor_phone": "0561610748"
+      "visitor_phone": "0561610748",
+      "section": "أراضي",
+      "property_type": "مزرعة"
     }
   ]
 }

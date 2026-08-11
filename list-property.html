@@ -223,6 +223,15 @@
                             <button type="button" class="btn-map-gps" onclick="useMyGPS()"><i class="fas fa-location-arrow"></i> استخدام موقعي الحالي (GPS)</button>
                             <button type="button" class="btn-map-clear" onclick="clearMapLocation()"><i class="fas fa-times-circle"></i> مسح التحديد</button>
                         </div>
+                                                <div class="map-search-box" style="margin-bottom:10px; position:relative; z-index:1001;">
+                            <input type="text" id="map-search-input" class="map-search-input" placeholder="ابحث عن موقع على الخريطة..." style="width:100%; padding:10px 14px; border:2px solid #2A5050; border-radius:8px; font-size:14px; font-family:inherit; box-sizing:border-box;" autocomplete="off">
+                            <div id="map-search-results" class="map-search-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #ddd; border-radius:0 0 8px 8px; max-height:200px; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1002;"></div>
+                        </div>
+                        <div class="map-controls">
+                            <button type="button" class="btn-map-gps" onclick="useMyGPS()"><i class="fas fa-location-arrow"></i> استخدام موقعي الحالي (GPS)</button>
+                            <button type="button" class="btn-map-clear" onclick="clearMapLocation()"><i class="fas fa-times-circle"></i> مسح التحديد</button>
+                            <button type="button" class="btn-map-show-props" onclick="togglePropertiesOnMap()" style="background:#2A5050;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;"><i class="fas fa-home"></i> عرض العقارات على الخريطة</button>
+                        </div>
                         <div id="property-map" class="property-map"></div>
                         <div id="map-coords-display" class="map-coords-display" style="display:none;">
                             <i class="fas fa-map-pin"></i> <span id="coords-text"></span>
