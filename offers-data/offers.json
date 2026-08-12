@@ -480,30 +480,6 @@
       "operation_type": "sale"
     },
     {
-      "id": "AFQ-2026-0013",
-      "type": "land",
-      "category": "أرض سكنية",
-      "title": "مزرعه",
-      "area": "الهياثم",
-      "size_sqm": 10400,
-      "price_text": "٢,٥٠٠,٠٠٠",
-      "description": "🗺️ أرض سكنية للبيع في الهياثم بالخرج!\n\nمساحة 10400 م²، على شارعين، صك إلكتروني. جاهزة للبناء.\n\nفرصة ذهبية — تواصل: 0545888931",
-      "features": [],
-      "images": [
-        "images/bot/draft_0_1786338421.webp",
-        "images/bot/draft_1_1786338421.webp",
-        "images/bot/draft_2_1786338422.webp",
-        "images/bot/draft_3_1786338422.webp",
-        "images/bot/draft_4_1786338423.webp"
-      ],
-      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-      "date_added": "2026-08-10",
-      "featured": false,
-      "section": "أراضي",
-      "property_type": "أرض سكنية",
-      "operation_type": "sale"
-    },
-    {
       "id": "AFQ-2026-0014",
       "type": "resthouse",
       "category": "استراحة",
@@ -598,23 +574,25 @@
       "operation_type": "sale"
     },
     {
-      "id": "AFQ-2026-0022",
-      "type": "farm",
-      "category": "مزرعة",
-      "title": "مزرعة",
-      "area": "الرحمانية",
+      "id": "AFQ-2026-0020",
+      "type": "resthouse",
+      "category": "استراحة",
+      "title": "استراحة",
+      "area": "العفجة",
       "size_sqm": 5000,
-      "price_text": "علي السوم",
-      "description": "🌿 مزرعة خصبة للبيع في الرحمانية بالخرج!\n\nمساحة 5000 م²، موقع استراتيجي وقريب من الخدمات. فرصة استثمارية لا تعوض لمن يبحث عن مزرعة مثالية.\n\n📞 للتفاصيل والمعاينة: واتساب 0545888931",
+      "price_text": "قابل للتفاوض",
+      "description": "✨ استراحة مميزة في العفجة بالخرج\n\nالمساحة: 5000 م²\neبيئة هادئة وموقع مميز. فرصة لا تفوت!\n\nتواصل: 0544699933",
       "features": [],
       "images": [
-        "images/bot/draft_0_1786367510.webp"
+        "images/bot/draft_0_1786347842.webp",
+        "images/bot/draft_1_1786347842.webp",
+        "images/bot/draft_2_1786347843.webp"
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
       "featured": false,
-      "section": "مزارع",
-      "property_type": "مزرعة",
+      "section": "استراحات",
+      "property_type": "استراحة",
       "operation_type": "sale"
     },
     {
