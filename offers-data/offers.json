@@ -480,27 +480,27 @@
       "operation_type": "sale"
     },
     {
-      "id": "AFQ-2026-0013",
-      "type": "land",
-      "category": "أرض سكنية",
-      "title": "مزرعه",
-      "area": "الهياثم",
-      "size_sqm": 10400,
-      "price_text": "٢,٥٠٠,٠٠٠",
-      "description": "🗺️ أرض سكنية للبيع في الهياثم بالخرج!\n\nمساحة 10400 م²، على شارعين، صك إلكتروني. جاهزة للبناء.\n\nفرصة ذهبية — تواصل: 0545888931",
+      "id": "AFQ-2026-0014",
+      "type": "resthouse",
+      "category": "استراحة",
+      "title": "استراحة",
+      "area": "الشديده",
+      "size_sqm": 5000,
+      "price_text": "٧٥٠,٠٠٠",
+      "description": "🏖️ استراحة للبيع — الشديده\n\nمساحة 5000 م²، جاهزة للاستمتاع. قريبة من الخدمات والطرق الرئيسية.\n\nللاستفسار: 0561610748",
       "features": [],
       "images": [
-        "images/bot/draft_0_1786338421.webp",
-        "images/bot/draft_1_1786338421.webp",
-        "images/bot/draft_2_1786338422.webp",
-        "images/bot/draft_3_1786338422.webp",
-        "images/bot/draft_4_1786338423.webp"
+        "images/bot/draft_0_1786338645.webp",
+        "images/bot/draft_1_1786338645.webp",
+        "images/bot/draft_2_1786338646.webp",
+        "images/bot/draft_3_1786338646.webp",
+        "images/bot/draft_4_1786338646.webp"
       ],
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-10",
       "featured": false,
-      "section": "أراضي",
-      "property_type": "أرض سكنية",
+      "section": "استراحات",
+      "property_type": "استراحة",
       "operation_type": "sale"
     },
     {
@@ -528,28 +528,6 @@
       "operation_type": "sale"
     },
     {
-      "id": "AFQ-2026-0018",
-      "type": "resthouse",
-      "category": "استراحة",
-      "title": "استراحة",
-      "area": "الرحمانية",
-      "size_sqm": 10000,
-      "price_text": "قابل للتفاوض",
-      "description": "✨ استراحة مميزة في الرحمانية بالخرج\n\nالمساحة: 10000 م²\neبيئة هادئة وموقع مميز. فرصة لا تفوت!\n\nتواصل: 0544699933",
-      "features": [],
-      "images": [
-        "images/bot/draft_0_1786347679.webp",
-        "images/bot/draft_1_1786347679.webp",
-        "images/bot/draft_2_1786347679.webp"
-      ],
-      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-      "date_added": "2026-08-09",
-      "featured": false,
-      "section": "استراحات",
-      "property_type": "استراحة",
-      "operation_type": "sale"
-    },
-    {
       "id": "AFQ-2026-0020",
       "type": "resthouse",
       "category": "استراحة",
@@ -569,6 +547,26 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
+      "operation_type": "sale"
+    },
+    {
+      "id": "AFQ-2026-0022",
+      "type": "farm",
+      "category": "مزرعة",
+      "title": "مزرعة",
+      "area": "الرحمانية",
+      "size_sqm": 5000,
+      "price_text": "علي السوم",
+      "description": "🌿 مزرعة خصبة للبيع في الرحمانية بالخرج!\n\nمساحة 5000 م²، موقع استراتيجي وقريب من الخدمات. فرصة استثمارية لا تعوض لمن يبحث عن مزرعة مثالية.\n\n📞 للتفاصيل والمعاينة: واتساب 0545888931",
+      "features": [],
+      "images": [
+        "images/bot/draft_0_1786367510.webp"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-10",
+      "featured": false,
+      "section": "مزارع",
+      "property_type": "مزرعة",
       "operation_type": "sale"
     },
     {
@@ -748,35 +746,6 @@
       "operation_type": "sale",
       "visitor_name": "افاق العقاري",
       "visitor_phone": "0561610748"
-    },
-    {
-      "id": "FRM-E9F592",
-      "type": "land",
-      "category": "طلب مزايدة على مزرعة",
-      "section": "",
-      "property_type": "طلب مزايدة على مزرعة",
-      "title": "طلب مزايدة على مزرعة — الهياثم",
-      "area": "الهياثم",
-      "area_en": "",
-      "size_sqm": "",
-      "price": "26555555258",
-      "price_text": "26555555258 ريال",
-      "original_price": "26555555258",
-      "description": "📐 أرض سكنية مميزة في الهياثم\n\nالمساحة: — م²\neموقع استراتيجي وقريب من الخدمات. استثمار آمن.\n\nللتفاصيل: 0544699933\n\n📝 طلب مزايدة على العرض AFQ-2026-0025\nاسم العقار: مزرعة\nأعلى سوم حالي: 1,200,000 ريال\nالمزايدة الجديدة: 26,555,555,258 ريال\nرابط العرض: https://abonasr0907-beep.github.io/-/#offer-AFQ-2026-0025\nملاحظات: R usgdysh",
-      "features": [],
-      "images": [],
-      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-      "visitor_map_link": "",
-      "visitor_lat": "",
-      "visitor_lng": "",
-      "date_added": "2026-08-12",
-      "featured": false,
-      "source": "visitor_request",
-      "priceType": "fixed",
-      "highestBid": "",
-      "operation_type": "sale",
-      "visitor_name": "بغايها",
-      "visitor_phone": "0545888931"
     },
     {
       "id": "AFQ-2026-0026",
