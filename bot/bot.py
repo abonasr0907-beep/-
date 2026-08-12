@@ -148,7 +148,8 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # توكن البوت — مقدم من المستخدم
-BOT_TOKEN = "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os")
+# التوكن: يُقرأ من متغير البيئة BOT_TOKEN (Railway) أو القيمة الافتراضية
 
 logging.basicConfig(
     format="%(asctime)s — %(name)s — %(levelname)s — %(message)s",
@@ -4434,9 +4435,31 @@ def _generate_news():
 
 
 async def auto_update_news(context):
-    """تحديث تلقائي للأخبار كل 3 أيام"""
-    _generate_news()
-    logger.info("🗞️ تم التحديث التلقائي للأخبار العقارية")
+    """تحديث تلقائي للأخبار كل 3 أيام — مع حارس يمنع التحديث المتكرر عند إعادة التشغيل"""
+    try:
+        # تحقق: هل مرّت 3 أيام على الأقل منذ آخر تحديث؟
+        should_update = True
+        if NEWS_JSON.exists():
+            with open(NEWS_JSON, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            last_update_str = existing.get("last_update", "")
+            if last_update_str:
+                try:
+                    last_update_date = datetime.strptime(last_update_str, "%Y-%m-%d")
+                    days_since = (datetime.now() - last_update_date).days
+                    if days_since < 3:
+                        logger.info(
+                            f"🗒️ الأخبار حديثة (آخر تحديث: {last_update_str}، قبل {days_since} يوم) "
+                            f"— تخطّي التحديث لتجنّب إرسال git push متكرر عند إعادة التشغيل"
+                        )
+                        should_update = False
+                except (ValueError, TypeError):
+                    pass  # تاريخ غير صالح — اسمح بالتحديث
+        if should_update:
+            _generate_news()
+            logger.info("🗒️ تم التحديث التلقائي للأخبار العقارية")
+    except Exception as e:
+        logger.error(f"خطأ في auto_update_news: {e}")
 
 
 async def update_news_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -4804,8 +4827,69 @@ async def cmd_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 #  معالج الأخطاء العام
 # ============================================================
 async def error_handler(update, context):
-    """معالج الأخطاء العام — يسجل الأخطاء ويمنع توقف البوت"""
+    """
+    معالج الأخطاء العام — يسجل الأخطاء ويمنع توقف البوت.
+    يعالج أخطاء Timeout و Conflict و NetworkError بشكل خاص لمنع توقف Worker."""
     error = context.error
+
+    # ── معالجة خاصة لأخطاء الشبكة والاتصال ──
+    try:
+        from telegram.error import (
+            TimedOut, NetworkError, Conflict, BadRequest,
+            Forbidden, RetryAfter, InvalidToken,
+        )
+    except ImportError:
+        TimedOut = NetworkError = Conflict = BadRequest = None
+        Forbidden = RetryAfter = InvalidToken = None
+
+    # خطأ Timeout — شائع جداً، لا يسبب توقف البوت
+    if TimedOut and isinstance(error, TimedOut):
+        logger.warning(f"⏱️ انتهاء مهلة الطلب (TimedOut) — طلب عابر، سيتحسّن تلقائياً: {error}")
+        log_error("timeout", str(error), update.effective_user.id if update and update.effective_user else None)
+        return  # لا نرسل رسالة للمستخدم، هذه خطأ عابر
+
+    # خطأ Conflict — نسختان من البوت تعملان بنفس التوكن
+    if Conflict and isinstance(error, Conflict):
+        logger.error(f"⚠️ تعارض! نسختان من البوت تعملان بنفس التوكن: {error}")
+        logger.error("   تأكد من عدم تشغيل أكثر من نسخة واحدة من البوت.")
+        log_error("conflict", str(error), None)
+        # انتظار قصير ثم استمرار — Railway سيعيد التشغيل
+        await asyncio.sleep(5)
+        return
+
+    # خطأ شبكة — مؤقت، سيتحسن
+    if NetworkError and isinstance(error, NetworkError):
+        logger.warning(f"🌐 خطأ شبكة عابر (NetworkError): {error}")
+        log_error("network", str(error), update.effective_user.id if update and update.effective_user else None)
+        await asyncio.sleep(2)
+        return
+
+    # خطأ RetryAfter — Telegram يطلب الانتظار
+    if RetryAfter and isinstance(error, RetryAfter):
+        retry_after = getattr(error, 'retry_after', 5)
+        logger.warning(f"⏳ Telegram يطلب الانتظار {retry_after} ثانية قبل إرسال المزيد")
+        await asyncio.sleep(retry_after + 1)
+        return
+
+    # خطأ Forbidden — البوت محظور من المستخدم
+    if Forbidden and isinstance(error, Forbidden):
+        logger.warning(f"🚫 البوت محظور من المستخدم: {error}")
+        log_error("forbidden", str(error), update.effective_user.id if update and update.effective_user else None)
+        return
+
+    # خطأ InvalidToken — توكن غير صحيح
+    if InvalidToken and isinstance(error, InvalidToken):
+        logger.critical(f"🔑 توكن البوت غير صحيح! تأكد من BOT_TOKEN: {error}")
+        log_error("invalid_token", str(error), None)
+        return
+
+    # خطأ BadRequest — طلب غير صحيح
+    if BadRequest and isinstance(error, BadRequest):
+        logger.warning(f"❓ طلب غير صحيح (BadRequest): {error}")
+        log_error("bad_request", str(error), update.effective_user.id if update and update.effective_user else None)
+        return
+
+    # ── أخطاء أخرى غير متوقعة ──
     logger.error(f"❌ خطأ غير معالج: {error}\n{traceback.format_exc()}")
     log_error("unhandled", str(error), update.effective_user.id if update and update.effective_user else None)
     try:
@@ -5325,7 +5409,7 @@ def _setup_handlers(app):
         logger.info("🧭 تم جدولة تحديث الأسعار اليومي — كل يوم 6 صباحاً")
     # تحديث الأخبار كل 3 أيام
     if app.job_queue:
-        app.job_queue.run_repeating(auto_update_news, interval=3 * 24 * 3600, first=10)
+        app.job_queue.run_repeating(auto_update_news, interval=3 * 24 * 3600, first=3600)
         logger.info("🗞️ تم جدولة تحديث الأخبار — كل 3 أيام")
 
 
@@ -5606,8 +5690,29 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
 
 
 async def _handle_health(request):
-    """فحص صحة الخادم"""
-    return _json_response({"ok": True, "status": "running", "bot": "afaq"})
+    """فحص صحة الخادم — يتحقق أن البوت فعلاً يستجيب وليس فقط خادم HTTP"""
+    try:
+        import time as _time
+        health_info = {"ok": True, "status": "running", "bot": "afaq", "ts": int(_time.time())}
+        # تحقق إضافي: هل البوت متاح ويستجيب؟
+        if _bot_app_ref and _bot_app_ref.bot:
+            try:
+                me = await _bot_app_ref.bot.get_me()
+                health_info["bot_username"] = me.username
+                health_info["bot_alive"] = True
+            except Exception as bot_err:
+                # البوت لا يستجيب لكن خادم HTTP يعمل — حالة تنبيه
+                health_info["bot_alive"] = False
+                health_info["bot_error"] = str(bot_err)[:200]
+                health_info["status"] = "degraded"
+                logger.warning(f"Health check: bot not responding — {bot_err}")
+        else:
+            health_info["bot_alive"] = False
+            health_info["status"] = "starting"
+        return _json_response(health_info)
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return _json_response({"ok": False, "status": "error", "error": str(e)[:200]}, status=503)
 
 
 async def _handle_root(request):
@@ -5885,9 +5990,66 @@ async def _run_custom_webhook(app, webhook_url, port):
     except Exception as e:
         logger.error(f"\u26a0\ufe0f تعذر تعيين webhook (الخادم يستمر بالعمل): {e}")
 
-    # انتظار indefinite
-    import asyncio
-    await asyncio.Event().wait()  # يعمل للأبد
+    # ── انتظار indefinite مع مراقبة صحة البوت ──
+    # بدلاً من asyncio.Event().wait() التي لا تتعافى من الأخطاء،
+    # نستخدم حلقة مراقبة تعيد الاتصال عند الفشل
+    logger.info("🛡️ بدء حلقة مراقبة استقرار البوت (webhook mode)")
+    _webhook_shutdown_event = asyncio.Event()
+
+    # معالج إشارات الإيقاف (SIGTERM / SIGINT) — Railway يرسل SIGTERM
+    import signal
+    loop = asyncio.get_running_loop()
+
+    def _signal_handler(signame):
+        logger.info(f"📥 تم استلام إشارة {signame} — إيقاف آمن (graceful shutdown)")
+        _webhook_shutdown_event.set()
+
+    for signame in ("SIGTERM", "SIGINT"):
+        try:
+            loop.add_signal_handler(getattr(signal, signame), _signal_handler, signame)
+        except (NotImplementedError, RuntimeError):
+            # بعض الأنظمة لا تدعم add_signal_handler
+            pass
+
+    # حلقة مراقبة: كل 60 ثانية تتحقق من صحة البوت
+    while not _webhook_shutdown_event.is_set():
+        try:
+            # التحقق من أن البوت يستجيب
+            await app.bot.get_me()
+            logger.debug("✅ فحص صحة البوت: يستجيب بشكل طبيعي")
+        except Exception as e:
+            logger.warning(f"⚠️ فحص صحة البوت فشل (محاولة استرداد): {e}")
+            # محاولة استرداد الاتصال
+            try:
+                await app.bot.set_webhook(url=full_webhook_url, allowed_updates=Update.ALL_TYPES)
+                logger.info("🔗 تم إعادة تعيين webhook بنجاح")
+            except Exception as e2:
+                logger.error(f"❌ فشل إعادة تعيين webhook: {e2}")
+
+        # انتظار 60 ثانية أو حتى إشارة الإيقاف
+        try:
+            await asyncio.wait_for(_webhook_shutdown_event.wait(), timeout=60.0)
+        except asyncio.TimeoutError:
+            pass  # انتهت المهلة، نعيد الفحص
+
+    # ── إيقاف آمن ──
+    logger.info("🛑 بدء إيقاف آمن للبوت...")
+    try:
+        await app.stop()
+        logger.info("✅ تم إيقاف البوت")
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في إيقاف البوت: {e}")
+    try:
+        await app.shutdown()
+        logger.info("✅ تم إيقاف تشغيل البوت (shutdown)")
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في shutdown: {e}")
+    try:
+        await runner.cleanup()
+        logger.info("✅ تم تنظيف خادم aiohttp")
+    except Exception as e:
+        logger.error(f"⚠️ خطأ في تنظيف الخادم: {e}")
+    logger.info("👋 تم الإيقاف الآمن بنجاح")
 
 
 def main():
@@ -5989,7 +6151,16 @@ def main():
     else:
         # ─── وضع polling (للتشغيل المحلي) ───
         logger.info("🚀 تشغيل البوت في وضع POLLING (محلي)")
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
+        app.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,       # تجاهل التحديثات المعلّقة عند إعادة التشغيل
+            poll_interval=3.0,               # فاصل زمني بين عمليات الاستطلاع (ثواني)
+            timeout=30,                       # مهلة استجابة لكل طلب polling
+            read_timeout=30,
+            connect_timeout=15,
+            write_timeout=30,
+            pool_timeout=15,
+        )
 
 
 if __name__ == "__main__":

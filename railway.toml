@@ -6,17 +6,18 @@
 #
 # القرص الدائم (Volume): لمنع فقدان الجلسات والمسودات والنسخ الاحتياطية
 # يجب إضافة Volume في لوحة تحكم Railway مربوط بمسار /app/bot/data
+#
+# ملاحظة: لا نحدد startCommand هنا — Railway سيستخدم CMD من Dockerfile
+# (CMD ["python3", "bot.py"] مع WORKDIR /app/bot)
 
 [deploy]
-# Railway سيستخدم Dockerfile تلقائياً
-startCommand = "python3 bot.py"
 # إعادة التشغيل التلقائي عند التعطل
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
 [deploy.healthcheck]
-# فحص صحي بسيط — البوت يستمع على PORT في وضع webhook
+# فحص صحي — /health يتحقق أن البوت فعلاً يستجيب (وليس فقط خادم HTTP)
 # إذا تعطل البوت، Railway يعيد تشغيله تلقائياً
-httpPath = "/"
-initialDelaySeconds = 30
+httpPath = "/health"
+initialDelaySeconds = 60
 timeoutSeconds = 10
