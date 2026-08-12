@@ -816,6 +816,35 @@
       "operation_type": "sale",
       "visitor_name": "افاق العقاري",
       "visitor_phone": "0561610748"
+    },
+    {
+      "id": "FRM-E9F592",
+      "type": "land",
+      "category": "طلب مزايدة على مزرعة",
+      "section": "",
+      "property_type": "طلب مزايدة على مزرعة",
+      "title": "طلب مزايدة على مزرعة — الهياثم",
+      "area": "الهياثم",
+      "area_en": "",
+      "size_sqm": "",
+      "price": "26555555258",
+      "price_text": "26555555258 ريال",
+      "original_price": "26555555258",
+      "description": "📐 أرض سكنية مميزة في الهياثم\n\nالمساحة: — م²\neموقع استراتيجي وقريب من الخدمات. استثمار آمن.\n\nللتفاصيل: 0544699933\n\n📝 طلب مزايدة على العرض AFQ-2026-0025\nاسم العقار: مزرعة\nأعلى سوم حالي: 1,200,000 ريال\nالمزايدة الجديدة: 26,555,555,258 ريال\nرابط العرض: https://abonasr0907-beep.github.io/-/#offer-AFQ-2026-0025\nملاحظات: R usgdysh",
+      "features": [],
+      "images": [],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "visitor_map_link": "",
+      "visitor_lat": "",
+      "visitor_lng": "",
+      "date_added": "2026-08-12",
+      "featured": false,
+      "source": "visitor_request",
+      "priceType": "fixed",
+      "highestBid": "",
+      "operation_type": "sale",
+      "visitor_name": "بغايها",
+      "visitor_phone": "0545888931"
     }
   ]
 }
