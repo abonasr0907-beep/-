@@ -42,9 +42,23 @@ ROLE_REVIEWER = "reviewer"
 ROLE_PUBLISHER = "publisher"
 # توافق مع الإصدارات القديمة (editor = publisher فعلياً)
 ROLE_EDITOR = "editor"
+# ── أدوار جديدة (Phase: Bot & Listing Lifecycle) ──
+# المالك (owner): كل الصلاحيات بما فيها إدارة المدراء وتغيير الإعدادات الحساسة
+ROLE_OWNER = "owner"
+# مدير (manager): إضافة/تعديل/نشر/رفض/أرشفة عقار، اعتماد عروض الزوار والموقع،
+#   تعديل النص، إضافة نص تسويقي، عرض روابط العقارات، استقبال إشعارات الطلبات.
+#   لا يمكنه تغيير Tokens/Webhook/Data/الإعدادات الحساسة.
+ROLE_MANAGER = "manager"
+# زائر (visitor): مستخدم عادي يقدم عروضاً (status=pending) — لا صلاحيات إدارية
+ROLE_VISITOR = "visitor"
 
 STATUS_ACTIVE = "active"
 STATUS_SUSPENDED = "suspended"
+
+# الأدوار الإدارية (لها صلاحيات على البوت). visitor ليس إدارياً.
+STAFF_ROLES = (ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
+# من يمكنه إضافة/إزالة المدراء: owner و admin فقط
+MANAGER_MANAGE_ROLES = (ROLE_OWNER, ROLE_ADMIN)
 
 # خريطة الصلاحيات حسب الدور
 # manage_users: إدارة المدراء (admin فقط)
@@ -54,38 +68,151 @@ STATUS_SUSPENDED = "suspended"
 # view_archive: عرض الأرشيف (admin, reviewer, publisher, editor)
 # edit_settings: تعديل الإعدادات (admin فقط)
 _ROLE_PERMISSIONS = {
-    ROLE_ADMIN: {
+    # المالك: كل الصلاحيات + إدارة المدراء + الإعدادات الحساسة
+    ROLE_OWNER: {
         "manage_users": True,
+        "manage_managers": True,
         "review_requests": True,
         "publish_offers": True,
         "delete_offers": True,
         "view_archive": True,
         "edit_settings": True,
+        # صلاحيات المدير الكاملة
+        "add_listing": True,
+        "edit_listing": True,
+        "publish_listing": True,
+        "reject_listing": True,
+        "archive_listing": True,
+        "approve_visitor_offer": True,
+        "approve_site_offer": True,
+        "edit_text_before_publish": True,
+        "add_marketing_text": True,
+        "view_listing_links": True,
+        "receive_request_notifications": True,
+    },
+    ROLE_ADMIN: {
+        "manage_users": True,
+        "manage_managers": True,
+        "review_requests": True,
+        "publish_offers": True,
+        "delete_offers": True,
+        "view_archive": True,
+        "edit_settings": True,
+        # صلاحيات المدير الكاملة
+        "add_listing": True,
+        "edit_listing": True,
+        "publish_listing": True,
+        "reject_listing": True,
+        "archive_listing": True,
+        "approve_visitor_offer": True,
+        "approve_site_offer": True,
+        "edit_text_before_publish": True,
+        "add_marketing_text": True,
+        "view_listing_links": True,
+        "receive_request_notifications": True,
+    },
+    # مدير (manager): صلاحيات النشر والاعتماد والتعديل بدون الإعدادات الحساسة
+    ROLE_MANAGER: {
+        "manage_users": False,
+        "manage_managers": False,
+        "review_requests": True,
+        "publish_offers": True,
+        "delete_offers": False,
+        "view_archive": True,
+        "edit_settings": False,  # لا يمكن تغيير Tokens/Webhook/Data
+        "add_listing": True,
+        "edit_listing": True,
+        "publish_listing": True,
+        "reject_listing": True,
+        "archive_listing": True,
+        "approve_visitor_offer": True,
+        "approve_site_offer": True,
+        "edit_text_before_publish": True,
+        "add_marketing_text": True,
+        "view_listing_links": True,
+        "receive_request_notifications": True,
     },
     ROLE_REVIEWER: {
         "manage_users": False,
+        "manage_managers": False,
         "review_requests": True,
         "publish_offers": False,
         "delete_offers": False,
         "view_archive": True,
         "edit_settings": False,
+        "add_listing": False,
+        "edit_listing": False,
+        "publish_listing": False,
+        "reject_listing": True,
+        "archive_listing": False,
+        "approve_visitor_offer": True,
+        "approve_site_offer": True,
+        "edit_text_before_publish": True,
+        "add_marketing_text": True,
+        "view_listing_links": True,
+        "receive_request_notifications": True,
     },
     ROLE_PUBLISHER: {
         "manage_users": False,
+        "manage_managers": False,
         "review_requests": False,
         "publish_offers": True,
         "delete_offers": False,
         "view_archive": True,
         "edit_settings": False,
+        "add_listing": True,
+        "edit_listing": True,
+        "publish_listing": True,
+        "reject_listing": False,
+        "archive_listing": False,
+        "approve_visitor_offer": False,
+        "approve_site_offer": False,
+        "edit_text_before_publish": True,
+        "add_marketing_text": True,
+        "view_listing_links": True,
+        "receive_request_notifications": False,
     },
-    # توافق مع الإصدارات القديمة
+    # توافق مع الإصدارات القديمة (editor = publisher + review)
     ROLE_EDITOR: {
         "manage_users": False,
+        "manage_managers": False,
         "review_requests": True,
         "publish_offers": True,
         "delete_offers": False,
         "view_archive": True,
         "edit_settings": False,
+        "add_listing": True,
+        "edit_listing": True,
+        "publish_listing": True,
+        "reject_listing": True,
+        "archive_listing": False,
+        "approve_visitor_offer": True,
+        "approve_site_offer": True,
+        "edit_text_before_publish": True,
+        "add_marketing_text": True,
+        "view_listing_links": True,
+        "receive_request_notifications": True,
+    },
+    # الزائر: لا صلاحيات إدارية على الإطلاق
+    ROLE_VISITOR: {
+        "manage_users": False,
+        "manage_managers": False,
+        "review_requests": False,
+        "publish_offers": False,
+        "delete_offers": False,
+        "view_archive": False,
+        "edit_settings": False,
+        "add_listing": False,
+        "edit_listing": False,
+        "publish_listing": False,
+        "reject_listing": False,
+        "archive_listing": False,
+        "approve_visitor_offer": False,
+        "approve_site_offer": False,
+        "edit_text_before_publish": False,
+        "add_marketing_text": False,
+        "view_listing_links": False,
+        "receive_request_notifications": False,
     },
 }
 
@@ -288,24 +415,42 @@ def get_user_role(user_id) -> str:
 
 
 def is_admin(user_id) -> bool:
-    """التحقق إن كان المستخدم مديراً نشطاً"""
-    return get_user_role(user_id) == ROLE_ADMIN
+    """
+    التحقق إن كان المستخدم مديراً نشطاً (admin أو owner — owner له كل صلاحيات admin).
+    """
+    return get_user_role(user_id) in (ROLE_ADMIN, ROLE_OWNER)
+
+
+def is_owner(user_id) -> bool:
+    """التحقق إن كان المستخدم المالك (owner)."""
+    return get_user_role(user_id) == ROLE_OWNER
+
+
+def is_manager(user_id) -> bool:
+    """التحقق إن كان المستخدم مديراً (manager)."""
+    return get_user_role(user_id) == ROLE_MANAGER
+
+
+def can_manage_managers(user_id) -> bool:
+    """من يستطيع إضافة/إزالة المدراء: owner و admin فقط."""
+    return get_user_role(user_id) in MANAGER_MANAGE_ROLES
 
 
 def is_editor(user_id) -> bool:
-    """Check if user is editor/publisher/admin (active) -- backwards compat"""
+    """Check if user is editor/publisher/admin/owner/manager (active) -- backwards compat"""
     role = get_user_role(user_id)
-    return role in (ROLE_EDITOR, ROLE_PUBLISHER, ROLE_ADMIN)
+    return role in (ROLE_EDITOR, ROLE_PUBLISHER, ROLE_ADMIN, ROLE_OWNER, ROLE_MANAGER)
 
 
 def is_authorized(user_id) -> bool:
-    """General authorization check (any active role: admin, reviewer, publisher, editor)"""
+    """General authorization check (any active staff role: owner, admin, manager, reviewer, publisher, editor).
+    visitor is NOT authorized for bot admin commands."""
     role = get_user_role(user_id)
-    return role in (ROLE_ADMIN, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
+    return role in (ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
 
 
 def can_manage_users(user_id) -> bool:
-    """Check if user can manage users (admin only)"""
+    """Check if user can manage users (admin or owner only)"""
     return is_admin(user_id)
 
 
@@ -345,6 +490,87 @@ def can_edit_settings(user_id) -> bool:
     """Can edit settings (admin only)."""
     return has_permission(user_id, "edit_settings")
 
+# ============================================================
+#  Listing lifecycle permission helpers (Phase: Bot & Listing Lifecycle)
+# ============================================================
+def can_add_listing(user_id) -> bool:
+    """Can add a property listing (owner, admin, manager, publisher, editor)."""
+    return has_permission(user_id, "add_listing")
+
+
+def can_edit_listing(user_id) -> bool:
+    """Can edit a property listing (owner, admin, manager, publisher, editor)."""
+    return has_permission(user_id, "edit_listing")
+
+
+def can_publish_listing(user_id) -> bool:
+    """Can publish a listing directly without approval (owner, admin, manager, publisher, editor)."""
+    return has_permission(user_id, "publish_listing")
+
+
+def can_reject_listing(user_id) -> bool:
+    """Can reject a pending listing (owner, admin, manager, reviewer, editor)."""
+    return has_permission(user_id, "reject_listing")
+
+
+def can_archive_listing(user_id) -> bool:
+    """Can archive a listing (owner, admin, manager)."""
+    return has_permission(user_id, "archive_listing")
+
+
+def can_approve_visitor_offer(user_id) -> bool:
+    """Can approve visitor offers coming from the bot (owner, admin, manager, reviewer, editor)."""
+    return has_permission(user_id, "approve_visitor_offer")
+
+
+def can_approve_site_offer(user_id) -> bool:
+    """Can approve offers submitted from the website (owner, admin, manager, reviewer, editor)."""
+    return has_permission(user_id, "approve_site_offer")
+
+
+def can_edit_text_before_publish(user_id) -> bool:
+    """Can edit listing text before publishing (owner, admin, manager, reviewer, publisher, editor)."""
+    return has_permission(user_id, "edit_text_before_publish")
+
+
+def can_add_marketing_text(user_id) -> bool:
+    """Can add marketing text before publishing."""
+    return has_permission(user_id, "add_marketing_text")
+
+
+def can_view_listing_links(user_id) -> bool:
+    """Can view listing permanent links (all staff)."""
+    return has_permission(user_id, "view_listing_links")
+
+
+def should_receive_request_notifications(user_id) -> bool:
+    """Should receive notifications about new pending requests (owner, admin, manager, reviewer, editor)."""
+    return has_permission(user_id, "receive_request_notifications")
+
+
+def get_managers() -> list:
+    """Get all active managers (role=manager)."""
+    init()
+    with _lock:
+        return [u for u in _users.values() if isinstance(u, dict) and u.get("role") == ROLE_MANAGER and u.get("status") == STATUS_ACTIVE]
+
+
+def get_staff_for_notifications() -> list:
+    """Get all active staff who should receive request notifications (for pending visitor/site offers)."""
+    init()
+    with _lock:
+        result = []
+        for u in _users.values():
+            if not isinstance(u, dict):
+                continue
+            if u.get("status") != STATUS_ACTIVE:
+                continue
+            role = u.get("role")
+            if role in (ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_REVIEWER, ROLE_EDITOR):
+                result.append(u)
+        return result
+
+
 
 def get_user_permissions(user_id) -> dict:
     """Get all permissions for a user based on their role."""
@@ -357,7 +583,7 @@ def get_user_permissions(user_id) -> dict:
 def change_role(user_id, new_role, changed_by="system") -> bool:
     """Change a user's role. Validates the new role against known roles."""
     init()
-    valid_roles = (ROLE_ADMIN, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
+    valid_roles = (ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR, ROLE_VISITOR)
     if new_role not in valid_roles:
         logger.warning(f"Invalid role: {new_role}")
         return False
@@ -425,17 +651,23 @@ def get_stats() -> dict:
         _ulist = [u for u in _users.values() if isinstance(u, dict)]
         total = len(_ulist)
         admins = sum(1 for u in _ulist if u.get("role") == ROLE_ADMIN)
+        owners = sum(1 for u in _ulist if u.get("role") == ROLE_OWNER)
+        managers = sum(1 for u in _ulist if u.get("role") == ROLE_MANAGER)
         reviewers = sum(1 for u in _ulist if u.get("role") == ROLE_REVIEWER)
         publishers = sum(1 for u in _ulist if u.get("role") == ROLE_PUBLISHER)
         editors = sum(1 for u in _ulist if u.get("role") == ROLE_EDITOR)
+        visitors = sum(1 for u in _ulist if u.get("role") == ROLE_VISITOR)
         active = sum(1 for u in _ulist if u.get("status") == STATUS_ACTIVE)
         suspended = sum(1 for u in _ulist if u.get("status") == STATUS_SUSPENDED)
         return {
             "total": total,
+            "owners": owners,
             "admins": admins,
+            "managers": managers,
             "reviewers": reviewers,
             "publishers": publishers,
             "editors": editors,
+            "visitors": visitors,
             "active": active,
             "suspended": suspended,
             "audit_count": len(_audit_log),

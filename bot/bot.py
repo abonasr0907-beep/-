@@ -4823,6 +4823,175 @@ async def cmd_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ خطأ: {e}")
 
 
+
+# ============================================================
+#  أوامر إدارة المدراء (Phase 2: Bot & Listing Lifecycle)
+# ============================================================
+
+async def cmd_add_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إضافة مدير جديد (role=manager) — /add_manager <telegram_user_id> [الاسم]"""
+    uid = update.effective_user.id
+    # المالك أو المدير العام (admin) فقط من يمكنه إضافة مدراء
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ إضافة المدراء متاحة للمالك/المدير العام فقط.")
+        return
+    # تحقق إضافي عبر نظام الصلاحيات
+    if not user_manager.can_manage_managers(uid):
+        await update.message.reply_text("⛔ ليس لديك صلاحية إدارة المدراء.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "📋 إضافة مدير جديد\n\n"
+            "الصيغة: /add_manager <telegram_user_id> [الاسم]\n\n"
+            "مثال:\n"
+            "/add_manager 123456789 أحمد محمد\n"
+            "/add_manager 987654321\n\n"
+            "💡 للحصول على معرّف تيليجرام: اطلب من الشخص إرسال /myid للبوت."
+        )
+        return
+
+    try:
+        new_uid = int(args[0])
+        name = " ".join(args[1:]) if len(args) > 1 else f"Manager {new_uid}"
+
+        # منع ترقية الذات
+        if new_uid == uid:
+            await update.message.reply_text("⚠️ لا يمكنك ترقية نفسك عبر هذا الأمر. استخدم /change_role.")
+            return
+
+        # إذا كان المستخدم موجوداً بالفعل
+        existing_role = user_manager.get_user_role(new_uid)
+        if existing_role == "manager":
+            await update.message.reply_text(f"ℹ️ المستخدم {new_uid} هو مدير بالفعل.")
+            return
+
+        if existing_role:
+            # المستخدم مسجّل بدور آخر -> غيّر دوره إلى manager
+            success = user_manager.change_role(new_uid, "manager", changed_by=uid)
+            if success:
+                user_manager.log_audit("add_manager", uid, f"ترقية المستخدم {new_uid} ({name}) إلى مدير (كان: {existing_role})")
+                await update.message.reply_text(
+                    f"✅ تم ترقية المستخدم إلى مدير!\n\n"
+                    f"🆔 ID: {new_uid}\n"
+                    f"👤 الاسم: {name}\n"
+                    f"🔑 الدور: مدير (manager)\n"
+                    f"📊 الحالة: نشط"
+                )
+            else:
+                await update.message.reply_text(f"❌ فشل تغيير دور المستخدم {new_uid}.")
+            return
+
+        # مستخدم جديد -> أضفه مباشرة كمدير
+        user_manager.add_user(new_uid, name, role="manager", added_by=uid)
+        user_manager.log_audit("add_manager", uid, f"إضافة مدير جديد {new_uid} ({name})")
+        await update.message.reply_text(
+            f"✅ تم إضافة المدير بنجاح!\n\n"
+            f"🆔 ID: {new_uid}\n"
+            f"👤 الاسم: {name}\n"
+            f"🔑 الدور: مدير (manager)\n"
+            f"📊 الحالة: نشط\n\n"
+            f"💡 يمكن للمدير الآن: إضافة/تعديل/نشر/رفض/أرشفة العقارات، "
+            f"اعتماد عروض الزوار والموقع، تعديل النصوص، إضافة نص تسويقي."
+        )
+    except ValueError:
+        await update.message.reply_text("⚠️ معرّف تيليجرام يجب أن يكون رقماً.")
+    except Exception as e:
+        logger.error(f"خطأ في إضافة مدير: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+async def cmd_remove_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إزالة دور المدير عن مستخدم (يعود إلى visitor) — /remove_manager <telegram_user_id>"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ إزالة المدراء متاحة للمالك/المدير العام فقط.")
+        return
+    if not user_manager.can_manage_managers(uid):
+        await update.message.reply_text("⛔ ليس لديك صلاحية إدارة المدراء.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "📋 إزالة دور المدير\n\n"
+            "الصيغة: /remove_manager <telegram_user_id>\n\n"
+            "مثال:\n"
+            "/remove_manager 123456789\n\n"
+            "ℹ️ سيصبح المستخدم زائراً (visitor) بدلاً من مدير."
+        )
+        return
+
+    try:
+        target_uid = int(args[0])
+
+        # منع إزالة دور المدير عن النفس
+        if target_uid == uid:
+            await update.message.reply_text("⚠️ لا يمكنك إزالة دور المدير عن نفسك.")
+            return
+
+        existing_role = user_manager.get_user_role(target_uid)
+        if not existing_role:
+            await update.message.reply_text(f"⚠️ المستخدم {target_uid} غير مسجّل.")
+            return
+
+        if existing_role != "manager":
+            await update.message.reply_text(
+                f"ℹ️ المستخدم {target_uid} ليس مديراً (دوره الحالي: {existing_role})."
+            )
+            return
+
+        # تغيير الدور إلى visitor (إزالة صلاحيات المدير مع الإبقاء على المستخدم)
+        success = user_manager.change_role(target_uid, "visitor", changed_by=uid)
+        if success:
+            user_manager.log_audit("remove_manager", uid, f"إزالة دور المدير عن {target_uid} (أصبح visitor)")
+            await update.message.reply_text(
+                f"✅ تم إزالة دور المدير عن المستخدم {target_uid}.\n"
+                f"🔑 أصبح الآن: زائر (visitor) — بدون صلاحيات النشر/التعديل."
+            )
+        else:
+            await update.message.reply_text(f"❌ فشل إزالة دور المدير عن {target_uid}.")
+    except ValueError:
+        await update.message.reply_text("⚠️ معرّف تيليجرام يجب أن يكون رقماً.")
+    except Exception as e:
+        logger.error(f"خطأ في إزالة مدير: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+async def cmd_managers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة المدراء النشطين — /managers"""
+    uid = update.effective_user.id
+    # المالك/المدير/المدراء يمكنهم رؤية القائمة (ولكن الإدارة للمالك/المدير العام فقط)
+    if not is_admin(uid) and not user_manager.is_manager(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدراء والمدير العام فقط.")
+        return
+
+    try:
+        managers = user_manager.get_managers()
+        if not managers:
+            await update.message.reply_text(
+                "📋 لا يوجد مدراء مسجّلون حالياً.\n\n"
+                "💡 لإضافة مدير: /add_manager <telegram_user_id> [الاسم]"
+            )
+            return
+
+        msg = f"📋 قائمة المدراء ({len(managers)}):\n\n"
+        for m in managers:
+            status_icon = "✅" if m.get("status") == "active" else "🚫"
+            last_active = m.get("last_active", "—")
+            name = m.get("name", "—")
+            msg += (
+                f"👤 {status_icon} ID: {m.get('user_id')}\n"
+                f"   الاسم: {name}\n"
+                f"   آخر نشاط: {last_active}\n\n"
+            )
+        await update.message.reply_text(msg)
+    except Exception as e:
+        logger.error(f"خطأ في عرض قائمة المدراء: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
 # ============================================================
 #  معالج الأخطاء العام
 # ============================================================
@@ -5368,6 +5537,9 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("myid", cmd_myid))
     app.add_handler(CommandHandler("users", cmd_list_users))
     app.add_handler(CommandHandler("remove_user", cmd_remove_user))
+    app.add_handler(CommandHandler("add_manager", cmd_add_manager))
+    app.add_handler(CommandHandler("remove_manager", cmd_remove_manager))
+    app.add_handler(CommandHandler("managers", cmd_managers))
     app.add_handler(CommandHandler("change_role", cmd_change_role))
     app.add_handler(CommandHandler("backups", cmd_backups))
     app.add_handler(CommandHandler("sync_status", cmd_sync_status))
