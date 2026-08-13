@@ -1349,9 +1349,24 @@ function submitPropertyForm(event) {
         openWhatsAppFast(whatsappUrl);
     })();
 
-    // عرض رسالة النجاح
+    // عرض رسالة النجاح + حقن زر إرفاق الصور (Phase 2.8)
     const fs = document.getElementById('form-success');
-    if (fs) fs.classList.add('show');
+    if (fs) {
+        fs.style.display = 'block';
+        // رقم الطلب
+        var reqIdEl = document.getElementById('form-success-reqid');
+        if (reqIdEl) reqIdEl.textContent = data.id;
+        // زر deep-link attach_{id} — اسم البوت من OFFICE_DATA
+        var attachBtn = document.getElementById('form-success-attach');
+        if (attachBtn) {
+            var botUser = (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.botUsername) ? OFFICE_DATA.botUsername : '';
+            if (botUser) {
+                attachBtn.href = 'https://t.me/' + botUser + '?start=attach_' + encodeURIComponent(data.id);
+            } else {
+                attachBtn.style.display = 'none';
+            }
+        }
+    }
     event.target.reset();
 
     // مسح الصور والخريطة
@@ -1363,8 +1378,8 @@ function submitPropertyForm(event) {
 
     setTimeout(() => {
         const fsR = document.getElementById('form-success');
-        if (fsR) fsR.classList.remove('show');
-    }, 5000);
+        if (fsR) fsR.style.display = 'none';
+    }, 8000);
 
     return false;
 }
