@@ -2862,9 +2862,26 @@ async def list_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not offers:
         await update.message.reply_text("📋 لا توجد عروض منشورة حالياً.")
         return
-    msg = f"📋 قائمة العروض ({len(offers)} عرض):\n\n"
-    for o in offers[-20:]:  # آخر 20
-        msg += f"🆔 {o['id']} | {o.get('category','')} | {o.get('area','')} | {o.get('size_sqm','')} م² | {o.get('price_text','')}\n"
+    # Phase 2.8 §2: المدير يرى كل العروض مع شارة الحالة؛ غير المدير يرى المنشور فقط
+    _is_mgr = is_admin(update.effective_user.id) or (user_manager and user_manager.is_manager(update.effective_user.id))
+    _visible = offers if _is_mgr else [o for o in offers if str(o.get("status", "")).lower() == "published"]
+    if not _visible:
+        await update.message.reply_text("📋 لا توجد عروض منشورة حالياً.")
+        return
+    msg = f"📋 قائمة العروض ({len(_visible)} عرض):\n\n"
+    for o in _visible[-20:]:  # آخر 20
+        _badge = ""
+        if _is_mgr:
+            _st = str(o.get("status", "—")).lower()
+            if _st == "published":
+                _badge = " ✅"
+            elif _st in ("pending", "under_review", "publishing", "verifying"):
+                _badge = " ⏳"
+            elif _st in ("rejected", "failed", "archived"):
+                _badge = " 🚫"
+            else:
+                _badge = f" [{_st}]"
+        msg += f"🆔 {o['id']}{_badge} | {o.get('category','')} | {o.get('area','')} | {o.get('size_sqm','')} م² | {o.get('price_text','')}\n"
     await update.message.reply_text(msg)
 
 # ============================================================

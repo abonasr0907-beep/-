@@ -16,11 +16,13 @@ const OFFICE_DATA = {
     botUsername: "tlastlastlasbot",
 };
 
-// Phase 2: عرض العقارات المنشورة فقط + العقار بدون category → قسم "عامة"
+// Phase 2.8 §2: عرض العقارات المنشورة فقط — status يجب أن يكون 'published' صراحةً (لا افتراضي)
 function isOfferPublished(offer) {
     if (!offer) return false;
-    var status = offer.status || 'published';
-    return status === 'published';
+    // Phase 2.8 fix: لا نسمح بالتسريب — إذا لم يوجد status صراحةً = 'published' لا يُعرض
+    var status = offer.status;
+    if (status === undefined || status === null || status === '') return false;
+    return String(status).toLowerCase() === 'published';
 }
 function offerCategory(offer) {
     return offer.category || offer.property_type || offer.section || 'عامة';
@@ -367,9 +369,9 @@ function filterByArea(area) {
 
 // ===== تحديث الإحصائيات =====
 function updateStats() {
-    const farms = OFFERS.filter(o => o.type === 'farm').length;
-    const resthouses = OFFERS.filter(o => o.type === 'resthouse').length;
-    const lands = OFFERS.filter(o => o.type === 'land').length;
+    const farms = OFFERS.filter(o => isOfferPublished(o) && o.type === 'farm').length;
+    const resthouses = OFFERS.filter(o => isOfferPublished(o) && o.type === 'resthouse').length;
+    const lands = OFFERS.filter(o => isOfferPublished(o) && o.type === 'land').length;
 
     const farmEl = document.getElementById('stat-farms');
     const restEl = document.getElementById('stat-resthouses');
@@ -1003,7 +1005,7 @@ async function togglePropertiesOnMap() {
         const offers = data.offers || [];
         
         const validOffers = offers.filter(function(o) {
-            return o.visitor_lat && o.visitor_lng && 
+            return isOfferPublished(o) && o.visitor_lat && o.visitor_lng && 
                    parseFloat(o.visitor_lat) && parseFloat(o.visitor_lng);
         });
 
@@ -1872,7 +1874,7 @@ async function toggleHomeMapProperties() {
         // احتياط: الملف المحلي
         if (properties.length === 0 && typeof OFFERS !== 'undefined') {
             properties = OFFERS.filter(function(o) {
-                return (o.visitor_lat || o.lat) && (o.visitor_lng || o.lng) &&
+                return isOfferPublished(o) && (o.visitor_lat || o.lat) && (o.visitor_lng || o.lng) &&
                        parseFloat(o.visitor_lat || o.lat) && parseFloat(o.visitor_lng || o.lng);
             }).map(function(o) {
                 var images = o.images || [];
