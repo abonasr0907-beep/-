@@ -67,6 +67,17 @@ MANAGER_MANAGE_ROLES = (ROLE_OWNER, ROLE_ADMIN)
 # delete_offers: حذف العروض (admin فقط)
 # view_archive: عرض الأرشيف (admin, reviewer, publisher, editor)
 # edit_settings: تعديل الإعدادات (admin فقط)
+# --- Phase 2.7: صلاحيات الترقية الكاملة (full_admin) ---
+# export_data: تصدير بيانات العقارات (CSV/JSON)
+# run_smart_fix: تشغيل المساعد الذكي (/fix) وتبديل الوضع التلقائي
+# view_audit_log: عرض سجل التدقيق الكامل
+# edit_institution_data: تعديل بيانات المؤسسة (أرقام، خدمات، وصف)
+# --- صلاحيات محجوبة عن full_admin (للمالك فقط) ---
+# delete_owner: حذف المالك
+# change_token: تغيير Telegram Token
+# change_webhook: تغيير Webhook
+# change_git_settings: تغيير إعدادات GitHub/Railway
+# change_database_url: تغيير Database URL
 _ROLE_PERMISSIONS = {
     # المالك: كل الصلاحيات + إدارة المدراء + الإعدادات الحساسة
     ROLE_OWNER: {
@@ -89,6 +100,17 @@ _ROLE_PERMISSIONS = {
         "add_marketing_text": True,
         "view_listing_links": True,
         "receive_request_notifications": True,
+        # --- Phase 2.7: صلاحيات الترقية الكاملة ---
+        "export_data": True,
+        "run_smart_fix": True,
+        "view_audit_log": True,
+        "edit_institution_data": True,
+        # صلاحيات محجوبة عن غير المالك (المالك فقط)
+        "delete_owner": True,
+        "change_token": True,
+        "change_webhook": True,
+        "change_git_settings": True,
+        "change_database_url": True,
     },
     ROLE_ADMIN: {
         "manage_users": True,
@@ -110,6 +132,18 @@ _ROLE_PERMISSIONS = {
         "add_marketing_text": True,
         "view_listing_links": True,
         "receive_request_notifications": True,
+        # --- Phase 2.7: صلاحيات الترقية الكاملة (full_admin) ---
+        # تُمنح فقط إذا كان full_admin=True (يتم التحقق في has_permission)
+        "export_data": False,
+        "run_smart_fix": False,
+        "view_audit_log": False,
+        "edit_institution_data": False,
+        # صلاحيات محجوبة عن admin دائمًا (للمالك فقط)
+        "delete_owner": False,
+        "change_token": False,
+        "change_webhook": False,
+        "change_git_settings": False,
+        "change_database_url": False,
     },
     # مدير (manager): صلاحيات النشر والاعتماد والتعديل بدون الإعدادات الحساسة
     ROLE_MANAGER: {
@@ -285,8 +319,14 @@ def init_from_config(config):
                     "added_by": "system (config.json)",
                     "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "last_active": None,
+                    "full_admin": True,  # Phase 2.7: مدير من config = مدير كامل
                 }
                 logger.info(f"  ➕ تم استيراد مدير من config: {aid}")
+        # Phase 2.7: ضمان full_admin=True لكل المدراء الموجودين من config
+        for aid in admin_ids:
+            uid = str(aid)
+            if uid in _users and _users[uid].get("role") == ROLE_ADMIN:
+                _users[uid]["full_admin"] = True
         _atomic_write_json(USERS_FILE, _users)
 
 
@@ -328,6 +368,7 @@ def add_user(user_id, name, role=ROLE_EDITOR, added_by="system", status=STATUS_A
                 "added_by": str(added_by),
                 "added_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "last_active": None,
+                "full_admin": (role == ROLE_ADMIN),  # Phase 2.7: مدير جديد = full_admin
             }
         _save_users()
     log_audit("add_user", added_by, f"أضاف مستخدم {uid} ({name}) بدور {role}")
@@ -426,6 +467,19 @@ def is_owner(user_id) -> bool:
     return get_user_role(user_id) == ROLE_OWNER
 
 
+def is_full_admin(user_id) -> bool:
+    """Phase 2.7: التحقق إن كان المستخدم مديرًا كامل الصلاحيات (full_admin).
+    المالك (owner) دائمًا full_admin. المدير (admin) فقط إذا كان full_admin=True.
+    """
+    role = get_user_role(user_id)
+    if role == ROLE_OWNER:
+        return True
+    if role == ROLE_ADMIN:
+        user = get_user(user_id)
+        return bool(user and user.get("full_admin") is True)
+    return False
+
+
 def is_manager(user_id) -> bool:
     """التحقق إن كان المستخدم مديراً (manager)."""
     return get_user_role(user_id) == ROLE_MANAGER
@@ -458,12 +512,24 @@ def can_manage_users(user_id) -> bool:
 #  Permission functions (3-role RBAC)
 # ============================================================
 def has_permission(user_id, permission: str) -> bool:
-    """Check if user has a specific permission based on their role."""
+    """Check if user has a specific permission based on their role.
+    Phase 2.7: admin with full_admin=True gets expanded permissions
+    (export_data, run_smart_fix, view_audit_log, edit_institution_data).
+    Protected permissions (delete_owner, change_token, change_webhook,
+    change_git_settings, change_database_url) remain owner-only.
+    """
     role = get_user_role(user_id)
     if role is None:
         return False
     perms = _ROLE_PERMISSIONS.get(role, {})
-    return perms.get(permission, False)
+    result = perms.get(permission, False)
+    # Phase 2.7: full_admin upgrade — grant expanded perms to admin
+    if not result and role == ROLE_ADMIN:
+        user = get_user(user_id)
+        if user and user.get("full_admin") is True:
+            if permission in ("export_data", "run_smart_fix", "view_audit_log", "edit_institution_data"):
+                return True
+    return result
 
 
 def can_review_requests(user_id) -> bool:
@@ -573,11 +639,20 @@ def get_staff_for_notifications() -> list:
 
 
 def get_user_permissions(user_id) -> dict:
-    """Get all permissions for a user based on their role."""
+    """Get all permissions for a user based on their role.
+    Phase 2.7: admin with full_admin=True gets expanded permissions merged in.
+    """
     role = get_user_role(user_id)
     if role is None:
         return {}
-    return dict(_ROLE_PERMISSIONS.get(role, {}))
+    perms = dict(_ROLE_PERMISSIONS.get(role, {}))
+    # Phase 2.7: merge expanded perms for full_admin
+    if role == ROLE_ADMIN:
+        user = get_user(user_id)
+        if user and user.get("full_admin") is True:
+            for p in ("export_data", "run_smart_fix", "view_audit_log", "edit_institution_data"):
+                perms[p] = True
+    return perms
 
 
 def change_role(user_id, new_role, changed_by="system") -> bool:
@@ -612,6 +687,37 @@ def update_last_active(user_id):
 # ============================================================
 #  سجل التدقيق (Audit Log)
 # ============================================================
+def upgrade_admins_to_full(performed_by="system"):
+    """Phase 2.7: ترقية جميع المدراء الموجودين إلى full_admin=True.
+    تحافظ على جميع البيانات الموجودة كما هي — تضيف full_admin=True فقط.
+    لا تحذف أي مدير، لا تغيّر أي بيانات حساسة.
+    تُرجع عدد المدراء الذين تمت ترقيتهم.
+    """
+    init()
+    upgraded = 0
+    with _lock:
+        for uid, user in _users.items():
+            if not isinstance(user, dict):
+                continue
+            if user.get("role") == ROLE_ADMIN and user.get("full_admin") is not True:
+                user["full_admin"] = True
+                upgraded += 1
+            elif user.get("role") == ROLE_ADMIN and user.get("full_admin") is True:
+                # Already upgraded — count as already done
+                pass
+        _save_users()
+    # Count all admins with full_admin (including already-upgraded)
+    total_full = 0
+    with _lock:
+        for uid, user in _users.items():
+            if isinstance(user, dict) and user.get("role") == ROLE_ADMIN and user.get("full_admin") is True:
+                total_full += 1
+    log_audit("admin_privilege_upgrade_2.7", performed_by,
+              f"تمت ترقية {total_full} مدير إلى full_admin (جديد: {upgraded})")
+    logger.info(f"🔐 Phase 2.7: تمت ترقية {total_full} مدير إلى full_admin")
+    return total_full
+
+
 def log_audit(action, performed_by, detail):
     """تسجيل عملية في سجل التدقيق"""
     init()
@@ -659,10 +765,12 @@ def get_stats() -> dict:
         visitors = sum(1 for u in _ulist if u.get("role") == ROLE_VISITOR)
         active = sum(1 for u in _ulist if u.get("status") == STATUS_ACTIVE)
         suspended = sum(1 for u in _ulist if u.get("status") == STATUS_SUSPENDED)
+        full_admins = sum(1 for u in _ulist if u.get("full_admin") is True)
         return {
             "total": total,
             "owners": owners,
             "admins": admins,
+            "full_admins": full_admins,
             "managers": managers,
             "reviewers": reviewers,
             "publishers": publishers,

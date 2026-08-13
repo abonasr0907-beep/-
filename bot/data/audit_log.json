@@ -53,6 +53,12 @@
       "performed_by": "test",
       "detail": "حذف مستخدم 222 (Test Publisher)",
       "timestamp": "2026-08-10 19:21:09"
+    },
+    {
+      "action": "admin_privilege_upgrade_2.7",
+      "performed_by": "phase-2.7",
+      "detail": "تمت ترقية 1 مدير إلى full_admin (جديد: 1)",
+      "timestamp": "2026-08-13 20:06:58"
     }
   ]
 }
