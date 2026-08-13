@@ -26,7 +26,9 @@
       "featured": true,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "FRM-002",
@@ -53,7 +55,9 @@
       "featured": false,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "FRM-003",
@@ -80,7 +84,9 @@
       "featured": false,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "FRM-004",
@@ -106,7 +112,9 @@
       "featured": false,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "FRM-005",
@@ -133,7 +141,9 @@
       "featured": true,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "RST-001",
@@ -161,7 +171,9 @@
       "featured": true,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "RST-002",
@@ -188,7 +200,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "RST-003",
@@ -215,7 +229,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "RST-004",
@@ -242,7 +258,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "LND-001",
@@ -270,7 +288,9 @@
       "featured": true,
       "section": "أراضي",
       "property_type": "أرض سكنية",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "LND-003",
@@ -296,7 +316,9 @@
       "featured": false,
       "section": "أراضي",
       "property_type": "أرض سكنية",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "LND-004",
@@ -322,7 +344,9 @@
       "featured": false,
       "section": "أراضي",
       "property_type": "أرض سكنية",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0001",
@@ -342,7 +366,9 @@
       "featured": false,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0005",
@@ -362,7 +388,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0008",
@@ -386,7 +414,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0010",
@@ -406,7 +436,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0012",
@@ -426,7 +458,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0014",
@@ -450,7 +484,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0017",
@@ -474,7 +510,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0020",
@@ -496,7 +534,9 @@
       "featured": false,
       "section": "استراحات",
       "property_type": "استراحة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0023",
@@ -516,7 +556,9 @@
       "featured": false,
       "section": "مزارع",
       "property_type": "مزرعة",
-      "operation_type": "sale"
+      "operation_type": "sale",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "FRM-AB0149",
@@ -545,7 +587,9 @@
       "visitor_name": "افاق العقاري8",
       "visitor_phone": "0561610748",
       "section": "أراضي",
-      "property_type": "مزرعة"
+      "property_type": "مزرعة",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "AFQ-2026-0026",
@@ -570,7 +614,8 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-12",
       "featured": false,
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "status": "published"
     },
     {
       "id": "AFQ-2026-0027",
@@ -595,7 +640,8 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-12",
       "featured": false,
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "status": "published"
     },
     {
       "id": "AFQ-2026-0028",
@@ -620,7 +666,8 @@
       "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
       "date_added": "2026-08-12",
       "featured": false,
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "status": "published"
     },
     {
       "id": "FAR-BBF0C3",
@@ -647,7 +694,9 @@
         "name": "د. محمد",
         "username": ""
       },
-      "contact": "0561610748"
+      "contact": "0561610748",
+      "status": "published",
+      "publish_status": "Published"
     },
     {
       "id": "LND-430F75",
@@ -676,7 +725,9 @@
       "highestBid": "",
       "operation_type": "sale",
       "visitor_name": "افاق العقاري",
-      "visitor_phone": "0561610748"
+      "visitor_phone": "0561610748",
+      "status": "published",
+      "publish_status": "Published"
     }
   ]
 }

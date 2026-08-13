@@ -27,6 +27,82 @@ function isOfferPublished(offer) {
 function offerCategory(offer) {
     return offer.category || offer.property_type || offer.section || 'عامة';
 }
+
+// Phase 3 §1.2: Whitelist الفئات المعتمدة (mirror of bot/normalizer.py)
+var CATEGORY_WHITELIST_JS = ['مزرعة', 'استراحة', 'أرض سكنية'];
+var AREA_WHITELIST_JS = ['الرحمانية', 'الهياثم', 'الدلم', 'الضبيعة', 'العفجة'];
+
+// تطبيع النص العربي (JavaScript mirror)
+function normalizeTextJS(text) {
+    if (!text) return '';
+    var s = String(text);
+    // أرقام هندية → لاتينية
+    var arabicDigits = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9',
+                        '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9'};
+    for (var d in arabicDigits) { s = s.split(d).join(arabicDigits[d]); }
+    // تطبيع الحروف
+    s = s.replace(/أ/g,'ا').replace(/إ/g,'ا').replace(/آ/g,'ا').replace(/ٱ/g,'ا')
+         .replace(/ى/g,'ي').replace(/ئ/g,'ي')
+         .replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ـ/g,'');
+    // مسافات
+    s = s.replace(/\s+/g,' ').trim();
+    return s;
+}
+
+// تطبيع الفئة → الاسم المعتمد
+function normalizeCategoryJS(cat) {
+    if (!cat) return cat;
+    var norm = normalizeTextJS(cat);
+    var synonyms = {
+        'مزرعة': ['مزرعة','مزره','مزارع','زراعية','ارض زراعية','بئر','نخيل'],
+        'استراحة': ['استراحة','استراحه','استراحات','قهوة','ملحق','ديوانية','مسبح','حديقة'],
+        'أرض سكنية': ['أرض سكنية','ارض سكنيه','اراضي','سكنيه','تجارية','قطعة','صك','مخطط']
+    };
+    for (var canonical in synonyms) {
+        if (normalizeTextJS(canonical) === norm) return canonical;
+        var syns = synonyms[canonical];
+        for (var i = 0; i < syns.length; i++) {
+            if (normalizeTextJS(syns[i]) === norm) return canonical;
+            if (norm.length >= 3 && norm.indexOf(normalizeTextJS(syns[i])) >= 0) return canonical;
+        }
+    }
+    return cat; // غير معروفة → تُعاد كما هي (add-only)
+}
+
+// تطبيع المنطقة → الاسم المعتمد
+function normalizeAreaJS(area) {
+    if (!area) return area;
+    var norm = normalizeTextJS(area);
+    var areaSyn = {
+        'الرحمانية': ['الرحمانية','الرحمنية','الرحمنيه','رحمانية','رحمنية'],
+        'الهياثم': ['الهياثم','الهيثم','الهياثيم','هياثم','هيثم'],
+        'الدلم': ['الدلم','دلم'],
+        'الضبيعة': ['الضبيعة','الضبعية','الضبيعه','ضبيعة','ضبعية'],
+        'العفجة': ['العفجة','العفجه','العفجية','عفجة','عفجه']
+    };
+    for (var canonical in areaSyn) {
+        if (normalizeTextJS(canonical) === norm) return canonical;
+        var syns = areaSyn[canonical];
+        for (var i = 0; i < syns.length; i++) {
+            if (normalizeTextJS(syns[i]) === norm) return canonical;
+            if (norm.length >= 3 && norm.indexOf(normalizeTextJS(syns[i])) >= 0) return canonical;
+        }
+    }
+    return area;
+}
+
+// هل الفئة معروفة؟
+function isKnownCategoryJS(cat) {
+    if (!cat) return false;
+    return normalizeCategoryJS(cat) !== cat || CATEGORY_WHITELIST_JS.indexOf(normalizeCategoryJS(cat)) >= 0;
+}
+
+// هل العرض يجب تضمينه في "كل الأقسام"؟ (فئة غير معروفة)
+function shouldIncludeInAllSectionsJS(offer) {
+    var cat = offerCategory(offer);
+    var normalized = normalizeCategoryJS(cat);
+    return CATEGORY_WHITELIST_JS.indexOf(normalized) < 0;
+}
 function offerDetailLink(offer) {
     if (offer.external_id) {
         var slug = offer.slug ? '/' + offer.slug : '';
@@ -267,7 +343,15 @@ function renderOffers(filter = 'all', areaFilter = 'all', propTypeFilter = 'all'
     }
     // Phase 4: فلتر نوع العقار
     if (propTypeFilter !== 'all') {
-        filtered = filtered.filter(o => (o.property_type || o.category) === propTypeFilter);
+        // Phase 3 §1.2: guard filter with normalization (مزرة → مزرعة)
+        var normFilter = normalizeCategoryJS(propTypeFilter);
+        filtered = filtered.filter(function(o) {
+            var rawCat = o.property_type || o.category || '';
+            if (rawCat === propTypeFilter) return true;
+            if (normalizeCategoryJS(rawCat) === normFilter) return true;
+            // تضمين الفئات غير المعروفة في "all" فقط — لا تُخفى
+            return false;
+        });
     }
 
     if (filtered.length === 0) {

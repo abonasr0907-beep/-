@@ -68,6 +68,20 @@ try:
 except Exception as _pv_imp:
     publish_verifier = None
 
+# Phase 3 §1.1: مُطبِّع النصوص العربي (Arabic Text Normalizer)
+try:
+    import normalizer as _normalizer
+except Exception as _norm_imp:
+    _normalizer = None
+    logger.warning(f"⚠️ تعذّر استيراد normalizer: {_norm_imp}")
+
+# Phase 3 §1.3: حراس الارتداد (Bounce Guards)
+try:
+    import bounce_guard as _bounce_guard
+except Exception as _bg_imp:
+    _bounce_guard = None
+    logger.warning(f"⚠️ تعذّر استيراد bounce_guard: {_bg_imp}")
+
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -2829,6 +2843,13 @@ async def _finalize_offer(update, uid, query=None):
     offer["publish_status"] = "Published"  # حالة النشر الموحّدة
     offer["status"] = "published"  # Phase 2.8: النشر فوري للمدير — status=published صراحة للموقع (isOfferPublished)
 
+    # Phase 3 §1.1: تطبيع العرض قبل النشر (idempotent)
+    if _normalizer:
+        try:
+            offer = _normalizer.normalize_offer(offer)
+        except Exception as _ne:
+            logger.warning(f"⚠️ تعذّر تطبيع العرض: {_ne}")
+
     # ── منع نشر عرض بلا صور ──
     if not offer["images"]:
         msg = "⚠️ لا يمكن نشر عرض بدون صور. أرسل صورة واحدة على الأقل ثم أعد المحاولة."
@@ -3712,6 +3733,13 @@ async def _approve_visitor_request(update, req_ref, query=None):
     # إضافة وصف الزائر إذا وجد
     if item.get("description"):
         offer["description"] += f"\n\n\U0001F4DD {item['description']}"
+
+    # Phase 3 §1.1: تطبيع العرض قبل النشر (idempotent)
+    if _normalizer:
+        try:
+            offer = _normalizer.normalize_offer(offer)
+        except Exception as _ne:
+            logger.warning(f"⚠️ تعذّر تطبيع عرض الزائر: {_ne}")
 
     # Task 4: المرحلة 1 — إظهار "جارٍ النشر..." فوراً
     if query:
@@ -6396,7 +6424,59 @@ async def cmd_request_history(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text(msg)
 
 
-# ═══════════════════════════════════════════════════════════════════════
+# ============================================================
+#  Phase 3 §1.3: حارس الارتداد — /fix command
+# ============================================================
+async def cmd_fix(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """أمر /fix — فحص فوري + إصلاح جميع العروض (للمدير/admin فقط)."""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+        return
+    if not _bounce_guard:
+        await update.message.reply_text("⚠️ حارس الارتداد غير متاح.")
+        return
+    try:
+        report_text = _bounce_guard.fix_now()
+        await update.message.reply_text(report_text, disable_web_page_preview=True)
+    except Exception as e:
+        logger.error(f"❌ خطأ في /fix: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+# ============================================================
+#  Phase 3 §1.3: حارس الارتداد — الفحص التلقائي
+# ============================================================
+#  Phase 3 S1.3: Bounce Guard - Auto Check
+# ============================================================
+async def _bounce_guard_auto_check(context):
+    """Auto check every 6 hours - called from JobQueue."""
+    if not _bounce_guard:
+        return
+    try:
+        if _bounce_guard.should_run_automatic():
+            report = _bounce_guard.run_automatic_check()
+            logger.info("Bounce Guard auto-check: checked=%s, fixed=%s", report.get("checked", 0), report.get("fixed", 0))
+            if report.get("fixed", 0) > 0 or report.get("decreased", False):
+                msg_lines = [
+                    "🛡️ فحص تلقائي لحارس الارتداد",
+                    "",
+                    "📅 " + str(report.get("timestamp", "")),
+                    "📊 إجمالي العروض: " + str(report.get("total", 0)),
+                    "🔧 تم إصلاح: " + str(report.get("fixed", 0)),
+                ]
+                if report.get("decreased", False):
+                    msg_lines.append("")
+                    msg_lines.append("⚠️ تنبيه: انخفاض في عدّاد العروض!")
+                    msg_lines.append("الحالي: " + str(report.get("total", 0)) + " | المرجعي: " + str(report.get("ref_count", 0)))
+                msg = chr(10).join(msg_lines)
+                for _aid in CONFIG.get("admin_ids", []):
+                    try:
+                        await context.bot.send_message(chat_id=_aid, text=msg, disable_web_page_preview=True)
+                    except Exception:
+                        pass
+    except Exception as e:
+        logger.error("خطأ في الفحص التلقائي لحارس الارتداد: %s", e)
+
 # Phase 6.2: SEO Intelligence — Command Handlers
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -6676,6 +6756,9 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("seo_approve", cmd_seo_approve))
     app.add_handler(CommandHandler("seo_reject", cmd_seo_reject))
 
+    # ── Phase 3 §1.3: Bounce Guard /fix command ──
+    app.add_handler(CommandHandler("fix", cmd_fix))
+
     # الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
@@ -6703,6 +6786,16 @@ def _setup_handlers(app):
     if app.job_queue:
         app.job_queue.run_repeating(auto_update_news, interval=3 * 24 * 3600, first=3600)
         logger.info("🗞️ تم جدولة تحديث الأخبار — كل 3 أيام")
+
+    # Phase 3 §1.3: حارس الارتداد — فحص تلقائي كل 6 ساعات
+    if app.job_queue and _bounce_guard:
+        app.job_queue.run_repeating(_bounce_guard_auto_check, interval=6 * 3600, first=300)
+        logger.info("🛡️ تم جدولة حارس الارتداد — كل 6 ساعات")
+        # تهيئة العدّاد المرجعي
+        try:
+            _bounce_guard.init_ref_count()
+        except Exception:
+            pass
 
 
 
