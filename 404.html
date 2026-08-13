@@ -40,6 +40,16 @@
                 window.location.replace(redirectUrl);
                 return;
             }
+            // Handle /offer/{external_id} or /offer/{external_id}/{slug} pattern
+            // New permanent links for Phase 5/6 listings
+            var offerMatch = path.match(/\/offer\/([^\/?#]+)/);
+            if (offerMatch) {
+                var externalId = offerMatch[1];
+                var basePath = path.replace(/offer\/.*$/, '');
+                var redirectUrl = basePath + 'property.html?offer=' + encodeURIComponent(externalId);
+                window.location.replace(redirectUrl);
+                return;
+            }
             // Handle SEO landing page clean URLs (without trailing slash)
             // e.g. /farms-riyadh → /farms-riyadh/
             var landingPages = [
