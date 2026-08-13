@@ -13,7 +13,25 @@ const OFFICE_DATA = {
     tiktok: "https://www.tiktok.com/@whatyouarelookingforisw3",
     defaultMap: "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
     // telegramBot: مخفي عن العامة — للاستخدام الإداري فقط
+    botUsername: "tlastlastlasbot",
 };
+
+// Phase 2: عرض العقارات المنشورة فقط + العقار بدون category → قسم "عامة"
+function isOfferPublished(offer) {
+    if (!offer) return false;
+    var status = offer.status || 'published';
+    return status === 'published';
+}
+function offerCategory(offer) {
+    return offer.category || offer.property_type || offer.section || 'عامة';
+}
+function offerDetailLink(offer) {
+    if (offer.external_id) {
+        var slug = offer.slug ? '/' + offer.slug : '';
+        return 'offer/' + offer.external_id + slug;
+    }
+    return 'property/' + offer.id;
+}
 
 // ===== إعدادات جسر تيليجرام (إرسال طلبات الزوار إلى البوت) =====
 // يتم إرسال الطلب مباشرة إلى Telegram Bot API ليصلك إشعار فوري في البوت
@@ -237,6 +255,8 @@ function renderOffers(filter = 'all', areaFilter = 'all', propTypeFilter = 'all'
     if (!grid) return;
 
     let filtered = OFFERS;
+    // Phase 2: عرض العقارات المنشورة فقط للزوار
+    filtered = filtered.filter(o => isOfferPublished(o));
     if (filter !== 'all') {
         filtered = filtered.filter(o => o.type === filter);
     }
@@ -263,8 +283,11 @@ function renderOffers(filter = 'all', areaFilter = 'all', propTypeFilter = 'all'
         const bousla = BOUSLA_PRICES[offer.area] || BOUSLA_PRICES["الرحمانية"];
         const bouslaPrice = offer.type === 'farm' ? bousla.farm : (offer.type === 'resthouse' ? bousla.resthouse : bousla.land);
         const featuresHtml = (offer.features || []).slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
-        const featuredBadge = offer.featured ? '<span class="offer-badge featured">مميز ⭐</span>' : `<span class="offer-badge">${offer.category}</span>`;
-                const operationBadge = (offer.operation_type === 'rent' || offer.operationType === 'rent') ? '<span class="offer-badge operation-rent">🏠 للإيجار</span>' : '<span class="offer-badge operation-sale">🏷️ للبيع</span>';
+        const cat = offerCategory(offer);
+        const isGeneral = !(offer.category || offer.property_type || offer.section);
+        const featuredBadge = offer.featured ? '<span class="offer-badge featured">مميز ⭐</span>' : `<span class="offer-badge">${cat}</span>`;
+        const soldBadge = offer.sold ? '<span class="offer-badge sold-badge">✔️ تم البيع</span>' : '';
+        const operationBadge = (offer.operation_type === 'rent' || offer.operationType === 'rent') ? '<span class="offer-badge operation-rent">🏠 للإيجار</span>' : '<span class="offer-badge operation-sale">🏷️ للبيع</span>';
 const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
         const mapLink = offer.map_link || OFFICE_DATA.defaultMap;
         const imgCount = (offer.images && offer.images.length) ? offer.images.length : 0;
@@ -275,16 +298,18 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
                 <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
                 ${featuredBadge}
                 ${operationBadge}
+                ${soldBadge}
                 ${morePhotosBadge}
                 <div class="offer-card-body">
-                    <h3>${offer.title}</h3>
+                    <h3><a href="${offerDetailLink(offer)}" style="color:inherit;text-decoration:none;">${offer.title}</a></h3>
                     <div class="offer-location">
                         <i class="fas fa-map-marker-alt"></i> ${offer.area} - الخرج
                     </div>
                     <div class="offer-details">
                         <span><i class="fas fa-ruler-combined"></i> ${offer.size_sqm} م²</span>
-                        <span><i class="fas fa-tag"></i> ${offer.category}</span>
+                        <span><i class="fas fa-tag"></i> ${cat}</span>
                     </div>
+                    ${isGeneral ? '<div class="offer-admin-alert" style="color:#b8860b;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> عقار بدون قسم — يظهر في "عامة"</div>' : ''}
                     <div class="offer-price">${offer.price_text}</div>
                     ${(offer.priceType === 'auction' || offer.price_type === 'auction') ? `<div class="offer-auction-info"><i class="fas fa-gavel"></i> على السوم — أعلى سوم: <strong>${(offer.highestBid || offer.highest_bid || 0).toLocaleString('en-US')} ريال</strong></div>` : ''}
                     ${(offer.priceType === 'negotiable' || offer.price_type === 'negotiable') ? `<div class="offer-price-tag"><i class="fas fa-handshake"></i> قابل للتفاوض</div>` : ''}
@@ -300,6 +325,9 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
                         </div>
                     </div>
                     <div class="offer-actions">
+                        <a href="${offerDetailLink(offer)}" class="offer-btn offer-btn-details">
+                            <i class="fas fa-info-circle"></i> التفاصيل
+                        </a>
                         <a href="${mapLink}" target="_blank" class="offer-btn offer-btn-map">
                             <i class="fas fa-map-marked-alt"></i> الموقع على الخريطة
                         </a>

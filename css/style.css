@@ -673,6 +673,21 @@ a.hero-feature:hover {
     background: var(--gold-light);
 }
 
+/* Phase 2: زر التفاصيل + شارة تم البيع */
+.offer-btn-details {
+    background: #2A5050;
+    color: #fff;
+}
+.offer-btn-details:hover {
+    background: #1f3d3d;
+}
+.offer-badge.sold-badge {
+    background: #c0392b;
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 10px;
+}
+
 /* ===== معلومات المزايدة والسوم ===== */
 .offer-auction-info {
     background: linear-gradient(135deg, rgba(196,169,86,0.12), rgba(196,169,86,0.05));

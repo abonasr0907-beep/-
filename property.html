@@ -327,6 +327,43 @@
             border-radius: 10px;
             margin-top: 15px;
         }
+        .property-sold-badge {
+            display: inline-block;
+            background: #c0392b;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .property-similar-section {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        .property-similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 15px;
+        }
+        .similar-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            transition: transform .2s;
+        }
+        .similar-card:hover { transform: translateY(-3px); }
+        .similar-card img { width: 100%; height: 130px; object-fit: cover; }
+        .similar-card-body { padding: 10px 12px; }
+        .similar-card-body h4 { font-size: 14px; margin: 0 0 4px; color: #2A5050; }
+        .similar-card-body .sc-price { font-weight: 700; color: #C4A956; font-size: 14px; }
+        .similar-card-body .sc-loc { font-size: 12px; color: #777; }
         @media (max-width: 768px) {
             #property-leaflet-map {
                 height: 250px;
@@ -469,6 +506,7 @@
                 <div class="property-info-card">
                     <span class="property-id-badge" id="property-id-badge">معرف العقار</span>
                     <span class="property-operation-badge sale" id="property-operation-badge">للبيع</span>
+                    <span class="property-sold-badge" id="property-sold-badge" style="display:none;">✔️ تم البيع</span>
                     <h1 class="property-title" id="property-title">عنوان العقار</h1>
 
                     <div class="property-price-box">
@@ -541,6 +579,14 @@
                     <i class="fas fa-map-marked-alt"></i> الموقع على الخريطة
                 </h2>
                 <div id="property-leaflet-map"></div>
+            </div>
+
+            <!-- Phase 2: عقارات مشابهة -->
+            <div class="property-similar-section" id="similar-section" style="display:none;">
+                <h2 class="property-section-title">
+                    <i class="fas fa-th-large"></i> عقارات مشابهة
+                </h2>
+                <div class="property-similar-grid" id="similar-grid"></div>
             </div>
         </div>
     </div>
@@ -725,7 +771,7 @@
                         "@type": "Offer",
                         "price": offer.price || 0,
                         "priceCurrency": "SAR",
-                        "availability": "https://schema.org/InStock",
+                        "availability": offer.sold ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
                         "seller": {
                             "@type": "RealEstateAgent",
                             "name": "مكتب آفاق الإنجاز العقاري",
@@ -746,8 +792,11 @@
             // ===== Render Property =====
             var currentImages = [];
             var currentImageIdx = 0;
+            var currentOffer = null;
+            var allOffers = [];
 
             function renderProperty(offer) {
+                currentOffer = offer;
                 // Hide loading, show content
                 document.getElementById('property-loading').style.display = 'none';
                 document.getElementById('property-content').style.display = 'block';
@@ -781,6 +830,14 @@
                     opBadge.className = 'property-operation-badge sale';
                 }
 
+                // Phase 2: شارة "تم البيع" — العقار المباع يبقى بصفحته ولا يُحذف
+                var soldBadge = document.getElementById('property-sold-badge');
+                if (offer.sold) {
+                    soldBadge.style.display = 'inline-block';
+                } else {
+                    soldBadge.style.display = 'none';
+                }
+
                 // Title
                 document.getElementById('property-title').textContent = offer.title;
 
@@ -794,7 +851,7 @@
                 document.getElementById('property-section').textContent = offer.section || '—';
                 document.getElementById('property-date').textContent = offer.date_added || '—';
 
-                // Images
+                // Images — Phase 2: صورة افتراضية احترافية إذا لم توجد صور
                 currentImages = (offer.images && offer.images.length > 0) ? offer.images : [DEFAULT_IMG];
                 currentImageIdx = 0;
                 renderGallery();
@@ -831,12 +888,54 @@
 
                 // Map
                 renderMap(offer);
+
+                // Phase 2: عقارات مشابهة (نفس النوع أو نفس المنطقة، منشورة فقط، باستثناء الحالي)
+                renderSimilar(offer);
+            }
+
+            function offerDetailLinkP(offer) {
+                if (offer.external_id) {
+                    var slug = offer.slug ? '/' + offer.slug : '';
+                    return 'offer/' + offer.external_id + slug;
+                }
+                return 'property/' + offer.id;
+            }
+
+            function renderSimilar(offer) {
+                var section = document.getElementById('similar-section');
+                var grid = document.getElementById('similar-grid');
+                if (!section || !grid) return;
+                var similar = allOffers.filter(function(o) {
+                    if (o.id === offer.id) return false;
+                    var status = o.status || 'published';
+                    if (status !== 'published') return false;
+                    var sameType = (o.property_type || o.category) === (offer.property_type || offer.category);
+                    var sameArea = o.area === offer.area;
+                    return sameType || sameArea;
+                }).slice(0, 4);
+                if (similar.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+                section.style.display = 'block';
+                grid.innerHTML = similar.map(function(o) {
+                    var img = (o.images && o.images[0]) ? o.images[0] : DEFAULT_IMG;
+                    var title = o.title || (o.category || 'عقار');
+                    return '<a href="' + offerDetailLinkP(o) + '" class="similar-card">' +
+                        '<img src="' + img + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + DEFAULT_IMG + '\';">' +
+                        '<div class="similar-card-body"><h4>' + title + '</h4>' +
+                        '<div class="sc-price">' + (o.price_text || '') + '</div>' +
+                        '<div class="sc-loc"><i class="fas fa-map-marker-alt"></i> ' + (o.area || '') + '</div>' +
+                        '</div></a>';
+                }).join('');
             }
 
             function renderGallery() {
                 var mainImg = document.getElementById('property-main-image');
                 mainImg.src = currentImages[currentImageIdx];
-                mainImg.alt = 'صورة العقار ' + (currentImageIdx + 1);
+                // Phase 2: ALT من alt_ar، وإن كان فارغًا يُولّد من نوع العقار + الموقع
+                mainImg.alt = currentAltText(currentImageIdx);
+                mainImg.loading = currentImageIdx === 0 ? 'eager' : 'lazy';
                 mainImg.onerror = function() {
                     this.onerror = null;
                     this.src = DEFAULT_IMG;
@@ -852,7 +951,7 @@
                 currentImages.forEach(function(imgSrc, idx) {
                     var thumb = document.createElement('img');
                     thumb.src = imgSrc;
-                    thumb.alt = 'صورة ' + (idx + 1);
+                    thumb.alt = currentAltText(idx);
                     thumb.className = 'property-thumbnail' + (idx === currentImageIdx ? ' active' : '');
                     thumb.loading = 'lazy';
                     thumb.onerror = function() {
@@ -865,6 +964,19 @@
                     };
                     thumbsContainer.appendChild(thumb);
                 });
+            }
+
+            // Phase 2: توليد نص ALT تلقائيًا من alt_ar أو نوع العقار + الموقع
+            function currentAltText(idx) {
+                if (currentOffer && currentOffer.images_alt && currentOffer.images_alt[idx]) {
+                    return currentOffer.images_alt[idx];
+                }
+                if (currentOffer && currentOffer.alt_ar) {
+                    return currentOffer.alt_ar;
+                }
+                var ptype = (currentOffer && (currentOffer.property_type || currentOffer.category)) || 'عقار';
+                var loc = (currentOffer && currentOffer.area) || '';
+                return ptype + (loc ? ' - ' + loc : '') + ' | مكتب آفاق الإنجاز العقاري';
             }
 
             // Main image click -> lightbox
@@ -927,6 +1039,7 @@
 
                 try {
                     var offers = await loadOffers();
+                    allOffers = offers;
                     var offer = null;
 
                     // Phase 8: Try external_id first (new links), then fall back to old ID
