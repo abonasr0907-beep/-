@@ -264,6 +264,14 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(196, 169, 86, 0.3);
         }
+        .property-contact-btn.bid {
+            background: #8e44ad;
+            color: var(--white);
+        }
+        .property-contact-btn.bid:hover {
+            background: #7d3c98;
+            transform: translateY(-2px);
+        }
 
         /* Description Section */
         .property-description-section {
@@ -327,9 +335,70 @@
             border-radius: 10px;
             margin-top: 15px;
         }
+        /* Phase 2 §3: MapLibre satellite map */
+        #property-satellite-map {
+            width: 100%;
+            height: 400px;
+            border-radius: 10px;
+            margin-top: 15px;
+            position: relative;
+        }
+        .property-map-gmaps {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 10px 18px;
+            background: #2A5050;
+            color: #fff;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        .property-map-gmaps:hover { opacity: 0.88; }
+        .property-sold-badge {
+            display: inline-block;
+            background: #c0392b;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+        .property-similar-section {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        .property-similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+            margin-top: 15px;
+        }
+        .similar-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            transition: transform .2s;
+        }
+        .similar-card:hover { transform: translateY(-3px); }
+        .similar-card img { width: 100%; height: 130px; object-fit: cover; }
+        .similar-card-body { padding: 10px 12px; }
+        .similar-card-body h4 { font-size: 14px; margin: 0 0 4px; color: #2A5050; }
+        .similar-card-body .sc-price { font-weight: 700; color: #C4A956; font-size: 14px; }
+        .similar-card-body .sc-loc { font-size: 12px; color: #777; }
         @media (max-width: 768px) {
             #property-leaflet-map {
                 height: 250px;
+            }
+            #property-satellite-map {
+                height: 280px;
             }
         }
 
@@ -469,6 +538,7 @@
                 <div class="property-info-card">
                     <span class="property-id-badge" id="property-id-badge">معرف العقار</span>
                     <span class="property-operation-badge sale" id="property-operation-badge">للبيع</span>
+                    <span class="property-sold-badge" id="property-sold-badge" style="display:none;">✔️ تم البيع</span>
                     <h1 class="property-title" id="property-title">عنوان العقار</h1>
 
                     <div class="property-price-box">
@@ -515,6 +585,10 @@
                         <a href="#" class="property-contact-btn map" id="contact-map" target="_blank">
                             <i class="fas fa-map-marked-alt"></i> الموقع على الخريطة
                         </a>
+                        <!-- Phase 2: زر طلب مزايدة للعقارات على السوم -->
+                        <a href="#" class="property-contact-btn bid" id="contact-bid" style="display:none;" onclick="openPropertyBid(); return false;">
+                            <i class="fas fa-gavel"></i> طلب مزايدة
+                        </a>
                     </div>
                 </div>
             </div>
@@ -540,7 +614,19 @@
                 <h2 class="property-section-title">
                     <i class="fas fa-map-marked-alt"></i> الموقع على الخريطة
                 </h2>
-                <div id="property-leaflet-map"></div>
+                <div id="property-satellite-map"></div>
+                <div id="property-leaflet-map" style="display:none;"></div>
+                <a href="#" id="property-gmaps-link" class="property-map-gmaps" target="_blank" rel="noopener" style="display:none;">
+                    <i class="fas fa-external-link-alt"></i> فتح في خرائط Google
+                </a>
+            </div>
+
+            <!-- Phase 2: عقارات مشابهة -->
+            <div class="property-similar-section" id="similar-section" style="display:none;">
+                <h2 class="property-section-title">
+                    <i class="fas fa-th-large"></i> عقارات مشابهة
+                </h2>
+                <div class="property-similar-grid" id="similar-grid"></div>
             </div>
         </div>
     </div>
@@ -550,8 +636,10 @@
         <img src="" alt="عرض مكبر للعقار | Property enlarged view — Afaq Al-Injaz Real Estate" id="lightbox-img">
     </div>
 
-    <!-- Leaflet JS -->
+    <!-- Leaflet JS (fallback) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Phase 2 §3: MapLibre GL (satellite 3D) — lazy-loaded on demand -->
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
 
     <!-- Property Page Script -->
     <script>
@@ -565,6 +653,13 @@
             var DEFAULT_IMG = 'images/farms-bg.jpg';
             var DEFAULT_LAT = 24.1554;
             var DEFAULT_LNG = 47.3068;
+            var BOT_USERNAME = 'tlastlastlasbot';
+
+            // Phase 2 §3: Simple admin check for map fallback alert (localStorage flag)
+            function isAdmin() {
+                try { return localStorage.getItem('afaq_admin_preview') === '1'; }
+                catch(e) { return false; }
+            }
 
             // ===== Parse Property ID from URL =====
             // URL format: /property/{property_id}  OR  /property.html?id={property_id}
@@ -725,7 +820,7 @@
                         "@type": "Offer",
                         "price": offer.price || 0,
                         "priceCurrency": "SAR",
-                        "availability": "https://schema.org/InStock",
+                        "availability": offer.sold ? "https://schema.org/SoldOut" : "https://schema.org/InStock",
                         "seller": {
                             "@type": "RealEstateAgent",
                             "name": "مكتب آفاق الإنجاز العقاري",
@@ -746,8 +841,11 @@
             // ===== Render Property =====
             var currentImages = [];
             var currentImageIdx = 0;
+            var currentOffer = null;
+            var allOffers = [];
 
             function renderProperty(offer) {
+                currentOffer = offer;
                 // Hide loading, show content
                 document.getElementById('property-loading').style.display = 'none';
                 document.getElementById('property-content').style.display = 'block';
@@ -781,6 +879,14 @@
                     opBadge.className = 'property-operation-badge sale';
                 }
 
+                // Phase 2: شارة "تم البيع" — العقار المباع يبقى بصفحته ولا يُحذف
+                var soldBadge = document.getElementById('property-sold-badge');
+                if (offer.sold) {
+                    soldBadge.style.display = 'inline-block';
+                } else {
+                    soldBadge.style.display = 'none';
+                }
+
                 // Title
                 document.getElementById('property-title').textContent = offer.title;
 
@@ -794,7 +900,7 @@
                 document.getElementById('property-section').textContent = offer.section || '—';
                 document.getElementById('property-date').textContent = offer.date_added || '—';
 
-                // Images
+                // Images — Phase 2: صورة افتراضية احترافية إذا لم توجد صور
                 currentImages = (offer.images && offer.images.length > 0) ? offer.images : [DEFAULT_IMG];
                 currentImageIdx = 0;
                 renderGallery();
@@ -831,12 +937,130 @@
 
                 // Map
                 renderMap(offer);
+
+                // Phase 2: عقارات مشابهة (نفس النوع أو نفس المنطقة، منشورة فقط، باستثناء الحالي)
+                renderSimilar(offer);
+
+                // Phase 2: إظهار زر طلب مزايدة للعقارات على السوم/المزاد
+                var isBiddable = (offer.price_mode === 'sum' || offer.price_mode === 'auction' ||
+                                  offer.price_type === 'auction' || offer.priceType === 'auction') &&
+                                 (offer.allow_bidding !== false);
+                var bidBtn = document.getElementById('contact-bid');
+                if (bidBtn) bidBtn.style.display = isBiddable ? 'flex' : 'none';
+            }
+
+            // Phase 2: نموذج طلب المزايدة في صفحة العقار
+            function openPropertyBid() {
+                if (!currentOffer) return;
+                var offer = currentOffer;
+                var extId = offer.external_id || offer.id;
+                var currentBid = offer.current_bid || offer.sum_price || offer.highest_bid || offer.price || 0;
+                var html = '<div id="prop-bid-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99998;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;font-family:inherit;">' +
+                    '<h3 style="color:#2A5050;margin:0 0 8px;"><i class="fas fa-gavel"></i> طلب مزايدة</h3>' +
+                    '<p style="color:#666;font-size:14px;margin:0 0 12px;">' + (offer.title || '') + '</p>' +
+                    '<p style="background:#f5f5f5;padding:10px;border-radius:8px;font-size:14px;margin:0 0 12px;">أعلى سوم حالي: <strong>' + Number(currentBid).toLocaleString('en-US') + ' ريال</strong></p>' +
+                    '<label style="display:block;font-size:14px;margin-bottom:4px;">الاسم *</label>' +
+                    '<input type="text" id="pbid-name" placeholder="اسمك الكامل" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;font-family:inherit;box-sizing:border-box;" />' +
+                    '<label style="display:block;font-size:14px;margin-bottom:4px;">رقم الجوال *</label>' +
+                    '<input type="text" id="pbid-phone" placeholder="05xxxxxxxx" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;font-family:inherit;box-sizing:border-box;" />' +
+                    '<label style="display:block;font-size:14px;margin-bottom:4px;">المبلغ (ريال) *</label>' +
+                    '<input type="number" id="pbid-amount" placeholder="بين 1,000 و 5,000,000,000" min="1000" max="5000000000" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:6px;font-family:inherit;box-sizing:border-box;" />' +
+                    '<small id="pbid-error" style="color:#c0392b;display:none;font-size:12px;margin-bottom:8px;"></small>' +
+                    '<div style="display:flex;gap:10px;margin-top:8px;">' +
+                    '<button onclick="document.getElementById(\'prop-bid-modal\').remove()" style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إلغاء</button>' +
+                    '<button onclick="submitPropertyBid()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#2A5050;color:#fff;cursor:pointer;font-family:inherit;">إرسال</button>' +
+                    '</div></div></div>';
+                var existing = document.getElementById('prop-bid-modal');
+                if (existing) existing.remove();
+                document.body.insertAdjacentHTML('beforeend', html);
+            }
+
+            function submitPropertyBid() {
+                var name = (document.getElementById('pbid-name') || {}).value || '';
+                var phone = (document.getElementById('pbid-phone') || {}).value || '';
+                var amount = (document.getElementById('pbid-amount') || {}).value || '';
+                var errEl = document.getElementById('pbid-error');
+                name = name.trim(); phone = phone.trim();
+                if (!name || !phone || !amount) {
+                    if (errEl) { errEl.textContent = 'يرجى تعبئة جميع الحقول المطلوبة'; errEl.style.display = 'block'; }
+                    return;
+                }
+                var amountNum = parseFloat(amount);
+                if (isNaN(amountNum) || amountNum < 1000 || amountNum > 5000000000) {
+                    if (errEl) { errEl.textContent = 'المبلغ يجب أن يكون رقمًا بين 1,000 و 5,000,000,000 ريال'; errEl.style.display = 'block'; }
+                    return;
+                }
+                var phoneClean = phone.replace(/\D/g, '');
+                if (phoneClean.length < 9) {
+                    if (errEl) { errEl.textContent = 'يرجى إدخال رقم جوال صحيح'; errEl.style.display = 'block'; }
+                    return;
+                }
+                var offer = currentOffer;
+                var extId = offer.external_id || offer.id;
+                var formattedAmount = amountNum.toLocaleString('en-US');
+                // wa.me link بالنص المطلوب
+                var waText = 'طلب مزايدة | العقار: ' + extId + ' | الاسم: ' + name + ' | الجوال: ' + phone + ' | المبلغ: ' + formattedAmount + ' ريال';
+                var waUrl = 'https://wa.me/' + OFFICE_WHATSAPP + '?text=' + encodeURIComponent(waText);
+                // deep-link البوت
+                var deepLink = BOT_USERNAME ? ('https://t.me/' + BOT_USERNAME + '?start=bid_' + extId + '_' + amountNum) : '';
+                document.getElementById('prop-bid-modal').remove();
+                // عرض نافذة تأكيد مع زري واتساب + البوت
+                var successHtml = '<div id="prop-bid-success" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;">' +
+                    '<div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;text-align:center;font-family:inherit;">' +
+                    '<i class="fas fa-check-circle" style="font-size:48px;color:#2A5050;margin-bottom:12px;"></i>' +
+                    '<h3 style="color:#2A5050;margin:0 0 8px;">تم تجهيز طلبك!</h3>' +
+                    '<p style="color:#666;font-size:14px;margin:0 0 18px;">اختر طريقة إرسال المزايدة:</p>' +
+                    '<a href="' + waUrl + '" target="_blank" style="display:block;padding:12px;border:none;border-radius:8px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;margin-bottom:10px;font-family:inherit;"><i class="fab fa-whatsapp"></i> إرسال عبر واتساب</a>' +
+                    (deepLink ? '<a href="' + deepLink + '" target="_blank" style="display:block;padding:12px;border:none;border-radius:8px;background:#0088cc;color:#fff;text-decoration:none;font-weight:700;margin-bottom:10px;font-family:inherit;"><i class="fab fa-telegram"></i> إرسال عبر البوت</a>' : '') +
+                    '<button onclick="document.getElementById(\'prop-bid-success\').remove()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إغلاق</button>' +
+                    '</div></div>';
+                document.body.insertAdjacentHTML('beforeend', successHtml);
+            }
+
+            function offerDetailLinkP(offer) {
+                if (offer.external_id) {
+                    var slug = offer.slug ? '/' + offer.slug : '';
+                    return 'offer/' + offer.external_id + slug;
+                }
+                return 'property/' + offer.id;
+            }
+
+            function renderSimilar(offer) {
+                var section = document.getElementById('similar-section');
+                var grid = document.getElementById('similar-grid');
+                if (!section || !grid) return;
+                var similar = allOffers.filter(function(o) {
+                    if (o.id === offer.id) return false;
+                    var status = o.status || 'published';
+                    if (status !== 'published') return false;
+                    var sameType = (o.property_type || o.category) === (offer.property_type || offer.category);
+                    var sameArea = o.area === offer.area;
+                    return sameType || sameArea;
+                }).slice(0, 4);
+                if (similar.length === 0) {
+                    section.style.display = 'none';
+                    return;
+                }
+                section.style.display = 'block';
+                grid.innerHTML = similar.map(function(o) {
+                    var img = (o.images && o.images[0]) ? o.images[0] : DEFAULT_IMG;
+                    var title = o.title || (o.category || 'عقار');
+                    return '<a href="' + offerDetailLinkP(o) + '" class="similar-card">' +
+                        '<img src="' + img + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + DEFAULT_IMG + '\';">' +
+                        '<div class="similar-card-body"><h4>' + title + '</h4>' +
+                        '<div class="sc-price">' + (o.price_text || '') + '</div>' +
+                        '<div class="sc-loc"><i class="fas fa-map-marker-alt"></i> ' + (o.area || '') + '</div>' +
+                        '</div></a>';
+                }).join('');
             }
 
             function renderGallery() {
                 var mainImg = document.getElementById('property-main-image');
                 mainImg.src = currentImages[currentImageIdx];
-                mainImg.alt = 'صورة العقار ' + (currentImageIdx + 1);
+                // Phase 2: ALT من alt_ar، وإن كان فارغًا يُولّد من نوع العقار + الموقع
+                mainImg.alt = currentAltText(currentImageIdx);
+                mainImg.loading = currentImageIdx === 0 ? 'eager' : 'lazy';
                 mainImg.onerror = function() {
                     this.onerror = null;
                     this.src = DEFAULT_IMG;
@@ -852,7 +1076,7 @@
                 currentImages.forEach(function(imgSrc, idx) {
                     var thumb = document.createElement('img');
                     thumb.src = imgSrc;
-                    thumb.alt = 'صورة ' + (idx + 1);
+                    thumb.alt = currentAltText(idx);
                     thumb.className = 'property-thumbnail' + (idx === currentImageIdx ? ' active' : '');
                     thumb.loading = 'lazy';
                     thumb.onerror = function() {
@@ -867,6 +1091,19 @@
                 });
             }
 
+            // Phase 2: توليد نص ALT تلقائيًا من alt_ar أو نوع العقار + الموقع
+            function currentAltText(idx) {
+                if (currentOffer && currentOffer.images_alt && currentOffer.images_alt[idx]) {
+                    return currentOffer.images_alt[idx];
+                }
+                if (currentOffer && currentOffer.alt_ar) {
+                    return currentOffer.alt_ar;
+                }
+                var ptype = (currentOffer && (currentOffer.property_type || currentOffer.category)) || 'عقار';
+                var loc = (currentOffer && currentOffer.area) || '';
+                return ptype + (loc ? ' - ' + loc : '') + ' | مكتب آفاق الإنجاز العقاري';
+            }
+
             // Main image click -> lightbox
             document.getElementById('property-main-image').onclick = function() {
                 var lightbox = document.getElementById('property-lightbox');
@@ -878,28 +1115,139 @@
                 this.classList.remove('active');
             };
 
-            // ===== Render Map =====
+            // ===== Render Map (Phase 2 §3: MapLibre GL satellite + Leaflet fallback) =====
             var leafletMap = null;
-            function renderMap(offer) {
-                var lat = offer.visitor_lat || DEFAULT_LAT;
-                var lng = offer.visitor_lng || DEFAULT_LNG;
+            var maplibreMap = null;
+            var maplibreLoaded = false;
+            var pendingOfferForMap = null;
 
-                // Handle string coords
+            function loadMaplibreScript(cb) {
+                if (maplibreLoaded && window.maplibregl) { cb(); return; }
+                if (window.maplibregl) { maplibreLoaded = true; cb(); return; }
+                var s = document.createElement('script');
+                s.src = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js';
+                s.onload = function() { maplibreLoaded = true; cb(); };
+                s.onerror = function() { cb(new Error('maplibre load failed')); };
+                document.head.appendChild(s);
+            }
+
+            function renderMap(offer) {
+                pendingOfferForMap = offer;
+                var lat = offer.visitor_lat || offer.lat || DEFAULT_LAT;
+                var lng = offer.visitor_lng || offer.lng || DEFAULT_LNG;
+
                 lat = parseFloat(lat);
                 lng = parseFloat(lng);
-                if (isNaN(lat)) lat = DEFAULT_LAT;
-                if (isNaN(lng)) lng = DEFAULT_LNG;
+                var usingDefault = false;
+                if (isNaN(lat)) { lat = DEFAULT_LAT; usingDefault = true; }
+                if (isNaN(lng)) { lng = DEFAULT_LNG; usingDefault = true; }
 
-                if (leafletMap) {
-                    leafletMap.remove();
+                // Admin alert when falling back to default location
+                if (usingDefault && isAdmin()) {
+                    var alertDiv = document.createElement('div');
+                    alertDiv.style.cssText = 'background:#fff3cd;color:#856404;padding:8px 12px;border-radius:6px;margin-top:8px;font-size:13px;';
+                    alertDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> تنبيه: لا توجد إحداثيات لهذا العقار — يُعرض الموقع الافتراضي (الخرج/الرحمانية).';
+                    document.getElementById('property-satellite-map').parentNode.appendChild(alertDiv);
                 }
+
+                // Google Maps external link (always available)
+                var gmapsLink = document.getElementById('property-gmaps-link');
+                if (gmapsLink) {
+                    gmapsLink.href = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng;
+                    gmapsLink.style.display = 'inline-block';
+                }
+
+                // Lazy load: only init map when section is visible
+                var mapContainer = document.getElementById('property-satellite-map');
+                if (!mapContainer) return;
+                if ('IntersectionObserver' in window) {
+                    var io = new IntersectionObserver(function(entries) {
+                        if (entries[0].isIntersecting) {
+                            io.disconnect();
+                            initSatelliteMap(lat, lng, offer);
+                        }
+                    }, { rootMargin: '100px' });
+                    io.observe(mapContainer);
+                } else {
+                    initSatelliteMap(lat, lng, offer);
+                }
+            }
+
+            function initSatelliteMap(lat, lng, offer) {
+                loadMaplibreScript(function(err) {
+                    if (err || !window.maplibregl) {
+                        // Fallback to Leaflet
+                        console.warn('MapLibre unavailable, falling back to Leaflet:', err);
+                        renderLeafletFallback(lat, lng, offer);
+                        return;
+                    }
+                    try {
+                        if (maplibreMap) { maplibreMap.remove(); maplibreMap = null; }
+                        var satDiv = document.getElementById('property-satellite-map');
+                        var leafDiv = document.getElementById('property-leaflet-map');
+                        if (satDiv) satDiv.style.display = 'block';
+                        if (leafDiv) leafDiv.style.display = 'none';
+
+                        maplibreMap = new maplibregl.Map({
+                            container: 'property-satellite-map',
+                            style: {
+                                version: 8,
+                                sources: {
+                                    'esri-satellite': {
+                                        type: 'raster',
+                                        tiles: [
+                                            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                                        ],
+                                        tileSize: 256,
+                                        attribution: '© Esri World Imagery'
+                                    }
+                                },
+                                layers: [{
+                                    id: 'satellite-layer',
+                                    type: 'raster',
+                                    source: 'esri-satellite',
+                                    minzoom: 0,
+                                    maxzoom: 19
+                                }]
+                            },
+                            center: [lng, lat],
+                            zoom: 14,
+                            pitch: 58,
+                            bearing: 20,
+                            attributionControl: true
+                        });
+
+                        maplibreMap.on('load', function() {
+                            // Marker
+                            var markerEl = document.createElement('div');
+                            markerEl.innerHTML = '<div style="background:#c0392b;width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>';
+                            new maplibregl.Marker({ element: markerEl })
+                                .setLngLat([lng, lat])
+                                .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(
+                                    '<strong>' + (offer.title || 'العقار') + '</strong><br>' + (offer.area || '') + ' — الخرج'
+                                ))
+                                .addTo(maplibreMap);
+                        });
+
+                        maplibreMap.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+                    } catch(e) {
+                        console.error('MapLibre init failed, falling back:', e);
+                        renderLeafletFallback(lat, lng, offer);
+                    }
+                });
+            }
+
+            function renderLeafletFallback(lat, lng, offer) {
+                var satDiv = document.getElementById('property-satellite-map');
+                var leafDiv = document.getElementById('property-leaflet-map');
+                if (satDiv) satDiv.style.display = 'none';
+                if (leafDiv) leafDiv.style.display = 'block';
+                if (leafletMap) { leafletMap.remove(); }
                 leafletMap = L.map('property-leaflet-map').setView([lat, lng], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap',
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: '© Esri World Imagery',
                     maxZoom: 19
                 }).addTo(leafletMap);
-
-                // Custom marker
                 var marker = L.marker([lat, lng]).addTo(leafletMap);
                 marker.bindPopup('<strong>' + (offer.title || 'العقار') + '</strong><br>' + (offer.area || '') + ' - الخرج').openPopup();
             }
@@ -927,6 +1275,7 @@
 
                 try {
                     var offers = await loadOffers();
+                    allOffers = offers;
                     var offer = null;
 
                     // Phase 8: Try external_id first (new links), then fall back to old ID
