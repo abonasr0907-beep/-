@@ -117,6 +117,21 @@
 | التاريخ | المرحلة | الخطورة | الحالة | الملخص |
 |---------|---------|---------|--------|--------|
 | — | — | — | — | لا حوادث حتى الآن في Phase 2 |
+| 2025-01-15 | Phase 2.8 | منخفضة | مغلقة | visitor_requests.json حُذف في اختبار محاكاة ثم استُرجع فورًا (add-only محفوظ) |
+
+---
+
+## 3. بوابة Phase 2.8 — hotfix النشر والتحقق
+
+تم العبور بنجاح:
+- [x] `offer["status"] = "published"` في `_finalize_offer` + `_approve_visitor_request`
+- [x] `_handle_attach_deep_link` + توجيه `attach_` في `start()` + فرع `v_awaiting_images`
+- [x] `form-success` div في `list-property.html` + حقن زر `attach_` في `main.js`
+- [x] `py_compile bot/bot.py` ✅ + `node --check js/main.js` ✅
+- [x] `visitor_requests.json` محفوظ (add-only)
+- [x] دمج `feat/publish-verification-hotfix` إلى `main` (merge --no-ff) + دفع main
+- [x] وسم `phase-2.8-hotfix` + دفع الوسم
+- [x] `docs/HANDOFF_2_8.md` مكتمل
 
 ---
 

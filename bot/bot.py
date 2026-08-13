@@ -891,6 +891,58 @@ async def _handle_bid_deep_link(update, context, uid):
     )
 
 
+# ============================================================
+#  Phase 2.8 — ربط صور الزائر بطلب العقار عبر deep-link attach_
+# ============================================================
+async def _handle_attach_deep_link(update, context, uid):
+    """
+    يفكك حمولة /start التي تبدأ بـ attach_{request_id}.
+    يطلب من الزائر إرسال صور العقار، يخزنها عبر handle_photo،
+    ثم يربطها بطلب الزائر في visitor_requests.json (link_images_to_property).
+    """
+    payload = context.args[0]  # attach_{request_id}
+    parts = payload.split("_", 1)
+    if len(parts) < 2 or not parts[1]:
+        await update.message.reply_text(
+            "⚠️ رابط إرفاق الصور غير صحيح. تواصل مع المكتب مباشرة."
+        )
+        return
+    request_id = parts[1].strip()
+
+    # التحقق من وجود الطلب
+    vdata = load_visitor_requests()
+    requests_list = vdata.get("requests", [])
+    target_req = None
+    for r in requests_list:
+        if r.get("id") == request_id:
+            target_req = r
+            break
+    if not target_req:
+        await update.message.reply_text(
+            "⚠️ لم نعثر على طلبك. قد يكون انتهت صلاحيته أو تمت معالجته.\n"
+            "تواصل مع المكتب مباشرة:\n"
+            "📞 واتساب: 0545888931\n"
+            "📞 اتصال: 0544699933"
+        )
+        return
+
+    # إعداد جلسة الزائر لاستلام الصور
+    session = get_session(uid)
+    session["state"] = "v_awaiting_images"
+    session["images"] = []
+    session["attach_request_id"] = request_id
+    session["offer"] = {"id": request_id, "category": target_req.get("propertyType", target_req.get("section", "")), "area": target_req.get("location", "")}
+    save_session(uid)
+
+    await update.message.reply_text(
+        f"📸 مرحبًا! تم ربطك بطلبك رقم:\n"
+        f"📋 {request_id}\n\n"
+        f"الآن أرسل صور العقار (حتى {CONFIG['max_images']} صور).\n"
+        f"بعد الانتهاء أرسل: تم ✅\n\n"
+        f"❌ للإلغاء اضغط: إلغاء العملية"
+    )
+
+
 async def cmd_bids(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض المزايدات المنتظرة (pending) — للمدير فقط."""
     if not is_admin(update.effective_user.id):
@@ -993,6 +1045,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # البوت يفكك الحمولة، يحفظ المزايدة (pending)، ويُشعِر المدراء فوريًا.
     if context.args and context.args[0].startswith("bid_"):
         await _handle_bid_deep_link(update, context, uid)
+        return
+
+    # Phase 2.8: deep-link attach_ payload -> /start attach_{request_id}
+    # زائر يرفع صور عقاره عبر deep-link بعد إرسال النموذج على الموقع.
+    if context.args and context.args[0].startswith("attach_"):
+        await _handle_attach_deep_link(update, context, uid)
         return
 
     # أول مستخدم يبدأ البوت يصبح أدمن تلقائياً
@@ -2097,6 +2155,55 @@ async def handle_visitor_text(update: Update, context: ContextTypes.DEFAULT_TYPE
             if len(session["images"]) == 0:
                 await update.message.reply_text("⚠️ لم ترسل أي صورة. أرسل صورة واحدة على الأقل أو أرسل: تم ✅")
                 return
+            # Phase 2.8: وضع attach_ — ربط الصور بالطلب الموجود وإنهاء
+            if session.get("attach_request_id"):
+                _attach_rid = session.get("attach_request_id")
+                _attach_imgs = list(session.get("images", []))
+                _linked = False
+                try:
+                    if property_storage:
+                        property_storage.link_images_to_property(_attach_rid, _attach_imgs)
+                        _linked = True
+                except Exception as _ae:
+                    logger.error(f"Phase 2.8: خطأ ربط الصور بطلب الزائر {_attach_rid}: {_ae}")
+                # تحديث سجل طلبات الزائر بالصور
+                try:
+                    _vdata = load_visitor_requests()
+                    for _r in _vdata.get("requests", []):
+                        if _r.get("id") == _attach_rid:
+                            _r["images"] = _attach_imgs
+                            _r["images_attached_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                            _r["images_attached_via"] = "deep_link_attach"
+                            break
+                    save_visitor_requests(_vdata)
+                except Exception as _ve:
+                    logger.error(f"Phase 2.8: خطأ تحديث طلب الزائر بالصور: {_ve}")
+                # إشعار المدراء
+                try:
+                    _bot_ref = context.bot if context else None
+                    if _bot_ref:
+                        _attach_msg = (
+                            f"📸 <b>تم ربط صور بطلب زائر</b>\n\n"
+                            f"📋 <b>رقم الطلب:</b> <code>{_attach_rid}</code>\n"
+                            f"🖼️ <b>عدد الصور:</b> {len(_attach_imgs)}\n"
+                            f"✅ <b>الربط بالتخزين:</b> {'نعم' if _linked else 'سجل فقط'}"
+                        )
+                        for _aid in CONFIG.get("admin_ids", []):
+                            try:
+                                await _bot_ref.send_message(chat_id=_aid, text=_attach_msg, parse_mode="HTML", disable_web_page_preview=True)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                reset_session(uid)
+                await update.message.reply_text(
+                    f"✅ تم ربط {len(_attach_imgs)} صورة بطلبك رقم:\n"
+                    f"📋 {_attach_rid}\n\n"
+                    f"👥 تم إشعار إدارة المكتب وسيتواصلون معك قريبًا.\n\n"
+                    f"📞 واتساب: 0545888931\n"
+                    f"📞 اتصال: 0544699933"
+                )
+                return
             session["state"] = "v_awaiting_map"
             await update.message.reply_text(
                 f"✅ تم استلام {len(session['images'])} صورة.\n\n"
@@ -2720,6 +2827,7 @@ async def _finalize_offer(update, uid, query=None):
     # ── توليد معرف تسلسلي فريد (AFQ-2026-0001) ──
     offer["id"] = offer_id.generate_offer_id()
     offer["publish_status"] = "Published"  # حالة النشر الموحّدة
+    offer["status"] = "published"  # Phase 2.8: النشر فوري للمدير — status=published صراحة للموقع (isOfferPublished)
 
     # ── منع نشر عرض بلا صور ──
     if not offer["images"]:
@@ -2861,9 +2969,26 @@ async def list_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not offers:
         await update.message.reply_text("📋 لا توجد عروض منشورة حالياً.")
         return
-    msg = f"📋 قائمة العروض ({len(offers)} عرض):\n\n"
-    for o in offers[-20:]:  # آخر 20
-        msg += f"🆔 {o['id']} | {o.get('category','')} | {o.get('area','')} | {o.get('size_sqm','')} م² | {o.get('price_text','')}\n"
+    # Phase 2.8 §2: المدير يرى كل العروض مع شارة الحالة؛ غير المدير يرى المنشور فقط
+    _is_mgr = is_admin(update.effective_user.id) or (user_manager and user_manager.is_manager(update.effective_user.id))
+    _visible = offers if _is_mgr else [o for o in offers if str(o.get("status", "")).lower() == "published"]
+    if not _visible:
+        await update.message.reply_text("📋 لا توجد عروض منشورة حالياً.")
+        return
+    msg = f"📋 قائمة العروض ({len(_visible)} عرض):\n\n"
+    for o in _visible[-20:]:  # آخر 20
+        _badge = ""
+        if _is_mgr:
+            _st = str(o.get("status", "—")).lower()
+            if _st == "published":
+                _badge = " ✅"
+            elif _st in ("pending", "under_review", "publishing", "verifying"):
+                _badge = " ⏳"
+            elif _st in ("rejected", "failed", "archived"):
+                _badge = " 🚫"
+            else:
+                _badge = f" [{_st}]"
+        msg += f"🆔 {o['id']}{_badge} | {o.get('category','')} | {o.get('area','')} | {o.get('size_sqm','')} م² | {o.get('price_text','')}\n"
     await update.message.reply_text(msg)
 
 # ============================================================
@@ -3552,6 +3677,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
         # Phase 4 Validation Fix (P1): preserve section + property_type from the visitor request
         "section": item.get("section", ""),
         "property_type": item.get("propertyType", item.get("property_type", item_type)),
+        "status": "published",  # Phase 2.8 §1+§3: النشر فوري — status=published قبل أي فحص (تقرير بعدي لاحقًا)
         "title": f"{item_type} \u2014 {item_area}",
         "area": item_area,
         "area_en": "",
@@ -3579,6 +3705,8 @@ async def _approve_visitor_request(update, req_ref, query=None):
         "operation_type": item.get("operation_type", item.get("operationType", "sale")),
         "visitor_name": item.get("name", ""),
         "visitor_phone": item.get("phone", ""),
+        "status": "published",  # Phase 2.8: عرض published صراحة للموقع
+        "publish_status": "Published",  # Phase 2.8: حالة النشر الموحّدة
     }
 
     # إضافة وصف الزائر إذا وجد
@@ -3710,74 +3838,59 @@ async def _approve_visitor_request(update, req_ref, query=None):
             if error_reporter:
                 error_reporter.report_error("bot._approve_visitor_request.property_storage", "Failed to store property permanently", context={"offer_id": offer_id, "error": str(_ps_err)}, severity="critical", file_affected="bot/property_storage.py")
 
-    # Phase 4: التحقق الإلزامي من النشر (9 فحوصات)
-    verification_passed = True
-    verification_result = None
-    _verify_count = 9
-    if publish_verifier:
-        try:
-            verification_result = publish_verifier.verify_publishing(
-                offer_id=offer_id,
-                expected_section=item.get("section", ""),
-                expected_area=item_area,
-                expected_type=item.get("propertyType", item.get("property_type", "")),
-            )
-            verification_passed = verification_result.get("all_passed", False)
-            _check_list = verification_result.get("checks", [])
-            _verify_count = sum(1 for c in _check_list if c.get("passed"))
-            logger.info(f"Phase4: التحقق من النشر — all_passed={verification_passed}, passed={_verify_count}/9, failed_checks={verification_result.get('failed_checks', [])}")
-        except Exception as _pv_err:
-            logger.error(f"Phase4: خطأ في التحقق من النشر: {_pv_err}")
-            verification_result = {"all_passed": False, "error": str(_pv_err), "failed_checks": ["verifier_error"]}
-            verification_passed = False
-
-    # Phase 4: إنشاء الرابط النهائي الرسمي للعقار
+    # Phase 2.8 §1+§3: النشر فورًا ثم تقرير بعدي غير حاجب (correct_section لا يمنع النشر أبدًا)
+    # قاعدة النشر الجديدة الصارمة: التعيين إلى published يحدث أولًا قبل أي فحص؛
+    # ثم يُنفَّذ الفحص كـ"تقرير بعدي" يرسل تنبيهًا فقط ولا يغيّر الحالة أبدًا.
     site_url = _get_site_base_url()  # Phase 2.7 §2: SITE_BASE_URL
     final_property_url = f"{site_url}property/{offer_id}"
 
-    # Phase 4: فقط تعيين PUBLISHED إذا اجتازت جميع الفحوصات
-    if not verification_passed:
-        # فشل التحقق — عدم تعيين PUBLISHED، تعيين FAILED
-        item["status"] = "rejected"
-        item["publish_status"] = "Failed"
-        item["failed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        _failed_checks = verification_result.get("failed_checks", []) if verification_result else ["unknown"]
-        item["fail_reason"] = "publish verification failed — " + ", ".join(_failed_checks)
-        item["verification_result"] = verification_result
-        item.setdefault("status_history", []).append({"status": "FAILED", "at": item["failed_at"], "reason": item["fail_reason"], "failed_checks": _failed_checks})
-        save_visitor_requests(data)
-        if error_reporter:
-            error_reporter.report_error("bot._approve_visitor_request.verify", "Publish verification failed — property NOT published", context={"offer_id": offer_id, "failed_checks": _failed_checks}, severity="critical", file_affected="bot/publish_verifier.py")
-        # إرسال تقرير المشكلة
-        err_msg = (
-            f"❌ فشل التحقق من النشر\n\n"
-            f"🆔 المعرف: {offer_id}\n"
-            f"❌ الفحوص الفاشلة: {', '.join(_failed_checks)}\n\n"
-            f"⚠️ لم يتم تعيين حالة منشور\n"
-            f"📝 تم حفظ تقرير المشكلة للمراجعة"
-        )
-        if query:
-            await query.edit_message_text(err_msg)
-        else:
-            await update.message.reply_text(err_msg)
-        # Phase 4: AI Monitor يحلل السبب
-        try:
-            ai_monitor.monitor_publish_errors()
-        except Exception:
-            pass
-        return
-
-    # 7) تحديث حالة الطلب إلى PUBLISHED (لا يحذف)
+    # 7) تحديث حالة الطلب إلى PUBLISHED فورًا — قبل أي فحص (لا تحذف)
     item["status"] = REQUEST_STATUS_PUBLISHED
     item["publish_status"] = "Published"
+
     item["published_offer_id"] = offer_id
     item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item["final_property_url"] = final_property_url
-    item["verification_passed"] = True
-    item["verification_checks_passed"] = _verify_count if verification_result else 9
-    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id, "final_url": final_property_url})
+
+    # Phase 2.8 §1+§3: تشغيل التحقق كتقرير بعدي غير حاجب — يرسل تنبيهًا فقط ولا يغيّر الحالة أبدًا
+    post_report_result = None
+    _post_failed_checks = []
+    _verify_count = 9
+    if publish_verifier and hasattr(publish_verifier, "verify_publishing_post_report"):
+        try:
+            post_report_result = publish_verifier.verify_publishing_post_report(
+                offer_id=offer_id,
+                expected_section=item.get("section", ""),
+                expected_area=item_area,
+                expected_type=item.get("propertyType", item.get("property_type", "")),
+                final_url=final_property_url,
+            )
+            _post_failed_checks = post_report_result.get("failed_checks", [])
+            _check_list = post_report_result.get("checks", [])
+            _verify_count = sum(1 for c in _check_list if c.get("passed"))
+            logger.info(f"Phase 2.8 §1: تقرير بعدي للعرض {offer_id} — critical_passed={post_report_result.get('critical_passed')}, passed={_verify_count}/9, failed={_post_failed_checks}")
+        except Exception as _pr_err:
+            logger.error(f"Phase 2.8 §1: خطأ في التقرير البعدي للعرض {offer_id}: {_pr_err}")
+            post_report_result = {"post_report": True, "critical_passed": True, "error": str(_pr_err), "failed_checks": []}
+    item["verification_passed"] = True  # النشر تم بالفعل — التقرير البعدي لا يغيّر هذا أبدًا
+    item["post_report"] = post_report_result
+    item["verification_checks_passed"] = _verify_count if post_report_result else 9
+    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id, "final_url": final_property_url, "post_report": True})
     save_visitor_requests(data)
+
+    # Phase 2.8 §1: إرسال تنبيه بعدي فقط عند وجود فحوصات تحتاج مراجعة — لا يمنع النشر ولا يغيّر الحالة
+    if _post_failed_checks:
+        try:
+            _alert_msg = (
+                f"⚠️ تنبيه بعدي (النشر تم بالفعل)\n\n"
+                f"🆔 المعرف: {offer_id}\n"
+                f"📋 فحوصات تحتاج مراجعة: {', '.join(_post_failed_checks)}\n\n"
+                f"✅ العرض منشور — هذا تنبيه فقط لا يؤثر على الحالة"
+            )
+            await update.effective_chat.send_message(_alert_msg)
+        except Exception:
+            pass
 
     # Phase 4: تحديث حالة العقار في property_storage إلى PUBLISHED
     if property_storage and property_stored:

@@ -310,6 +310,16 @@
                     </div>
                     <button type="submit" class="btn-primary btn-full"><i class="fab fa-whatsapp"></i> إرسال الطلب عبر واتساب</button>
                 </form>
+                <!-- Phase 2.8: رسالة النجاح + زر إرفاق الصور عبر بوت -->
+                <div id="form-success" class="form-success" style="display:none;margin-top:18px;padding:18px;border-radius:12px;background:linear-gradient(135deg,#1a3a2a,#0f5132);color:#fff;text-align:center;border:1px solid #2d6a4f;">
+                    <i class="fas fa-check-circle" style="font-size:2.2rem;color:#74c69d;"></i>
+                    <h3 style="margin:10px 0 6px;">تم إرسال طلبك بنجاح! ✅</h3>
+                    <p style="margin:0 0 12px;opacity:.92;">رقم طلبك: <strong id="form-success-reqid"></strong></p>
+                    <p style="margin:0 0 14px;opacity:.92;">📅 لإرفاق صور العقار وتسريع عملية التقييم، اضغط الزر بالأسفل:</p>
+                    <a id="form-success-attach" href="#" target="_blank" style="display:inline-block;padding:12px 24px;border-radius:10px;background:#0088cc;color:#fff;text-decoration:none;font-weight:700;">
+                        <i class="fab fa-telegram"></i> إرفاق صور العقار عبر البوت
+                    </a>
+                </div>
             </div>
         </div>
     </section>
