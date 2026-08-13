@@ -49,6 +49,7 @@ import smart_sync
 import ai_monitor
 import smart_repair
 import emergency_protection
+import listing_lifecycle
 # Phase 6.2: Automated Weekly SEO Intelligence System
 try:
     import seo_monitor
@@ -1053,6 +1054,14 @@ async def _download_and_enhance_photo(update, context, uid, session, is_visitor=
             rel_path = f"images/bot/{main_name}"
             session["images"].append(rel_path)
 
+            # ── Phase 5: حفظ telegram_file_id للتخزين الدائم ──
+            try:
+                if "image_file_ids" not in session:
+                    session["image_file_ids"] = []
+                session["image_file_ids"].append(photo.file_id)
+            except Exception:
+                pass
+
             logger.info(f"✅ تم استلام وتحسين صورة للمستخدم {uid} (محاولة {attempt+1})")
             return True, None
 
@@ -1627,6 +1636,109 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"\u2500 {inc['scenario_id']}\n   {inc['category']}: {inc['message'][:40]}\n   {inc['detected_at']}\n\n"
         await query.edit_message_text(msg)
 
+    # ── Phase 5/6: listing view callbacks ──
+    elif data.startswith("lst_view_"):
+        eid = data[len("lst_view_"):]
+        await _show_listing_details(update, context, eid, query=query)
+    elif data.startswith("lst_approve_"):
+        eid = data[len("lst_approve_"):]
+        _uid = query.from_user.id
+        if not (is_admin(_uid) or user_manager.is_manager(_uid)):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        try:
+            listing_lifecycle.init()
+            _lst = listing_lifecycle.get_listing(eid)
+            if not _lst:
+                await query.edit_message_text("⚠️ العقار غير موجود.")
+                return
+            listing_lifecycle.set_status(eid, listing_lifecycle.STATUS_PUBLISHED, approved_by_user_id=str(_uid))
+            listing_lifecycle.log_listing_action(
+                "listing_approved", eid, str(_uid),
+                user_manager.get_user_role(_uid) or "manager",
+                "approved via /pending",
+            )
+            await query.edit_message_text("✅ تم اعتماد ونشر العقار.")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ خطأ: {e}")
+    elif data.startswith("lst_reject_"):
+        eid = data[len("lst_reject_"):]
+        _uid = query.from_user.id
+        if not (is_admin(_uid) or user_manager.is_manager(_uid)):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        try:
+            listing_lifecycle.init()
+            listing_lifecycle.set_status(eid, listing_lifecycle.STATUS_REJECTED)
+            listing_lifecycle.log_listing_action(
+                "listing_rejected", eid, str(_uid),
+                user_manager.get_user_role(_uid) or "manager",
+                "rejected via /pending",
+            )
+            await query.edit_message_text("❌ تم رفض العقار.")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ خطأ: {e}")
+    elif data.startswith("lst_edit_"):
+        eid = data[len("lst_edit_"):]
+        _uid = query.from_user.id
+        if not user_manager.can_edit_listing(_uid):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        # Set session for text editing
+        session = get_session(_uid)
+        session["state"] = "lst_awaiting_edit_text"
+        session["edit_listing_eid"] = eid
+        save_session(_uid)
+        await query.edit_message_text(
+            "✏️ أرسل النص الجديد للوصف الآن.\n"
+            "أو أرسل: إلغاء"
+        )
+    elif data.startswith("lst_mkt_"):
+        eid = data[len("lst_mkt_"):]
+        _uid = query.from_user.id
+        if not user_manager.can_add_marketing_text(_uid):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        session = get_session(_uid)
+        session["state"] = "lst_awaiting_mkt_text"
+        session["edit_listing_eid"] = eid
+        save_session(_uid)
+        # Show options: custom text or auto-generate
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🤖 توليد تلقائي", callback_data=f"lst_mktgen_{eid}")],
+            [InlineKeyboardButton("✏️ كتابة يدوية", callback_data=f"lst_mktmanual_{eid}")],
+        ])
+        await query.edit_message_text(
+            "📝 نص تسويقي للعقار.\nاختر طريقة الإنشاء:",
+            reply_markup=kb
+        )
+    elif data.startswith("lst_mktgen_"):
+        eid = data[len("lst_mktgen_"):]
+        _uid = query.from_user.id
+        try:
+            listing_lifecycle.init()
+            _lst = listing_lifecycle.get_listing(eid)
+            if not _lst:
+                await query.edit_message_text("⚠️ العقار غير موجود.")
+                return
+            _mkt = _generate_marketing_text(_lst)
+            listing_lifecycle.update_listing(eid, {"marketing_text": _mkt})
+            listing_lifecycle.log_listing_action(
+                "marketing_text_generated", eid, str(_uid),
+                user_manager.get_user_role(_uid) or "manager",
+                "auto-generated marketing text",
+            )
+            await query.edit_message_text(f"✅ تم توليد النص التسويقي:\n\n{_mkt}")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ تعذر توليد النص (لا يوقف النشر): {e}")
+    elif data.startswith("lst_mktmanual_"):
+        eid = data[len("lst_mktmanual_"):]
+        _uid = query.from_user.id
+        session = get_session(_uid)
+        session["state"] = "lst_awaiting_mkt_text"
+        session["edit_listing_eid"] = eid
+        save_session(_uid)
+        await query.edit_message_text("✏️ أرسل النص التسويقي الآن.\nأو أرسل: إلغاء")
 
 
 async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1829,6 +1941,24 @@ async def _save_visitor_offer(update, uid):
     }
     data.setdefault("offer_submissions", []).append(visitor_offer)
     save_visitor_requests(data)
+
+    # ── Phase 4: تسجيل العرض المعلق في listing_lifecycle + إشعار المدراء ──
+    try:
+        _submitted_by_id = ""
+        _sb = offer.get("submitted_by", {})
+        if isinstance(_sb, dict):
+            _submitted_by_id = _sb.get("user_id", "")
+        _pending_eid = _register_pending_listing(
+            offer,
+            source=listing_lifecycle.SOURCE_BOT_VISITOR,
+            created_by_role="visitor",
+            created_by_user_id=_submitted_by_id or str(uid),
+        )
+        if _pending_eid:
+            visitor_offer["external_id"] = _pending_eid
+            save_visitor_requests(data)  # حفظ external_id في الطلب
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل عرض الزائر المعلق (غير حرج): {_le}")
 
     # مزامنة الصور إلى GitHub (إن كان مفعّلاً)
     try:
@@ -2063,6 +2193,33 @@ async def _approve_visitor_offer(update, idx, query=None):
     except Exception as e:
         logger.error(f"خطأ في تحديث البوصلة بعد النشر: {e}")
 
+    # ── Phase 4: تسجيل العرض المعتمد في listing_lifecycle ──
+    try:
+        _approver_uid = query.from_user.id if query else update.effective_user.id
+        _role = user_manager.get_user_role(_approver_uid) or "admin"
+        _submitted_by = ""
+        _sb = s.get("offer", {}).get("submitted_by", {})
+        if isinstance(_sb, dict):
+            _submitted_by = _sb.get("user_id", "")
+        _eid = _register_published_listing(
+            offer,
+            source=listing_lifecycle.SOURCE_APPROVED_SITE_AS_BOT,
+            created_by_role="visitor",
+            created_by_user_id=_submitted_by,
+            approved_by_user_id=_approver_uid,
+        )
+        if _eid:
+            offer["external_id"] = _eid
+            listing_lifecycle.log_listing_action(
+                "listing_approved",
+                _eid,
+                str(_approver_uid),
+                _role,
+                f"offer_id={offer.get('id', '')} approved from visitor submission",
+            )
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل العرض المعتمد (غير حرج): {_le}")
+
     msg = (
         f"✅ تمت الموافقة ونشر العرض!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
@@ -2132,6 +2289,216 @@ async def _reject_visitor_offer(update, idx, query=None):
 
 
 # ============================================================
+
+
+# ============================================================
+#  Phase 4: تكامل دورة حياة العقار مع تدفق النشر
+# ============================================================
+
+def _register_published_listing(offer: dict, *, source: str, created_by_role: str,
+                                  created_by_user_id: str, approved_by_user_id: str = "",
+                                  telegram_file_ids: list = None) -> str:
+    """
+    إنشاء سجل عقار في listing_lifecycle بعد النشر.
+    يُستدعى من _finalize_offer (مدير) و _approve_visitor_offer (زائر معتمد).
+    يرجع external_id أو None عند الفشل. لا يوقف النشر إذا فشل.
+    """
+    try:
+        listing_lifecycle.init()
+
+        title = offer.get("title", "") or offer.get("category", "") or "عقار"
+        category = offer.get("category", "") or offer.get("property_type", "")
+        description = offer.get("description", "")
+        marketing_text = offer.get("marketing_text", "")
+        area = offer.get("area", "")
+        operation_type = offer.get("operation_type", "sale")
+        images = offer.get("images", [])
+
+        price = offer.get("price")
+        if price is not None:
+            try:
+                price = float(price)
+            except (TypeError, ValueError):
+                price = None
+
+        lat = offer.get("lat")
+        lng = offer.get("lng")
+        location_text = area
+
+        if operation_type == "auction":
+            price_mode = listing_lifecycle.PRICE_MODE_AUCTION
+        else:
+            price_mode = listing_lifecycle.PRICE_MODE_SALE
+
+        extra = {}
+        for k in ("type", "area", "area_en", "size_sqm", "price_text",
+                   "features", "map_link", "date_added", "featured",
+                   "section", "property_type", "operation_type",
+                   "original_price", "visitor_map_link"):
+            if k in offer:
+                extra[k] = offer[k]
+
+        listing = listing_lifecycle.create_listing(
+            title=title,
+            category=category,
+            description=description,
+            marketing_text=marketing_text,
+            status=listing_lifecycle.STATUS_PUBLISHED,
+            source=source,
+            created_by_role=created_by_role,
+            created_by_user_id=str(created_by_user_id),
+            approved_by_user_id=str(approved_by_user_id) if approved_by_user_id else "",
+            published_at=offer.get("date_added", datetime.now().strftime("%Y-%m-%d")),
+            price_mode=price_mode,
+            price=price,
+            lat=lat,
+            lng=lng,
+            location_text=location_text,
+            extra=extra,
+        )
+        external_id = listing["external_id"]
+
+        if isinstance(images, list):
+            for idx, img_url in enumerate(images):
+                if isinstance(img_url, str) and img_url:
+                    file_id = ""
+                    if telegram_file_ids and idx < len(telegram_file_ids):
+                        file_id = telegram_file_ids[idx] or ""
+                    listing_lifecycle.add_listing_image(
+                        listing_id=external_id,
+                        image_url=img_url,
+                        telegram_file_id=file_id,
+                        alt_ar=title,
+                        alt_en="",
+                        sort_order=idx,
+                    )
+
+        listing_lifecycle.log_listing_action(
+            "listing_published",
+            external_id,
+            str(approved_by_user_id or created_by_user_id),
+            created_by_role,
+            f"offer_id={offer.get('id', '')} source={source}",
+        )
+
+        logger.info(f"listing_lifecycle: registered published listing external_id={external_id} offer_id={offer.get('id', '')}")
+        return external_id
+
+    except Exception as e:
+        logger.error(f"listing_lifecycle: فشل تسجيل العقار المنشور: {e}")
+        return None
+
+
+def _register_pending_listing(offer: dict, *, source: str, created_by_role: str,
+                                created_by_user_id: str) -> str:
+    """
+    إنشاء سجل عقار بحالة pending (بانتظار الاعتماد).
+    يُستدعى عند تقديم زائر لعرض عبر البوت أو الموقع.
+    """
+    try:
+        listing_lifecycle.init()
+
+        title = offer.get("title", "") or offer.get("category", "") or "عرض زائر"
+        category = offer.get("category", "") or offer.get("property_type", "")
+        description = offer.get("description", "")
+        area = offer.get("area", "")
+        images = offer.get("images", [])
+
+        extra = {}
+        for k in ("type", "area", "area_en", "size_sqm", "price_text",
+                   "features", "map_link", "date_added", "featured",
+                   "section", "property_type", "operation_type",
+                   "original_price", "visitor_map_link", "contact"):
+            if k in offer:
+                extra[k] = offer[k]
+
+        listing = listing_lifecycle.create_listing(
+            title=title,
+            category=category,
+            description=description,
+            status=listing_lifecycle.STATUS_PENDING,
+            source=source,
+            created_by_role=created_by_role,
+            created_by_user_id=str(created_by_user_id),
+            location_text=area,
+            extra=extra,
+        )
+        external_id = listing["external_id"]
+
+        if isinstance(images, list):
+            for idx, img_url in enumerate(images):
+                if isinstance(img_url, str) and img_url:
+                    listing_lifecycle.add_listing_image(
+                        listing_id=external_id,
+                        image_url=img_url,
+                        telegram_file_id="",
+                        alt_ar=title,
+                        alt_en="",
+                        sort_order=idx,
+                    )
+
+        listing_lifecycle.log_listing_action(
+            "listing_created",
+            external_id,
+            str(created_by_user_id),
+            created_by_role,
+            f"source={source} status=pending",
+        )
+
+        logger.info(f"listing_lifecycle: registered pending listing external_id={external_id} source={source}")
+        return external_id
+
+    except Exception as e:
+        logger.error(f"listing_lifecycle: فشل تسجيل العقار المعلق: {e}")
+        return None
+
+
+async def _notify_managers_of_pending(offer: dict, *, source_label: str, external_id: str = "", context=None):
+    """
+    إشعار المدراء بعرض جديد بانتظار المراجعة.
+    source_label: "زائر عبر البوت" أو "زائر عبر الموقع" إلخ.
+    context: ContextTypes.DEFAULT_TYPE (لإرسال الرسائل)
+    """
+    if context is None:
+        logger.warning("_notify_managers_of_pending: no context provided, skipping notifications")
+        return
+    try:
+        staff = user_manager.get_staff_for_notifications()
+        if not staff:
+            logger.warning("لا يوجد موظفون لإشعارهم بعرض معلق")
+            return
+
+        title = offer.get("title", "") or offer.get("category", "") or "عرض"
+        area = offer.get("area", "—")
+        size = offer.get("size_sqm", "—")
+        contact = offer.get("contact", "—")
+        if isinstance(contact, dict):
+            contact = contact.get("name", "—")
+
+        msg = (
+            f"🔔 عرض جديد بانتظار المراجعة\n\n"
+            f"📋 المصدر: {source_label}\n"
+            f"🏷️ العنوان: {title}\n"
+            f"📍 المنطقة: {area}\n"
+            f"📐 المساحة: {size} م²\n"
+            f"👤 التواصل: {contact}\n"
+        )
+        if external_id:
+            msg += f"🆔 رقم: {external_id[:12]}...\n"
+        msg += f"\n✅ استخدم القائمة للاعتماد أو الرفض."
+
+        for member in staff:
+            member_id = member.get("user_id")
+            if member_id:
+                try:
+                    member_id_int = int(member_id)
+                    await context.bot.send_message(chat_id=member_id_int, text=msg)
+                except Exception as e:
+                    logger.warning(f"تعذر إشعار {member_id}: {e}")
+    except Exception as e:
+        logger.error(f"خطأ في إشعار المدراء: {e}")
+
+
 
 async def _finalize_offer(update, uid, query=None):
     session = get_session(uid)
@@ -2210,22 +2577,65 @@ async def _finalize_offer(update, uid, query=None):
 
     # Task 4: المرحلة 2 — نجاح النشر
     site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    # ── Phase 4: تسجيل العقار في listing_lifecycle ──
+    try:
+        _role = user_manager.get_user_role(uid) or "admin"
+        _eid = _register_published_listing(
+            offer,
+            source=listing_lifecycle.SOURCE_BOT_MANAGER,
+            created_by_role=_role,
+            created_by_user_id=uid,
+            approved_by_user_id=uid,
+            telegram_file_ids=s.get("image_file_ids", []) if s else [],
+        )
+        if _eid:
+            offer["external_id"] = _eid
+            _lst = listing_lifecycle.get_listing(_eid)
+            if _lst:
+                offer["slug"] = _lst.get("slug", "")
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل العقار بعد النشر (غير حرج): {_le}")
+
     _op_label = "🏠 للإيجار" if offer.get("operation_type") == "rent" else "🏷️ للبيع"
+    # ── Phase 6: بناء الرابط الدائم ──
+    _eid_val = offer.get("external_id", "")
+    _slug_val = offer.get("slug", "")
+    if _eid_val:
+        if _slug_val:
+            _perm_link = f"{site_url}offer/{_eid_val}/{_slug_val}"
+        else:
+            _perm_link = f"{site_url}offer/{_eid_val}"
+    else:
+        _perm_link = f"{site_url}property/{offer['id']}"
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
         f"🏷️ النوع: {offer['category']}\n"
-        f"🔂 عملية: {_op_label}\n"
+        f"📂 عملية: {_op_label}\n"
         f"📍 المنطقة: {offer['area']}\n"
         f"📐 المساحة: {offer['size_sqm']} م²\n"
         f"💰 السعر: {offer['price_text']}\n"
         f"📸 عدد الصور: {len(offer['images'])}\n\n"
-        f"🌐 رابط العرض على الموقع:\n{site_url}"
+        f"🌐 رابط العرض على الموقع:\n{_perm_link}"
     )
+    # ── Phase 5/6: زر مباشر للرابط الدائم ──
+    _view_kb = None
+    try:
+        _view_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 عرض على الموقع", url=_perm_link)],
+        ])
+    except Exception:
+        _view_kb = None
     if query:
-        await query.edit_message_text(msg)
+        if _view_kb:
+            await query.edit_message_text(msg, reply_markup=_view_kb)
+        else:
+            await query.edit_message_text(msg)
     else:
-        await update.message.reply_text(msg)
+        if _view_kb:
+            await update.message.reply_text(msg, reply_markup=_view_kb)
+        else:
+            await update.message.reply_text(msg)
     reset_session(uid)
 
 # ============================================================
@@ -4062,6 +4472,54 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_ai_chat(update, context)
         return
 
+    # ── Phase 7: تعديل نص العقار (قبل/بعد النشر) ──
+    if session.get("state") == "lst_awaiting_edit_text":
+        eid = session.get("edit_listing_eid", "")
+        if not eid:
+            reset_session(uid)
+            return
+        if text in ["إلغاء", "الغاء", "cancel"]:
+            reset_session(uid)
+            await update.message.reply_text("تم الإلغاء.")
+            return
+        try:
+            listing_lifecycle.init()
+            listing_lifecycle.update_listing(eid, {"description": text})
+            listing_lifecycle.log_listing_action(
+                "listing_text_edited", eid, str(uid),
+                user_manager.get_user_role(uid) or "manager",
+                "edited description via bot",
+            )
+            await update.message.reply_text("✅ تم تحديث وصف العقار.")
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ خطأ: {e}")
+        reset_session(uid)
+        return
+
+    # ── Phase 7: إضافة نص تسويقي ──
+    if session.get("state") == "lst_awaiting_mkt_text":
+        eid = session.get("edit_listing_eid", "")
+        if not eid:
+            reset_session(uid)
+            return
+        if text in ["إلغاء", "الغاء", "cancel"]:
+            reset_session(uid)
+            await update.message.reply_text("تم الإلغاء.")
+            return
+        try:
+            listing_lifecycle.init()
+            listing_lifecycle.update_listing(eid, {"marketing_text": text})
+            listing_lifecycle.log_listing_action(
+                "marketing_text_added", eid, str(uid),
+                user_manager.get_user_role(uid) or "manager",
+                "manual marketing text added via bot",
+            )
+            await update.message.reply_text("✅ تم حفظ النص التسويقي.")
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ خطأ: {e}")
+        reset_session(uid)
+        return
+
     # Task 1: إذا كان في وضع إدخال معرّف مدير جديد
     if session["state"] == "awaiting_admin_id":
         await _admin_add_by_id(update, context)
@@ -4823,6 +5281,175 @@ async def cmd_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ خطأ: {e}")
 
 
+
+# ============================================================
+#  أوامر إدارة المدراء (Phase 2: Bot & Listing Lifecycle)
+# ============================================================
+
+async def cmd_add_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إضافة مدير جديد (role=manager) — /add_manager <telegram_user_id> [الاسم]"""
+    uid = update.effective_user.id
+    # المالك أو المدير العام (admin) فقط من يمكنه إضافة مدراء
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ إضافة المدراء متاحة للمالك/المدير العام فقط.")
+        return
+    # تحقق إضافي عبر نظام الصلاحيات
+    if not user_manager.can_manage_managers(uid):
+        await update.message.reply_text("⛔ ليس لديك صلاحية إدارة المدراء.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "📋 إضافة مدير جديد\n\n"
+            "الصيغة: /add_manager <telegram_user_id> [الاسم]\n\n"
+            "مثال:\n"
+            "/add_manager 123456789 أحمد محمد\n"
+            "/add_manager 987654321\n\n"
+            "💡 للحصول على معرّف تيليجرام: اطلب من الشخص إرسال /myid للبوت."
+        )
+        return
+
+    try:
+        new_uid = int(args[0])
+        name = " ".join(args[1:]) if len(args) > 1 else f"Manager {new_uid}"
+
+        # منع ترقية الذات
+        if new_uid == uid:
+            await update.message.reply_text("⚠️ لا يمكنك ترقية نفسك عبر هذا الأمر. استخدم /change_role.")
+            return
+
+        # إذا كان المستخدم موجوداً بالفعل
+        existing_role = user_manager.get_user_role(new_uid)
+        if existing_role == "manager":
+            await update.message.reply_text(f"ℹ️ المستخدم {new_uid} هو مدير بالفعل.")
+            return
+
+        if existing_role:
+            # المستخدم مسجّل بدور آخر -> غيّر دوره إلى manager
+            success = user_manager.change_role(new_uid, "manager", changed_by=uid)
+            if success:
+                user_manager.log_audit("add_manager", uid, f"ترقية المستخدم {new_uid} ({name}) إلى مدير (كان: {existing_role})")
+                await update.message.reply_text(
+                    f"✅ تم ترقية المستخدم إلى مدير!\n\n"
+                    f"🆔 ID: {new_uid}\n"
+                    f"👤 الاسم: {name}\n"
+                    f"🔑 الدور: مدير (manager)\n"
+                    f"📊 الحالة: نشط"
+                )
+            else:
+                await update.message.reply_text(f"❌ فشل تغيير دور المستخدم {new_uid}.")
+            return
+
+        # مستخدم جديد -> أضفه مباشرة كمدير
+        user_manager.add_user(new_uid, name, role="manager", added_by=uid)
+        user_manager.log_audit("add_manager", uid, f"إضافة مدير جديد {new_uid} ({name})")
+        await update.message.reply_text(
+            f"✅ تم إضافة المدير بنجاح!\n\n"
+            f"🆔 ID: {new_uid}\n"
+            f"👤 الاسم: {name}\n"
+            f"🔑 الدور: مدير (manager)\n"
+            f"📊 الحالة: نشط\n\n"
+            f"💡 يمكن للمدير الآن: إضافة/تعديل/نشر/رفض/أرشفة العقارات، "
+            f"اعتماد عروض الزوار والموقع، تعديل النصوص، إضافة نص تسويقي."
+        )
+    except ValueError:
+        await update.message.reply_text("⚠️ معرّف تيليجرام يجب أن يكون رقماً.")
+    except Exception as e:
+        logger.error(f"خطأ في إضافة مدير: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+async def cmd_remove_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """إزالة دور المدير عن مستخدم (يعود إلى visitor) — /remove_manager <telegram_user_id>"""
+    uid = update.effective_user.id
+    if not is_admin(uid):
+        await update.message.reply_text("⛔ إزالة المدراء متاحة للمالك/المدير العام فقط.")
+        return
+    if not user_manager.can_manage_managers(uid):
+        await update.message.reply_text("⛔ ليس لديك صلاحية إدارة المدراء.")
+        return
+
+    args = context.args
+    if not args:
+        await update.message.reply_text(
+            "📋 إزالة دور المدير\n\n"
+            "الصيغة: /remove_manager <telegram_user_id>\n\n"
+            "مثال:\n"
+            "/remove_manager 123456789\n\n"
+            "ℹ️ سيصبح المستخدم زائراً (visitor) بدلاً من مدير."
+        )
+        return
+
+    try:
+        target_uid = int(args[0])
+
+        # منع إزالة دور المدير عن النفس
+        if target_uid == uid:
+            await update.message.reply_text("⚠️ لا يمكنك إزالة دور المدير عن نفسك.")
+            return
+
+        existing_role = user_manager.get_user_role(target_uid)
+        if not existing_role:
+            await update.message.reply_text(f"⚠️ المستخدم {target_uid} غير مسجّل.")
+            return
+
+        if existing_role != "manager":
+            await update.message.reply_text(
+                f"ℹ️ المستخدم {target_uid} ليس مديراً (دوره الحالي: {existing_role})."
+            )
+            return
+
+        # تغيير الدور إلى visitor (إزالة صلاحيات المدير مع الإبقاء على المستخدم)
+        success = user_manager.change_role(target_uid, "visitor", changed_by=uid)
+        if success:
+            user_manager.log_audit("remove_manager", uid, f"إزالة دور المدير عن {target_uid} (أصبح visitor)")
+            await update.message.reply_text(
+                f"✅ تم إزالة دور المدير عن المستخدم {target_uid}.\n"
+                f"🔑 أصبح الآن: زائر (visitor) — بدون صلاحيات النشر/التعديل."
+            )
+        else:
+            await update.message.reply_text(f"❌ فشل إزالة دور المدير عن {target_uid}.")
+    except ValueError:
+        await update.message.reply_text("⚠️ معرّف تيليجرام يجب أن يكون رقماً.")
+    except Exception as e:
+        logger.error(f"خطأ في إزالة مدير: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
+async def cmd_managers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة المدراء النشطين — /managers"""
+    uid = update.effective_user.id
+    # المالك/المدير/المدراء يمكنهم رؤية القائمة (ولكن الإدارة للمالك/المدير العام فقط)
+    if not is_admin(uid) and not user_manager.is_manager(uid):
+        await update.message.reply_text("⛔ هذا الأمر للمدراء والمدير العام فقط.")
+        return
+
+    try:
+        managers = user_manager.get_managers()
+        if not managers:
+            await update.message.reply_text(
+                "📋 لا يوجد مدراء مسجّلون حالياً.\n\n"
+                "💡 لإضافة مدير: /add_manager <telegram_user_id> [الاسم]"
+            )
+            return
+
+        msg = f"📋 قائمة المدراء ({len(managers)}):\n\n"
+        for m in managers:
+            status_icon = "✅" if m.get("status") == "active" else "🚫"
+            last_active = m.get("last_active", "—")
+            name = m.get("name", "—")
+            msg += (
+                f"👤 {status_icon} ID: {m.get('user_id')}\n"
+                f"   الاسم: {name}\n"
+                f"   آخر نشاط: {last_active}\n\n"
+            )
+        await update.message.reply_text(msg)
+    except Exception as e:
+        logger.error(f"خطأ في عرض قائمة المدراء: {e}")
+        await update.message.reply_text(f"❌ خطأ: {e}")
+
+
 # ============================================================
 #  معالج الأخطاء العام
 # ============================================================
@@ -4898,6 +5525,321 @@ async def error_handler(update, context):
     except Exception:
         pass
 
+
+# ============================================================
+# Phase 5/6 — عرض العقارات + الصور + الروابط الدائمة
+# ============================================================
+
+def _build_listing_perm_link(listing: dict) -> str:
+    """بناء الرابط الدائم للعقار.
+    العروض الجديدة: /offer/{external_id}/{slug}
+    العروض القديمة: /property/{old_id} (الحفاظ على الرابط المفهرس)
+    """
+    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    eid = listing.get("external_id", "")
+    slug = listing.get("slug", "")
+    old_id = listing.get("old_id", "")
+    if eid:
+        if slug:
+            return f"{site_url}offer/{eid}/{slug}"
+        return f"{site_url}offer/{eid}"
+    if old_id:
+        return f"{site_url}property/{old_id}"
+    return site_url
+
+
+def _generate_marketing_text(listing: dict) -> str:
+    """ڪیتیاب عنصر تسويقي بسيط (لا يتطلب ذکاء اصطناعيا).
+    قالب (نوع، منطقة، سعر، تواصل).
+    لا توقف النشر إذا فشل التوليد."""
+    try:
+        title = listing.get("title", "") or "عقار"
+        category = listing.get("category", "") or ""
+        location = listing.get("location_text", "") or ""
+        price = listing.get("price", "")
+        extra = listing.get("extra", {}) or {}
+        size = extra.get("size_sqm", "") or ""
+        operation_type = extra.get("operation_type", "") or "sale"
+
+        price_str = ""
+        if price is not None:
+            try:
+                price_str = f"{float(price):,.0f}"
+            except (TypeError, ValueError):
+                price_str = str(price) if price else ""
+
+        op_word = "للإيجار" if operation_type == "rent" else "للبيع"
+
+        parts = []
+        parts.append(f"🏷️ {title} {op_word}")
+        if category:
+            parts.append(f"📂 النوع: {category}")
+        if location:
+            parts.append(f"📍 المنطقة: {location}")
+        if size:
+            parts.append(f"📐 المساحة: {size} م²")
+        if price_str:
+            parts.append(f"💰 السعر: {price_str}")
+        parts.append(f"📞 للتواصل: 0545888931 / 0544699933")
+        parts.append(f"🌐 مكتب آفاق الإنجاز العقارية")
+
+        return "\n".join(parts)
+    except Exception:
+        return ""
+
+
+def _format_listing_summary(listing: dict) -> str:
+    """تهيئة ملخص نصي للعقار."""
+    title = listing.get("title", "") or "عقار"
+    category = listing.get("category", "") or ""
+    status = listing.get("status", "")
+    status_labels = {
+        "published": "✅ منشور",
+        "pending": "⏳ بانتظار",
+        "draft": "✏️ مسودة",
+        "rejected": "❌ مرفوض",
+        "archived": "📦 أرشيف",
+    }
+    status_label = status_labels.get(status, status)
+    loc = listing.get("location_text", "") or ""
+    price = listing.get("price", "")
+    price_text = ""
+    if price is not None:
+        try:
+            price_text = f"{float(price):,.0f}"
+        except (TypeError, ValueError):
+            price_text = str(price) if price else ""
+    extra = listing.get("extra", {}) or {}
+    size = extra.get("size_sqm", "") or ""
+    size_str = f" | {size} م²" if size else ""
+    return f"🏷️ {title} | {category} | {status_label}{size_str}"
+
+
+async def cmd_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة العقارات مع الروابط الدائمة — /listings
+
+    يعرض: العنوان، النوع، الحالة، زر عرض، زر تعديل (مدير)، رابط مباشر.
+    """
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        return
+
+    try:
+        listing_lifecycle.init()
+    except Exception:
+        pass
+
+    # العملاء يرون المنشورة فقط، المسؤولون يرون الكل
+    is_staff = is_admin(uid) or user_manager.is_manager(uid) or user_manager.is_editor(uid)
+    if is_staff:
+        all_listings = listing_lifecycle.get_all_listings()
+    else:
+        all_listings = listing_lifecycle.get_published_listings()
+
+    if not all_listings:
+        await update.message.reply_text("📋 لا توجد عقارات حالياً.")
+        return
+
+    # آخر 15 عقار
+    recent = all_listings[-15:]
+    await update.message.reply_text(
+        f"📋 قائمة العقارات ({len(recent)} من {len(all_listings)}):"
+    )
+
+    for listing in recent:
+        eid = listing.get("external_id", "")
+        summary = _format_listing_summary(listing)
+        perm_link = _build_listing_perm_link(listing)
+
+        buttons = []
+        # زر العرض (للجميع)
+        buttons.append(InlineKeyboardButton("👁️ عرض", callback_data=f"lst_view_{eid}"))
+        # زر الرابط المباشر
+        buttons.append(InlineKeyboardButton("🌐 رابط", url=perm_link))
+        # زر التعديل (للمدير فقط)
+        if user_manager.can_edit_listing(uid):
+            buttons.append(InlineKeyboardButton("✏️ تعديل", callback_data=f"lst_edit_{eid}"))
+
+        kb = InlineKeyboardMarkup([buttons])
+        await update.message.reply_text(summary, reply_markup=kb)
+
+
+async def _show_listing_details(update, context, external_id: str, query=None):
+    """عرض تفاصيل العقار + الصور + زر الرابط الدائم."""
+    try:
+        listing_lifecycle.init()
+    except Exception:
+        pass
+
+    listing = listing_lifecycle.get_listing(external_id)
+    if not listing:
+        msg = "⚠️ العقار غير موجود."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    uid = (query.from_user.id if query else update.effective_user.id)
+    is_staff = is_admin(uid) or user_manager.is_manager(uid) or user_manager.is_editor(uid)
+
+    # العملاء يرون المنشور فقط
+    if not is_staff and listing.get("status") != listing_lifecycle.STATUS_PUBLISHED:
+        msg = "⚠️ هذا العقار غير متاح للعرض."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    title = listing.get("title", "") or "عقار"
+    category = listing.get("category", "") or ""
+    description = listing.get("description", "") or ""
+    marketing_text = listing.get("marketing_text", "") or ""
+    location_text = listing.get("location_text", "") or ""
+    price = listing.get("price", "")
+    price_mode = listing.get("price_mode", "")
+    status = listing.get("status", "")
+    source = listing.get("source", "")
+    old_id = listing.get("old_id", "")
+    extra = listing.get("extra", {}) or {}
+
+    status_labels = {
+        "published": "✅ منشور",
+        "pending": "⏳ بانتظار",
+        "draft": "✏️ مسودة",
+        "rejected": "❌ مرفوض",
+        "archived": "📦 أرشيف",
+    }
+    status_label = status_labels.get(status, status)
+
+    price_str = ""
+    if price is not None:
+        try:
+            price_str = f"{float(price):,.0f}"
+        except (TypeError, ValueError):
+            price_str = str(price) if price else ""
+
+    size = extra.get("size_sqm", "") or ""
+    operation_type = extra.get("operation_type", "") or ""
+
+    msg = (
+        f"🏷️ {title}\n\n"
+        f"📂 النوع: {category}\n"
+        f"📍 المنطقة: {location_text}\n"
+    )
+    if size:
+        msg += f"📐 المساحة: {size} م²\n"
+    if price_str:
+        msg += f"💰 السعر: {price_str}\n"
+    if operation_type:
+        op_label = "🏠 إيجار" if operation_type == "rent" else "🏷️ بيع"
+        msg += f"📂 العملية: {op_label}\n"
+    if is_staff:
+        msg += f"🛡️ الحالة: {status_label}\n"
+        if source:
+            msg += f"👥 المصدر: {source}\n"
+        if old_id:
+            msg += f"🆔 المعرف القديم: {old_id}\n"
+    msg += f"\n📝 الوصف:\n{description}\n"
+    if marketing_text:
+        msg += f"\n📣 نص تسويقي:\n{marketing_text}\n"
+
+    perm_link = _build_listing_perm_link(listing)
+
+    # الصور
+    images = listing_lifecycle.get_listing_images(external_id)
+    image_urls = [img.get("image_url", "") for img in images if img.get("image_url")]
+
+    # بناء الأزرار
+    buttons = [[InlineKeyboardButton("🌐 عرض على الموقع", url=perm_link)]]
+    if user_manager.can_edit_listing(uid):
+        buttons.append([InlineKeyboardButton("✏️ تعديل النص", callback_data=f"lst_edit_{external_id}")])
+    if user_manager.can_add_marketing_text(uid):
+        buttons.append([InlineKeyboardButton("📣 نص تسويقي", callback_data=f"lst_mkt_{external_id}")])
+    kb = InlineKeyboardMarkup(buttons)
+
+    # إرسال النص
+    if query:
+        await query.edit_message_text(msg, reply_markup=kb, parse_mode=None)
+    else:
+        await update.message.reply_text(msg, reply_markup=kb)
+
+    # إرسال الصور (sendMediaGroup لأكثر من صورة)
+    if image_urls:
+        try:
+            base = Path(__file__).resolve().parent.parent
+            media_group = []
+            for idx, img_url in enumerate(image_urls):
+                img_path = base / img_url if not img_url.startswith("http") else None
+                if img_path and img_path.exists():
+                    if idx == 0:
+                        media_group.append(InputMediaPhoto(open(img_path, "rb"), caption=title))
+                    else:
+                        media_group.append(InputMediaPhoto(open(img_path, "rb")))
+                elif img_url.startswith("http"):
+                    if idx == 0:
+                        media_group.append(InputMediaPhoto(img_url, caption=title))
+                    else:
+                        media_group.append(InputMediaPhoto(img_url))
+
+            if media_group:
+                chat_id = (query.message.chat_id if query else update.effective_chat.id)
+                if len(media_group) == 1:
+                    # صورة واحدة — إرسال كصورة عادية
+                    if media_group[0].caption:
+                        await context.bot.send_photo(chat_id, photo=media_group[0].media, caption=media_group[0].caption)
+                    else:
+                        await context.bot.send_photo(chat_id, photo=media_group[0].media)
+                else:
+                    await context.bot.send_media_group(chat_id, media=media_group)
+        except Exception as e:
+            logger.warning(f"خطأ في إرسال صور العقار {external_id}: {e}")
+
+
+async def cmd_view_listing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض عقار بالمعرف الدائم — /view_listing <external_id>"""
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        return
+    if not context.args:
+        await update.message.reply_text("استخدام: /view_listing <external_id>\nمثال: /view_listing abc123def456")
+        return
+    external_id = context.args[0].strip()
+    await _show_listing_details(update, context, external_id)
+
+
+async def cmd_pending_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض العقارات المعلقة (للمدير/المسؤول) — /pending"""
+    uid = update.effective_user.id
+    if not (is_admin(uid) or user_manager.is_manager(uid)):
+        await update.message.reply_text("غير مسموح.")
+        return
+
+    try:
+        listing_lifecycle.init()
+    except Exception:
+        pass
+
+    pending = listing_lifecycle.get_pending_listings()
+    if not pending:
+        await update.message.reply_text("✅ لا توجد عقارات معلقة بانتظار الاعتماد.")
+        return
+
+    await update.message.reply_text(f"⏳ العقارات المعلقة ({len(pending)}):")
+    for listing in pending:
+        eid = listing.get("external_id", "")
+        summary = _format_listing_summary(listing)
+        buttons = [
+            InlineKeyboardButton("👁️ عرض", callback_data=f"lst_view_{eid}"),
+            InlineKeyboardButton("✅ اعتماد", callback_data=f"lst_approve_{eid}"),
+            InlineKeyboardButton("❌ رفض", callback_data=f"lst_reject_{eid}"),
+        ]
+        kb = InlineKeyboardMarkup([buttons])
+        await update.message.reply_text(summary, reply_markup=kb)
+
+
+# ============================================================
 
 # ============================================================
 
@@ -5368,6 +6310,13 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("myid", cmd_myid))
     app.add_handler(CommandHandler("users", cmd_list_users))
     app.add_handler(CommandHandler("remove_user", cmd_remove_user))
+    app.add_handler(CommandHandler("add_manager", cmd_add_manager))
+    app.add_handler(CommandHandler("remove_manager", cmd_remove_manager))
+    app.add_handler(CommandHandler("managers", cmd_managers))
+    # ── Phase 5/6: listing view commands ──
+    app.add_handler(CommandHandler("listings", cmd_listings))
+    app.add_handler(CommandHandler("view_listing", cmd_view_listing))
+    app.add_handler(CommandHandler("pending", cmd_pending_listings))
     app.add_handler(CommandHandler("change_role", cmd_change_role))
     app.add_handler(CommandHandler("backups", cmd_backups))
     app.add_handler(CommandHandler("sync_status", cmd_sync_status))
@@ -5501,6 +6450,32 @@ async def _handle_visitor_request_api(request):
     except Exception as e:
         logger.error(f"\u274C خطأ في حفظ طلب الزائر: {e}")
         return _json_response({"ok": False, "error": "save failed"}, status=500)
+
+    # ── Phase 4: تسجيل طلب الموقع في listing_lifecycle (pending) ──
+    try:
+        _site_offer = {
+            "title": visitor_request.get("propertyType", "") or visitor_request.get("name", ""),
+            "category": visitor_request.get("propertyType", ""),
+            "area": visitor_request.get("location", "") or visitor_request.get("area", ""),
+            "description": visitor_request.get("description", ""),
+            "images": visitor_request.get("images", []),
+            "contact": visitor_request.get("name", "") + " / " + visitor_request.get("phone", ""),
+            "operation_type": visitor_request.get("operation_type", "sale"),
+        }
+        _site_lat = visitor_request.get("latitude", "")
+        _site_lng = visitor_request.get("longitude", "")
+        _site_eid = _register_pending_listing(
+            _site_offer,
+            source=listing_lifecycle.SOURCE_SITE_VISITOR,
+            created_by_role="visitor",
+            created_by_user_id=visitor_request.get("name", "site_visitor"),
+        )
+        if _site_eid:
+            visitor_request["external_id"] = _site_eid
+            # إعادة الحفظ مع external_id
+            save_visitor_requests(vdata)
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل طلب الموقع المعلق (غير حرج): {_le}")
 
     # 2) إرسال إشعار للمدير عبر البوت مع أزرار موافقة/رفض
     try:

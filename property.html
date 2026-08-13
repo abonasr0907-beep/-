@@ -588,6 +588,21 @@
                 return null;
             }
 
+            // Phase 8: Get external_id from URL (/offer/{external_id} or ?offer={external_id})
+            function getExternalId() {
+                var path = window.location.pathname;
+                var offerMatch = path.match(/\/offer\/([^\/\?#]+)/);
+                if (offerMatch) {
+                    return decodeURIComponent(offerMatch[1]);
+                }
+                var params = new URLSearchParams(window.location.search);
+                var eid = params.get('offer');
+                if (eid) {
+                    return decodeURIComponent(eid);
+                }
+                return null;
+            }
+
             // ===== Load Offers =====
             async function loadOffers() {
                 // Try localStorage first (synced by bot)
@@ -626,6 +641,28 @@
                 return null;
             }
 
+            // Phase 8: Find Offer by external_id (new permanent links)
+            function findOfferByExternalId(offers, externalId) {
+                if (!externalId) return null;
+                for (var i = 0; i < offers.length; i++) {
+                    if (offers[i].external_id === externalId) return offers[i];
+                }
+                // Case-insensitive match
+                var eidLower = externalId.toLowerCase();
+                for (var i = 0; i < offers.length; i++) {
+                    if (offers[i].external_id && offers[i].external_id.toLowerCase() === eidLower) return offers[i];
+                }
+                return null;
+            }
+
+            // Phase 8: Check if offer is visible to visitors (only published)
+            function isOfferVisible(offer) {
+                if (!offer) return false;
+                var status = offer.status || 'published';
+                // Legacy offers without status field are treated as published
+                return status === 'published';
+            }
+
             // ===== Update Meta Tags for SEO =====
             function updateMeta(offer) {
                 var title = offer.title || 'تفاصيل العقار';
@@ -656,7 +693,18 @@
                     document.head.appendChild(canonical);
                 }
                 var baseUrl = window.location.origin + window.location.pathname.replace(/property\.html.*/, '');
-                canonical.setAttribute('href', baseUrl + 'property/' + offer.id);
+                // Phase 8: Canonical URL — new listings use /offer/{external_id}/{slug}
+                // Legacy listings keep /property/{id} (preserves indexed URLs)
+                var canonicalUrl;
+                if (offer.external_id) {
+                    canonicalUrl = baseUrl + 'offer/' + offer.external_id;
+                    if (offer.slug) {
+                        canonicalUrl += '/' + offer.slug;
+                    }
+                } else {
+                    canonicalUrl = baseUrl + 'property/' + offer.id;
+                }
+                canonical.setAttribute('href', canonicalUrl);
 
                 // JSON-LD Structured Data
                 var existingLd = document.getElementById('property-jsonld');
@@ -866,24 +914,44 @@
             }
 
             // ===== Main =====
+            // ===== Main =====
             async function init() {
                 var propertyId = getPropertyId();
-                if (!propertyId) {
-                    showError('لم يتم تحديد معرف العقار. يرجى العودة لصفحة العقارات.');
+                // Phase 8: Also check for external_id (new /offer/ links)
+                var externalId = getExternalId();
+
+                if (!propertyId && !externalId) {
+                    showError('\u0644\u0645 \u064a\u062a\u0645 \u062a\u062d\u062f\u064a\u062f \u0645\u0639\u0631\u0641 \u0627\u0644\u0639\u0642\u0627\u0631. \u062a\u0631\u062c\u0649 \u0627\u0644\u0639\u0648\u062f\u0629 \u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u0639\u0642\u0627\u0631\u0627\u062a.');
                     return;
                 }
 
                 try {
                     var offers = await loadOffers();
-                    var offer = findOffer(offers, propertyId);
+                    var offer = null;
+
+                    // Phase 8: Try external_id first (new links), then fall back to old ID
+                    if (externalId) {
+                        offer = findOfferByExternalId(offers, externalId);
+                    }
+                    if (!offer && propertyId) {
+                        offer = findOffer(offers, propertyId);
+                    }
+
                     if (!offer) {
-                        showError('لم يتم العثور على العقار رقم: ' + propertyId + '. قد يكون غير متاح حالياً.');
+                        showError('\u0644\u0645 \u062a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0639\u0642\u0627\u0631. \u0642\u062f \u064a\u0643\u0648\u0646 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u062d\u0627\u0644\u064a\u0627\u064b.');
                         return;
                     }
+
+                    // Phase 8: Hide pending/rejected/archived from visitors
+                    if (!isOfferVisible(offer)) {
+                        showError('\u0647\u0630\u0627 \u0627\u0644\u0639\u0642\u0627\u0631 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u0644\u0644\u0639\u0631\u0636 \u062d\u0627\u0644\u064a\u0627\u064b.');
+                        return;
+                    }
+
                     renderProperty(offer);
                 } catch(e) {
                     console.error('Property page error:', e);
-                    showError('حدث خطأ في تحميل العقار. يرجى المحاولة مرة أخرى.');
+                    showError('\u062d\u062f\u062b \u062e\u0637\u0623 \u0641\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0639\u0642\u0627\u0631. \u062a\u0631\u062c\u0649 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.');
                 }
             }
 
