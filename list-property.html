@@ -34,6 +34,8 @@
     <link rel="stylesheet" href="css/style.css">
     <!-- Leaflet.js for interactive map -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <!-- Phase 2.7 §1: MapLibre GL for 3D satellite map (Esri World Imagery) -->
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" />
     <!-- Schema.org Structured Data -->
     <script type="application/ld+json">
 {
@@ -280,6 +282,8 @@
                         <p class="map-hint"><i class="fas fa-shield-alt"></i> موقعك الحقيقي يُرسل للمكتب فقط ولا يُعرض للعامة. يُساعدنا على تقييم العقار بدقة.</p>
                         <div class="map-controls">
                             <button type="button" class="btn-map-gps" onclick="useMyGPS()"><i class="fas fa-location-arrow"></i> استخدام موقعي الحالي (GPS)</button>
+                            <!-- Phase 2.7 §1: 📍 my current location button (geolocation + gentle fallback) -->
+                            <button type="button" class="btn-map-gps" onclick="useMyCurrentLocation()" style="background:#1a7a3a;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;">📍 موقعي الحالي</button>
                             <button type="button" class="btn-map-clear" onclick="clearMapLocation()"><i class="fas fa-times-circle"></i> مسح التحديد</button>
                         </div>
                                                 <div class="map-search-box" style="margin-bottom:10px; position:relative; z-index:1001;">
@@ -415,6 +419,8 @@
     </div>
     <!-- Leaflet.js for interactive map -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <!-- Phase 2.7 §1: MapLibre GL (3D satellite map) -->
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

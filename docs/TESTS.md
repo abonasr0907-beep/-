@@ -435,6 +435,115 @@
 - `alt_ar` مُولَّد بالصيغة: "{نوع} {مساحة}م² — {منطقة} | صورة {N} | مكتب آفاق الإنجاز العقاري"
 - لا توجد صورة بدون alt في قاعدة البيانات
 
+## 41. حماية بيانات المدير + ترقية الصلاحيات (full_admin) — Phase 2.7 §0
+
+**الهدف:** ترقية جميع المدراء إلى `full_admin=true` دون فقدان أي بيانات، مع حماية الصلاحيات الحساسة.
+
+**الخطوات:**
+1. قراءة `bot/data/users.json` قبل الترقية (نسخة احتياطية في `backups/users/`)
+2. تشغيل `upgrade_admins_to_full(performed_by="phase-2.7")`
+3. فحص `users.json` بعد الترقية
+4. فحص `audit_log.json` للتحقق من تسجيل `admin_privilege_upgrade_2.7`
+
+**النتيجة المتوقعة:**
+- عدد المدراء قبل = بعد (لا فقدان)
+- كل مدير له `full_admin: true` (إضافة فقط، باقي البيانات محفوظة)
+- الصلاحيات المحمية مرفوضة للمدير دائمًا: `delete_owner`, `change_token`, `change_webhook`, `change_git_settings`, `change_database_url` = False
+- الصلاحيات الموسعة ممنوحة لـ full_admin: `export_data`, `run_smart_fix`, `view_audit_log`, `edit_institution_data` = True
+- سجل التدقيق يحتوي على `admin_privilege_upgrade_2.7`
+
+**النتيجة الفعلية (رخیص):**
+- المدراء قبل: 1 → بعد: 1 ✅ (لا فقدان)
+- `full_admin: true` ✅ | البيانات محفوظة ✅
+- المحمية (5) = False ✅ | الموسعة (4) = True ✅
+- `is_full_admin(7746757675)` = True ✅
+- audit_log: `admin_privilege_upgrade_2.7` — "تمت ترقية 1 مدير إلى full_admin (جديد: 1)" ✅
+
+---
+
+## 42. خريطة نموذج إضافة عقار (Esri satellite + 3D + pin قابل للسحب) — Phase 2.7 §1
+
+**الهدف:** تحويل خريطة نموذج إضافة عقار إلى MapLibre GL 3D مع قمر Esri الصناعي + علامة قابلة للسحب + زر "موقعي الحالي".
+
+**الخطوات:**
+1. فتح `list-property.html` — التحقق من وجود MapLibre GL 3.6.2 CSS+JS (CDN)
+2. فحص `js/main.js` — `initPropertyMap()` يستخدم MapLibre GL + Esri World Imagery
+3. التحقق من: pitch=60, NavigationControl (visualizePitch), flyTo, inertia
+4. التحقق من: علامة قابلة للسحب (draggable) + click-to-move
+5. التحقق من: زر "📍 موقعي الحالي" + `useMyCurrentLocation()` + fallback
+6. التحقق من: الموقع الافتراضي الخرج (24.2285, 47.3116) + lazy init (IntersectionObserver)
+7. `node -c js/main.js` للتحقق من الصياغة
+
+**النتيجة المتوقعة:**
+- MapLibre GL 3.6.2 (CDN) + Esri World Imagery (لا مفتاح API)
+- pitch=60, NavigationControl مع visualizePitch, flyTo, inertia
+- علامة قابلة للسحب + click-to-move + تحديث lat/lng المخفية
+- زر "📍 موقعي الحالي" (geolocation + fallback لطيف)
+- المركز الافتراضي: الخرج (24.2285, 47.3116)
+- lazy init عبر IntersectionObserver
+- Leaflet كـ fallback
+- `node -c` = OK
+
+**النتيجة الفعلية (رخیص):**
+- MapLibre GL 3.6.2 CDN refs: 2 ✅ | maplibregl in main.js: 5 ✅
+- Esri World Imagery tiles: `server.arcgisonline.com/.../World_Imagery/MapServer/tile/{z}/{y}/{x}` ✅
+- pitch=60: 3 refs ✅ | draggable: 3 refs ✅ | geolocation: 6 refs ✅
+- IntersectionObserver: 3 refs ✅ | Al-Kharj 24.2285/47.3116: 3 refs ✅
+- `useMyCurrentLocation`: 1 ref ✅ | زر "موقعي الحالي": present ✅
+- `node -c js/main.js`: OK ✅
+
+---
+
+## 43. الرابط الرسمي الدائم (SITE_BASE_URL) — Phase 2.7 §2
+
+**الهدف:** توليد الروابط الدائمة للعقارات المنشورة باستخدام `SITE_BASE_URL` (رابط Huawei الدائم) للروابط الظاهرة للزوار والبوت والمشاركة.
+
+**الخطوات:**
+1. فحص `bot/config.json` يحتوي على `SITE_BASE_URL`
+2. فحص `_get_site_base_url()` في `bot/bot.py` يقرأ `SITE_BASE_URL` + يضمن `/` في النهاية
+3. فحص `_build_listing_perm_link()` يستخدم `_get_site_base_url()`
+4. فحص `_do_publish` و `_approve_visitor_request` يستخدمان `_get_site_base_url()`
+5. التحقق من idempotency: نفس المدخلات → نفس الرابط
+6. التحقق من التنسيق: `{base}offer/{external_id}/{slug}` (جديد) و `{base}property/{old_id}` (قديم)
+7. `python3 -m py_compile bot/bot.py`
+
+**النتيجة المتوقعة:**
+- `SITE_BASE_URL` = `https://urldra.cloud.huawei.com/BExUoXngu4`
+- `_get_site_base_url()` يضيف `/` → `https://urldra.cloud.huawei.com/BExUoXngu4/`
+- رابط جديد: `https://urldra.cloud.huawei.com/BExUoXngu4/offer/AFQ001/farm-alkharj-5000sqm`
+- رابط قديم: `https://urldra.cloud.huawei.com/BExUoXngu4/property/123`
+- idempotent: نفس المدخلات → نفس الرابط
+- canonical و sitemap تبقى على GitHub Pages (website_url) — لا تغيير للروابط المفهرسة
+
+**النتيجة الفعلية (رخیص):**
+- `SITE_BASE_URL` في config.json ✅
+- base: `https://urldra.cloud.huawei.com/BExUoXngu4/` ✅ (trailing slash)
+- رابط جديد: `https://urldra.cloud.huawei.com/BExUoXngu4/offer/AFQ001/farm-alkharj-5000sqm` ✅
+- رابط قديم: `https://urldra.cloud.huawei.com/BExUoXngu4/property/123` ✅
+- idempotent ✅ | `py_compile bot.py`: OK ✅
+
+---
+
+## 44. فحص رابط Huawei (HTTP) — Phase 2.7 §2
+
+**الهدف:** التحقق من سلوك رابط Huawei الدائم لتحديد الاستخدام الصحيح.
+
+**الخطوات:**
+1. `curl -s -o /dev/null -w "%{http_code} %{redirect_url}" https://urldra.cloud.huawei.com/BExUoXngu4`
+2. `curl -s -o /dev/null -w "%{http_code}" https://urldra.cloud.huawei.com/BExUoXngu4/offer/test/test-slug`
+
+**النتيجة المتوقعة:**
+- الرابط الأساسي: 302 redirect إلى Petal Maps (POI page)
+- المسارات الفرعية: 404 (Huawei لا يخدم المسارات الفرعية)
+- **القرار:** استخدم `SITE_BASE_URL` في روابط البوت/العرض/المشاركة الظاهرة للزوار؛ ابقِ canonical و sitemap على GitHub Pages (`website_url`) — لا تغيير للروابط المفهرسة القديمة
+
+**النتيجة الفعلية:**
+- الأساسي: 302 → Petal Maps POI page ✅
+- المسار الفرعي: 404 ✅
+- القرار موثق في `docs/HANDOFF_2_7.md` ✅
+
+---
+
 ---
 
 ## ملاحظات Phase 2

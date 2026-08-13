@@ -675,14 +675,82 @@ function togglePriceFields() {
 }
 
 // ===== تهيئة الخريطة التفاعلية =====
+// Phase 2.7 §1: MapLibre GL 3D satellite (Esri World Imagery) + pitch=60 + inertia + flyTo
+let __afaqMapLibreMode = false; // true = MapLibre GL, false = Leaflet fallback
 function initPropertyMap() {
     const mapEl = document.getElementById('property-map');
-    if (!mapEl || typeof L === 'undefined') return;
+    if (!mapEl) return;
 
-    // موقع افتراضي: الخرج، الرياض
-    const defaultLat = 24.1554;
-    const defaultLng = 47.3068;
+    // موقع افتراضي: الخرج (Phase 2.7: 24.2285, 47.3116)
+    const defaultLat = 24.2285;
+    const defaultLng = 47.3116;
 
+    // Phase 2.7 §1: Try MapLibre GL first (3D satellite)
+    if (window.maplibregl) {
+        try {
+            __afaqMapLibreMode = true;
+            propertyMap = new maplibregl.Map({
+                container: 'property-map',
+                style: {
+                    version: 8,
+                    sources: {
+                        'esri-satellite': {
+                            type: 'raster',
+                            tiles: [
+                                'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+                            ],
+                            tileSize: 256,
+                            attribution: '© Esri World Imagery'
+                        },
+                        'esri-labels': {
+                            type: 'raster',
+                            tiles: [
+                                'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+                            ],
+                            tileSize: 256
+                        }
+                    },
+                    layers: [
+                        { id: 'satellite-layer', type: 'raster', source: 'esri-satellite', minzoom: 0, maxzoom: 19 },
+                        { id: 'labels-layer', type: 'raster', source: 'esri-labels', minzoom: 0, maxzoom: 19 }
+                    ]
+                },
+                center: [defaultLng, defaultLat],
+                zoom: 11,
+                pitch: 60,          // Phase 2.7 §1: 3D pitch
+                bearing: 0,
+                attributionControl: true,
+                dragRotate: true,
+                touchPitch: true,
+                cooperativeGestures: false
+            });
+
+            // Phase 2.7 §1: NavigationControl with visualizePitch + inertia
+            propertyMap.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+
+            // Phase 2.7 §1: smooth touch zoom (inertia enabled by default in MapLibre GL)
+            // flyTo used in setMapLocation for smooth movement
+
+            // Phase 2.7 §1: click on map moves pin
+            propertyMap.on('click', function(e) {
+                setMapLocation(e.lngLat.lat, e.lngLat.lng, true);
+            });
+
+            // Phase 2.7 §1: init map search after load
+            propertyMap.on('load', function() {
+                setTimeout(initMapSearch, 100);
+            });
+
+            return;
+        } catch(e) {
+            console.warn('MapLibre GL init failed, falling back to Leaflet:', e);
+            __afaqMapLibreMode = false;
+            propertyMap = null;
+        }
+    }
+
+    // ===== Leaflet fallback (keeps backward compat) =====
+    if (typeof L === 'undefined') return;
     propertyMap = L.map('property-map', { zoomControl: true, attributionControl: true }).setView([defaultLat, defaultLng], 11);
 
     // طبقة الخريطة العادية
@@ -772,24 +840,46 @@ function initPropertyMap() {
 }
 
 // ===== تحديد الموقع على الخريطة =====
-function setMapLocation(lat, lng) {
+// Phase 2.7 §1: supports both MapLibre GL (3D) and Leaflet (fallback)
+function setMapLocation(lat, lng, flyTo) {
     if (!propertyMap) return;
 
-    // إزالة العلامة السابقة
-    if (mapMarker) {
-        propertyMap.removeLayer(mapMarker);
+    if (__afaqMapLibreMode && window.maplibregl && propertyMap.getCenter) {
+        // ===== MapLibre GL mode =====
+        if (mapMarker) { mapMarker.remove(); mapMarker = null; }
+
+        // Draggable pin
+        var markerEl = document.createElement('div');
+        markerEl.innerHTML = '<div style="background:#c0392b;width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);cursor:grab;"></div>';
+        mapMarker = new maplibregl.Marker({ element: markerEl, draggable: true })
+            .setLngLat([lng, lat])
+            .addTo(propertyMap);
+
+        // Phase 2.7 §1: dragging pin updates hidden fields
+        mapMarker.on('dragend', function() {
+            var pos = mapMarker.getLngLat();
+            setMapLocation(pos.lat, pos.lng, false);
+        });
+
+        // Phase 2.7 §1: smooth flyTo movement
+        if (flyTo) {
+            propertyMap.flyTo({ center: [lng, lat], zoom: 15, pitch: 60, bearing: 0, duration: 2000, essential: true });
+        }
+    } else if (typeof L !== 'undefined' && propertyMap.getZoom) {
+        // ===== Leaflet fallback mode =====
+        if (mapMarker) { propertyMap.removeLayer(mapMarker); }
+
+        mapMarker = L.marker([lat, lng], {draggable: true}).addTo(propertyMap);
+        mapMarker.on('dragend', function(e) {
+            const pos = e.target.getLatLng();
+            setMapLocation(pos.lat, pos.lng, false);
+        });
+        if (flyTo) {
+            propertyMap.setView([lat, lng], 15);
+        }
     }
 
-    // إضافة علامة جديدة
-    mapMarker = L.marker([lat, lng], {draggable: true}).addTo(propertyMap);
-
-    // السماح بسحب العلامة
-    mapMarker.on('dragend', function(e) {
-        const pos = e.target.getLatLng();
-        setMapLocation(pos.lat, pos.lng);
-    });
-
-    // تحديث الحقول المخفية
+    // تحديث الحقول المخفية (common for both modes)
     document.getElementById('lat-input').value = lat.toFixed(6);
     document.getElementById('lng-input').value = lng.toFixed(6);
 
@@ -862,8 +952,13 @@ async function searchMapLocation(query, resultsEl) {
                 const lat = parseFloat(this.dataset.lat);
                 const lon = parseFloat(this.dataset.lon);
                 if (propertyMap) {
-                    propertyMap.setView([lat, lon], 15);
-                    setMapLocation(lat, lon);
+                    // Phase 2.7 §1: support MapLibre GL and Leaflet
+                    if (__afaqMapLibreMode && propertyMap.flyTo) {
+                        setMapLocation(lat, lon, true); // flyTo handled in setMapLocation
+                    } else if (propertyMap.setView) {
+                        propertyMap.setView([lat, lon], 15);
+                        setMapLocation(lat, lon, false);
+                    }
                 }
                 resultsEl.style.display = 'none';
                 document.getElementById('map-search-input').value = this.dataset.name.substring(0, 50);
@@ -884,6 +979,11 @@ async function searchMapLocation(query, resultsEl) {
 
 // ===== عرض العقارات على الخريطة (Task 4: Phase 4) =====
 async function togglePropertiesOnMap() {
+    // Phase 2.7 §1: MapLibre GL mode — properties-on-map uses Leaflet API only
+    if (__afaqMapLibreMode) {
+        showToast('عرض العقارات على الخريطة متاح في الوضع العادي فقط', '');
+        return;
+    }
     if (propertiesOnMapVisible) {
         // Hide properties
         if (propertiesLayer) {
@@ -977,8 +1077,12 @@ function useMyGPS() {
 
             if (!propertyMap) initPropertyMap();
 
-            setMapLocation(lat, lng);
-            propertyMap.setView([lat, lng], 15);
+            setMapLocation(lat, lng, true);
+            if (__afaqMapLibreMode && propertyMap.flyTo) {
+                // flyTo handled in setMapLocation
+            } else if (propertyMap.setView) {
+                propertyMap.setView([lat, lng], 15);
+            }
             showToast('تم تحديد موقعك بنجاح', 'success');
         },
         function(error) {
@@ -992,10 +1096,46 @@ function useMyGPS() {
     );
 }
 
+// ===== Phase 2.7 §1: 📍 my current location (gentle fallback on rejection) =====
+function useMyCurrentLocation() {
+    if (!navigator.geolocation) {
+        showToast('المتصفح لا يدعم تحديد الموقع — يمكنك تحريك الدبوس يدوياً', '');
+        return;
+    }
+
+    showToast('📍 جاري تحديد موقعك الحالي...', '');
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            if (!propertyMap) initPropertyMap();
+            setMapLocation(lat, lng, true); // flyTo for smooth movement
+            showToast('📍 تم تحديد موقعك الحالي', 'success');
+        },
+        function(error) {
+            // Phase 2.7 §1: gentle fallback on rejection
+            let msg = 'لم نتمكن من تحديد موقعك تلقائياً — يمكنك تحريك الدبوس يدوياً على الخريطة أو استخدام البحث';
+            if (error.code === 1) {
+                msg = '📍 لم يتم منح إذن الموقع — يمكنك تحريك الدبوس يدوياً أو البحث عن الموقع';
+            } else if (error.code === 3) {
+                msg = '📍 انتهت مهلة تحديد الموقع — حاول مرة أخرى أو حدد الموقع يدوياً';
+            }
+            showToast(msg, ''); // gentle (not error) toast
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
+}
+
 // ===== مسح تحديد الموقع =====
 function clearMapLocation() {
-    if (mapMarker && propertyMap) {
-        propertyMap.removeLayer(mapMarker);
+    if (mapMarker) {
+        if (__afaqMapLibreMode && mapMarker.remove) {
+            mapMarker.remove();
+        } else if (propertyMap && propertyMap.removeLayer) {
+            propertyMap.removeLayer(mapMarker);
+        }
         mapMarker = null;
     }
     document.getElementById('lat-input').value = '';
@@ -1857,9 +1997,23 @@ document.addEventListener('DOMContentLoaded', function() {
     initLightbox();
 
     // ===== تهيئة الخريطة التفاعلية (إن وجدت في الصفحة) =====
-    if (document.getElementById('property-map')) {
-        // تأخير بسيط للتأكد من تحميل Leaflet
-        setTimeout(initPropertyMap, 300);
+    // Phase 2.7 §1: lazy init via IntersectionObserver (after form appears)
+    var __afaqMapEl = document.getElementById('property-map');
+    if (__afaqMapEl) {
+        if ('IntersectionObserver' in window) {
+            var __afaqMapObserver = new IntersectionObserver(function(entries, observer) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        setTimeout(initPropertyMap, 200);
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '100px', threshold: 0.01 });
+            __afaqMapObserver.observe(__afaqMapEl);
+        } else {
+            // Fallback: init after delay
+            setTimeout(initPropertyMap, 300);
+        }
     }
 
     // Phase 4: Homepage interactive map

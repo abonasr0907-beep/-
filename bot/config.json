@@ -17,5 +17,6 @@
     "enable_backups": true,
     "max_backups": 20,
     "enable_audit_log": true,
-    "multi_user": true
+    "multi_user": true,
+    "SITE_BASE_URL": "https://urldra.cloud.huawei.com/BExUoXngu4"
 }

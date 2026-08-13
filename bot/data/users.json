@@ -17,6 +17,7 @@
     "status": "active",
     "added_by": "system (config.json)",
     "added_at": "2026-08-09 13:28:05",
-    "last_active": null
+    "last_active": null,
+    "full_admin": true
   }
 }
