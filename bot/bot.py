@@ -49,6 +49,7 @@ import smart_sync
 import ai_monitor
 import smart_repair
 import emergency_protection
+import listing_lifecycle
 # Phase 6.2: Automated Weekly SEO Intelligence System
 try:
     import seo_monitor
@@ -1830,6 +1831,24 @@ async def _save_visitor_offer(update, uid):
     data.setdefault("offer_submissions", []).append(visitor_offer)
     save_visitor_requests(data)
 
+    # ── Phase 4: تسجيل العرض المعلق في listing_lifecycle + إشعار المدراء ──
+    try:
+        _submitted_by_id = ""
+        _sb = offer.get("submitted_by", {})
+        if isinstance(_sb, dict):
+            _submitted_by_id = _sb.get("user_id", "")
+        _pending_eid = _register_pending_listing(
+            offer,
+            source=listing_lifecycle.SOURCE_BOT_VISITOR,
+            created_by_role="visitor",
+            created_by_user_id=_submitted_by_id or str(uid),
+        )
+        if _pending_eid:
+            visitor_offer["external_id"] = _pending_eid
+            save_visitor_requests(data)  # حفظ external_id في الطلب
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل عرض الزائر المعلق (غير حرج): {_le}")
+
     # مزامنة الصور إلى GitHub (إن كان مفعّلاً)
     try:
         if github_sync.is_enabled() and offer.get("images"):
@@ -2063,6 +2082,33 @@ async def _approve_visitor_offer(update, idx, query=None):
     except Exception as e:
         logger.error(f"خطأ في تحديث البوصلة بعد النشر: {e}")
 
+    # ── Phase 4: تسجيل العرض المعتمد في listing_lifecycle ──
+    try:
+        _approver_uid = query.from_user.id if query else update.effective_user.id
+        _role = user_manager.get_user_role(_approver_uid) or "admin"
+        _submitted_by = ""
+        _sb = s.get("offer", {}).get("submitted_by", {})
+        if isinstance(_sb, dict):
+            _submitted_by = _sb.get("user_id", "")
+        _eid = _register_published_listing(
+            offer,
+            source=listing_lifecycle.SOURCE_APPROVED_SITE_AS_BOT,
+            created_by_role="visitor",
+            created_by_user_id=_submitted_by,
+            approved_by_user_id=_approver_uid,
+        )
+        if _eid:
+            offer["external_id"] = _eid
+            listing_lifecycle.log_listing_action(
+                "listing_approved",
+                _eid,
+                str(_approver_uid),
+                _role,
+                f"offer_id={offer.get('id', '')} approved from visitor submission",
+            )
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل العرض المعتمد (غير حرج): {_le}")
+
     msg = (
         f"✅ تمت الموافقة ونشر العرض!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
@@ -2132,6 +2178,216 @@ async def _reject_visitor_offer(update, idx, query=None):
 
 
 # ============================================================
+
+
+# ============================================================
+#  Phase 4: تكامل دورة حياة العقار مع تدفق النشر
+# ============================================================
+
+def _register_published_listing(offer: dict, *, source: str, created_by_role: str,
+                                  created_by_user_id: str, approved_by_user_id: str = "",
+                                  telegram_file_ids: list = None) -> str:
+    """
+    إنشاء سجل عقار في listing_lifecycle بعد النشر.
+    يُستدعى من _finalize_offer (مدير) و _approve_visitor_offer (زائر معتمد).
+    يرجع external_id أو None عند الفشل. لا يوقف النشر إذا فشل.
+    """
+    try:
+        listing_lifecycle.init()
+
+        title = offer.get("title", "") or offer.get("category", "") or "عقار"
+        category = offer.get("category", "") or offer.get("property_type", "")
+        description = offer.get("description", "")
+        marketing_text = offer.get("marketing_text", "")
+        area = offer.get("area", "")
+        operation_type = offer.get("operation_type", "sale")
+        images = offer.get("images", [])
+
+        price = offer.get("price")
+        if price is not None:
+            try:
+                price = float(price)
+            except (TypeError, ValueError):
+                price = None
+
+        lat = offer.get("lat")
+        lng = offer.get("lng")
+        location_text = area
+
+        if operation_type == "auction":
+            price_mode = listing_lifecycle.PRICE_MODE_AUCTION
+        else:
+            price_mode = listing_lifecycle.PRICE_MODE_SALE
+
+        extra = {}
+        for k in ("type", "area", "area_en", "size_sqm", "price_text",
+                   "features", "map_link", "date_added", "featured",
+                   "section", "property_type", "operation_type",
+                   "original_price", "visitor_map_link"):
+            if k in offer:
+                extra[k] = offer[k]
+
+        listing = listing_lifecycle.create_listing(
+            title=title,
+            category=category,
+            description=description,
+            marketing_text=marketing_text,
+            status=listing_lifecycle.STATUS_PUBLISHED,
+            source=source,
+            created_by_role=created_by_role,
+            created_by_user_id=str(created_by_user_id),
+            approved_by_user_id=str(approved_by_user_id) if approved_by_user_id else "",
+            published_at=offer.get("date_added", datetime.now().strftime("%Y-%m-%d")),
+            price_mode=price_mode,
+            price=price,
+            lat=lat,
+            lng=lng,
+            location_text=location_text,
+            extra=extra,
+        )
+        external_id = listing["external_id"]
+
+        if isinstance(images, list):
+            for idx, img_url in enumerate(images):
+                if isinstance(img_url, str) and img_url:
+                    file_id = ""
+                    if telegram_file_ids and idx < len(telegram_file_ids):
+                        file_id = telegram_file_ids[idx] or ""
+                    listing_lifecycle.add_listing_image(
+                        listing_id=external_id,
+                        image_url=img_url,
+                        telegram_file_id=file_id,
+                        alt_ar=title,
+                        alt_en="",
+                        sort_order=idx,
+                    )
+
+        listing_lifecycle.log_listing_action(
+            "listing_published",
+            external_id,
+            str(approved_by_user_id or created_by_user_id),
+            created_by_role,
+            f"offer_id={offer.get('id', '')} source={source}",
+        )
+
+        logger.info(f"listing_lifecycle: registered published listing external_id={external_id} offer_id={offer.get('id', '')}")
+        return external_id
+
+    except Exception as e:
+        logger.error(f"listing_lifecycle: فشل تسجيل العقار المنشور: {e}")
+        return None
+
+
+def _register_pending_listing(offer: dict, *, source: str, created_by_role: str,
+                                created_by_user_id: str) -> str:
+    """
+    إنشاء سجل عقار بحالة pending (بانتظار الاعتماد).
+    يُستدعى عند تقديم زائر لعرض عبر البوت أو الموقع.
+    """
+    try:
+        listing_lifecycle.init()
+
+        title = offer.get("title", "") or offer.get("category", "") or "عرض زائر"
+        category = offer.get("category", "") or offer.get("property_type", "")
+        description = offer.get("description", "")
+        area = offer.get("area", "")
+        images = offer.get("images", [])
+
+        extra = {}
+        for k in ("type", "area", "area_en", "size_sqm", "price_text",
+                   "features", "map_link", "date_added", "featured",
+                   "section", "property_type", "operation_type",
+                   "original_price", "visitor_map_link", "contact"):
+            if k in offer:
+                extra[k] = offer[k]
+
+        listing = listing_lifecycle.create_listing(
+            title=title,
+            category=category,
+            description=description,
+            status=listing_lifecycle.STATUS_PENDING,
+            source=source,
+            created_by_role=created_by_role,
+            created_by_user_id=str(created_by_user_id),
+            location_text=area,
+            extra=extra,
+        )
+        external_id = listing["external_id"]
+
+        if isinstance(images, list):
+            for idx, img_url in enumerate(images):
+                if isinstance(img_url, str) and img_url:
+                    listing_lifecycle.add_listing_image(
+                        listing_id=external_id,
+                        image_url=img_url,
+                        telegram_file_id="",
+                        alt_ar=title,
+                        alt_en="",
+                        sort_order=idx,
+                    )
+
+        listing_lifecycle.log_listing_action(
+            "listing_created",
+            external_id,
+            str(created_by_user_id),
+            created_by_role,
+            f"source={source} status=pending",
+        )
+
+        logger.info(f"listing_lifecycle: registered pending listing external_id={external_id} source={source}")
+        return external_id
+
+    except Exception as e:
+        logger.error(f"listing_lifecycle: فشل تسجيل العقار المعلق: {e}")
+        return None
+
+
+async def _notify_managers_of_pending(offer: dict, *, source_label: str, external_id: str = "", context=None):
+    """
+    إشعار المدراء بعرض جديد بانتظار المراجعة.
+    source_label: "زائر عبر البوت" أو "زائر عبر الموقع" إلخ.
+    context: ContextTypes.DEFAULT_TYPE (لإرسال الرسائل)
+    """
+    if context is None:
+        logger.warning("_notify_managers_of_pending: no context provided, skipping notifications")
+        return
+    try:
+        staff = user_manager.get_staff_for_notifications()
+        if not staff:
+            logger.warning("لا يوجد موظفون لإشعارهم بعرض معلق")
+            return
+
+        title = offer.get("title", "") or offer.get("category", "") or "عرض"
+        area = offer.get("area", "—")
+        size = offer.get("size_sqm", "—")
+        contact = offer.get("contact", "—")
+        if isinstance(contact, dict):
+            contact = contact.get("name", "—")
+
+        msg = (
+            f"🔔 عرض جديد بانتظار المراجعة\n\n"
+            f"📋 المصدر: {source_label}\n"
+            f"🏷️ العنوان: {title}\n"
+            f"📍 المنطقة: {area}\n"
+            f"📐 المساحة: {size} م²\n"
+            f"👤 التواصل: {contact}\n"
+        )
+        if external_id:
+            msg += f"🆔 رقم: {external_id[:12]}...\n"
+        msg += f"\n✅ استخدم القائمة للاعتماد أو الرفض."
+
+        for member in staff:
+            member_id = member.get("user_id")
+            if member_id:
+                try:
+                    member_id_int = int(member_id)
+                    await context.bot.send_message(chat_id=member_id_int, text=msg)
+                except Exception as e:
+                    logger.warning(f"تعذر إشعار {member_id}: {e}")
+    except Exception as e:
+        logger.error(f"خطأ في إشعار المدراء: {e}")
+
+
 
 async def _finalize_offer(update, uid, query=None):
     session = get_session(uid)
@@ -2210,6 +2466,24 @@ async def _finalize_offer(update, uid, query=None):
 
     # Task 4: المرحلة 2 — نجاح النشر
     site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    # ── Phase 4: تسجيل العقار في listing_lifecycle ──
+    try:
+        _role = user_manager.get_user_role(uid) or "admin"
+        _eid = _register_published_listing(
+            offer,
+            source=listing_lifecycle.SOURCE_BOT_MANAGER,
+            created_by_role=_role,
+            created_by_user_id=uid,
+            approved_by_user_id=uid,
+        )
+        if _eid:
+            offer["external_id"] = _eid
+            _lst = listing_lifecycle.get_listing(_eid)
+            if _lst:
+                offer["slug"] = _lst.get("slug", "")
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل العقار بعد النشر (غير حرج): {_le}")
+
     _op_label = "🏠 للإيجار" if offer.get("operation_type") == "rent" else "🏷️ للبيع"
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
@@ -5673,6 +5947,32 @@ async def _handle_visitor_request_api(request):
     except Exception as e:
         logger.error(f"\u274C خطأ في حفظ طلب الزائر: {e}")
         return _json_response({"ok": False, "error": "save failed"}, status=500)
+
+    # ── Phase 4: تسجيل طلب الموقع في listing_lifecycle (pending) ──
+    try:
+        _site_offer = {
+            "title": visitor_request.get("propertyType", "") or visitor_request.get("name", ""),
+            "category": visitor_request.get("propertyType", ""),
+            "area": visitor_request.get("location", "") or visitor_request.get("area", ""),
+            "description": visitor_request.get("description", ""),
+            "images": visitor_request.get("images", []),
+            "contact": visitor_request.get("name", "") + " / " + visitor_request.get("phone", ""),
+            "operation_type": visitor_request.get("operation_type", "sale"),
+        }
+        _site_lat = visitor_request.get("latitude", "")
+        _site_lng = visitor_request.get("longitude", "")
+        _site_eid = _register_pending_listing(
+            _site_offer,
+            source=listing_lifecycle.SOURCE_SITE_VISITOR,
+            created_by_role="visitor",
+            created_by_user_id=visitor_request.get("name", "site_visitor"),
+        )
+        if _site_eid:
+            visitor_request["external_id"] = _site_eid
+            # إعادة الحفظ مع external_id
+            save_visitor_requests(vdata)
+    except Exception as _le:
+        logger.error(f"listing_lifecycle: فشل تسجيل طلب الموقع المعلق (غير حرج): {_le}")
 
     # 2) إرسال إشعار للمدير عبر البوت مع أزرار موافقة/رفض
     try:
