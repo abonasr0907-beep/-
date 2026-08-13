@@ -2788,7 +2788,7 @@ async def _finalize_offer(update, uid, query=None):
         return
 
     # Task 4: المرحلة 2 — نجاح النشر
-    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    site_url = _get_site_base_url()  # Phase 2.7 §2: SITE_BASE_URL
     # ── Phase 4: تسجيل العقار في listing_lifecycle ──
     try:
         _role = user_manager.get_user_role(uid) or "admin"
@@ -3732,7 +3732,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
             verification_passed = False
 
     # Phase 4: إنشاء الرابط النهائي الرسمي للعقار
-    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    site_url = _get_site_base_url()  # Phase 2.7 §2: SITE_BASE_URL
     final_property_url = f"{site_url}property/{offer_id}"
 
     # Phase 4: فقط تعيين PUBLISHED إذا اجتازت جميع الفحوصات
@@ -5746,8 +5746,9 @@ def _build_listing_perm_link(listing: dict) -> str:
     """بناء الرابط الدائم للعقار.
     العروض الجديدة: /offer/{external_id}/{slug}
     العروض القديمة: /property/{old_id} (الحفاظ على الرابط المفهرس)
+    Phase 2.7 §2: يقرأ SITE_BASE_URL من config لروابط البوت والأزرار والمشاركة.
     """
-    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    site_url = _get_site_base_url()
     eid = listing.get("external_id", "")
     slug = listing.get("slug", "")
     old_id = listing.get("old_id", "")
@@ -5758,6 +5759,18 @@ def _build_listing_perm_link(listing: dict) -> str:
     if old_id:
         return f"{site_url}property/{old_id}"
     return site_url
+
+
+def _get_site_base_url() -> str:
+    """Phase 2.7 §2: الرابط الرسمي الدائم من config.
+    يقرأ SITE_BASE_URL (رابط Huawei الدائم) للروابط الظاهرة للزوار والبوت والمشاركة.
+    إن لم يوجد يرجع إلى website_url (GitHub Pages).
+    يضمن انتهاء الرابط بـ / لتسهيل دمج المسارات.
+    """
+    base = CONFIG.get("SITE_BASE_URL", "") or CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    if not base.endswith("/"):
+        base += "/"
+    return base
 
 
 def _generate_marketing_text(listing: dict) -> str:
