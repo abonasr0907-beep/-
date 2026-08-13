@@ -83,6 +83,33 @@
 
 ---
 
+## 3. بوابة Phase 2.7 → Phase 3
+
+### متطلبات العبور:
+- [x] جميع أقسام Phase 2.7 (§0–§3) مكتملة ومُلتزمة ومُدفوعة
+- [x] اختبارات Phase 2.7 (41–44) مُضافة إلى `docs/TESTS.md` ومنفذة (رخیصة)
+- [x] `docs/HANDOFF_2_7.md` يحتوي: الفرع، آخر التزام، المكتمل/المتبقي، فحص رابط Huawei
+- [x] دمج `feat/admin-upgrade-form-map` إلى `main` (merge --no-ff) + دفع main
+- [x] وسم `phase-2.7-admins` + دفع الوسم
+- [x] فحص رخیص ما بعد النشر: الصفحة الرئيسية + نموذج إضافة عقار له الخريطة الجديدة + رابط عقار منشور بالتنسيق الجديد + البوت /managers يظهر الصلاحيات المرقاة
+
+### بوابات الحارس (Guardrails) — Phase 2.7:
+- [x] `full_admin` موسعة لكن الصلاحيات المحمية (delete_owner, change_token, change_webhook, change_git_settings, change_database_url) = owner only
+- [x] عدد المدراء قبل = بعد (لا فقدان)
+- [x] `SITE_BASE_URL` (Huawei) للروابط الظاهرة في البوت/العرض/المشاركة
+- [x] canonical و sitemap تبقى على GitHub Pages (`website_url`) — لا تغيير للروابط المفهرسة
+- [x] `sitemap.xml` و `robots.txt` لم يتغيرا
+- [x] أرقام المكتب في `office-data.json` لم تتغير
+- [x] لا مفتاح API، لا تبعيات ثقيلة (MapLibre GL + Esri CDN فقط)
+- [x] روابط `/property/{old_id}` و `/offer/{external_id}/{slug}` محفوظة (نسبية على GitHub Pages)
+
+### فحص رابط Huawei (موثق):
+- الأساسي `https://urldra.cloud.huawei.com/BExUoXngu4` → 302 redirect إلى Petal Maps (POI page)
+- المسارات الفرعية (مثل `/offer/test/test-slug`) → 404
+- **القرار:** يُستخدم `SITE_BASE_URL` في روابط البوت/العرض/المشاركة الظاهرة للزوار؛ canonical و sitemap تبقى على GitHub Pages host.
+
+---
+
 ## 4. سجل الحوادث
 
 > تُسجل الحوادث هنا بتسلسل زمني. "لا حوادث" = نظافة كاملة.
