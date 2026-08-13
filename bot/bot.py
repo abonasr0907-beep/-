@@ -1054,6 +1054,14 @@ async def _download_and_enhance_photo(update, context, uid, session, is_visitor=
             rel_path = f"images/bot/{main_name}"
             session["images"].append(rel_path)
 
+            # ── Phase 5: حفظ telegram_file_id للتخزين الدائم ──
+            try:
+                if "image_file_ids" not in session:
+                    session["image_file_ids"] = []
+                session["image_file_ids"].append(photo.file_id)
+            except Exception:
+                pass
+
             logger.info(f"✅ تم استلام وتحسين صورة للمستخدم {uid} (محاولة {attempt+1})")
             return True, None
 
@@ -1628,6 +1636,109 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"\u2500 {inc['scenario_id']}\n   {inc['category']}: {inc['message'][:40]}\n   {inc['detected_at']}\n\n"
         await query.edit_message_text(msg)
 
+    # ── Phase 5/6: listing view callbacks ──
+    elif data.startswith("lst_view_"):
+        eid = data[len("lst_view_"):]
+        await _show_listing_details(update, context, eid, query=query)
+    elif data.startswith("lst_approve_"):
+        eid = data[len("lst_approve_"):]
+        _uid = query.from_user.id
+        if not (is_admin(_uid) or user_manager.is_manager(_uid)):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        try:
+            listing_lifecycle.init()
+            _lst = listing_lifecycle.get_listing(eid)
+            if not _lst:
+                await query.edit_message_text("⚠️ العقار غير موجود.")
+                return
+            listing_lifecycle.set_status(eid, listing_lifecycle.STATUS_PUBLISHED, approved_by_user_id=str(_uid))
+            listing_lifecycle.log_listing_action(
+                "listing_approved", eid, str(_uid),
+                user_manager.get_user_role(_uid) or "manager",
+                "approved via /pending",
+            )
+            await query.edit_message_text("✅ تم اعتماد ونشر العقار.")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ خطأ: {e}")
+    elif data.startswith("lst_reject_"):
+        eid = data[len("lst_reject_"):]
+        _uid = query.from_user.id
+        if not (is_admin(_uid) or user_manager.is_manager(_uid)):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        try:
+            listing_lifecycle.init()
+            listing_lifecycle.set_status(eid, listing_lifecycle.STATUS_REJECTED)
+            listing_lifecycle.log_listing_action(
+                "listing_rejected", eid, str(_uid),
+                user_manager.get_user_role(_uid) or "manager",
+                "rejected via /pending",
+            )
+            await query.edit_message_text("❌ تم رفض العقار.")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ خطأ: {e}")
+    elif data.startswith("lst_edit_"):
+        eid = data[len("lst_edit_"):]
+        _uid = query.from_user.id
+        if not user_manager.can_edit_listing(_uid):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        # Set session for text editing
+        session = get_session(_uid)
+        session["state"] = "lst_awaiting_edit_text"
+        session["edit_listing_eid"] = eid
+        save_session(_uid)
+        await query.edit_message_text(
+            "✏️ أرسل النص الجديد للوصف الآن.\n"
+            "أو أرسل: إلغاء"
+        )
+    elif data.startswith("lst_mkt_"):
+        eid = data[len("lst_mkt_"):]
+        _uid = query.from_user.id
+        if not user_manager.can_add_marketing_text(_uid):
+            await query.answer("غير مسموح", show_alert=True)
+            return
+        session = get_session(_uid)
+        session["state"] = "lst_awaiting_mkt_text"
+        session["edit_listing_eid"] = eid
+        save_session(_uid)
+        # Show options: custom text or auto-generate
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🤖 توليد تلقائي", callback_data=f"lst_mktgen_{eid}")],
+            [InlineKeyboardButton("✏️ كتابة يدوية", callback_data=f"lst_mktmanual_{eid}")],
+        ])
+        await query.edit_message_text(
+            "📝 نص تسويقي للعقار.\nاختر طريقة الإنشاء:",
+            reply_markup=kb
+        )
+    elif data.startswith("lst_mktgen_"):
+        eid = data[len("lst_mktgen_"):]
+        _uid = query.from_user.id
+        try:
+            listing_lifecycle.init()
+            _lst = listing_lifecycle.get_listing(eid)
+            if not _lst:
+                await query.edit_message_text("⚠️ العقار غير موجود.")
+                return
+            _mkt = _generate_marketing_text(_lst)
+            listing_lifecycle.update_listing(eid, {"marketing_text": _mkt})
+            listing_lifecycle.log_listing_action(
+                "marketing_text_generated", eid, str(_uid),
+                user_manager.get_user_role(_uid) or "manager",
+                "auto-generated marketing text",
+            )
+            await query.edit_message_text(f"✅ تم توليد النص التسويقي:\n\n{_mkt}")
+        except Exception as e:
+            await query.edit_message_text(f"⚠️ تعذر توليد النص (لا يوقف النشر): {e}")
+    elif data.startswith("lst_mktmanual_"):
+        eid = data[len("lst_mktmanual_"):]
+        _uid = query.from_user.id
+        session = get_session(_uid)
+        session["state"] = "lst_awaiting_mkt_text"
+        session["edit_listing_eid"] = eid
+        save_session(_uid)
+        await query.edit_message_text("✏️ أرسل النص التسويقي الآن.\nأو أرسل: إلغاء")
 
 
 async def handle_map_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2475,6 +2586,7 @@ async def _finalize_offer(update, uid, query=None):
             created_by_role=_role,
             created_by_user_id=uid,
             approved_by_user_id=uid,
+            telegram_file_ids=s.get("image_file_ids", []) if s else [],
         )
         if _eid:
             offer["external_id"] = _eid
@@ -2485,21 +2597,45 @@ async def _finalize_offer(update, uid, query=None):
         logger.error(f"listing_lifecycle: فشل تسجيل العقار بعد النشر (غير حرج): {_le}")
 
     _op_label = "🏠 للإيجار" if offer.get("operation_type") == "rent" else "🏷️ للبيع"
+    # ── Phase 6: بناء الرابط الدائم ──
+    _eid_val = offer.get("external_id", "")
+    _slug_val = offer.get("slug", "")
+    if _eid_val:
+        if _slug_val:
+            _perm_link = f"{site_url}offer/{_eid_val}/{_slug_val}"
+        else:
+            _perm_link = f"{site_url}offer/{_eid_val}"
+    else:
+        _perm_link = f"{site_url}property/{offer['id']}"
     msg = (
         f"✅ تم نشر العرض بنجاح!{sync_note}\n\n"
         f"🆔 المعرف: {offer['id']}\n"
         f"🏷️ النوع: {offer['category']}\n"
-        f"🔂 عملية: {_op_label}\n"
+        f"📂 عملية: {_op_label}\n"
         f"📍 المنطقة: {offer['area']}\n"
         f"📐 المساحة: {offer['size_sqm']} م²\n"
         f"💰 السعر: {offer['price_text']}\n"
         f"📸 عدد الصور: {len(offer['images'])}\n\n"
-        f"🌐 رابط العرض على الموقع:\n{site_url}"
+        f"🌐 رابط العرض على الموقع:\n{_perm_link}"
     )
+    # ── Phase 5/6: زر مباشر للرابط الدائم ──
+    _view_kb = None
+    try:
+        _view_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌐 عرض على الموقع", url=_perm_link)],
+        ])
+    except Exception:
+        _view_kb = None
     if query:
-        await query.edit_message_text(msg)
+        if _view_kb:
+            await query.edit_message_text(msg, reply_markup=_view_kb)
+        else:
+            await query.edit_message_text(msg)
     else:
-        await update.message.reply_text(msg)
+        if _view_kb:
+            await update.message.reply_text(msg, reply_markup=_view_kb)
+        else:
+            await update.message.reply_text(msg)
     reset_session(uid)
 
 # ============================================================
@@ -4336,6 +4472,54 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_ai_chat(update, context)
         return
 
+    # ── Phase 7: تعديل نص العقار (قبل/بعد النشر) ──
+    if session.get("state") == "lst_awaiting_edit_text":
+        eid = session.get("edit_listing_eid", "")
+        if not eid:
+            reset_session(uid)
+            return
+        if text in ["إلغاء", "الغاء", "cancel"]:
+            reset_session(uid)
+            await update.message.reply_text("تم الإلغاء.")
+            return
+        try:
+            listing_lifecycle.init()
+            listing_lifecycle.update_listing(eid, {"description": text})
+            listing_lifecycle.log_listing_action(
+                "listing_text_edited", eid, str(uid),
+                user_manager.get_user_role(uid) or "manager",
+                "edited description via bot",
+            )
+            await update.message.reply_text("✅ تم تحديث وصف العقار.")
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ خطأ: {e}")
+        reset_session(uid)
+        return
+
+    # ── Phase 7: إضافة نص تسويقي ──
+    if session.get("state") == "lst_awaiting_mkt_text":
+        eid = session.get("edit_listing_eid", "")
+        if not eid:
+            reset_session(uid)
+            return
+        if text in ["إلغاء", "الغاء", "cancel"]:
+            reset_session(uid)
+            await update.message.reply_text("تم الإلغاء.")
+            return
+        try:
+            listing_lifecycle.init()
+            listing_lifecycle.update_listing(eid, {"marketing_text": text})
+            listing_lifecycle.log_listing_action(
+                "marketing_text_added", eid, str(uid),
+                user_manager.get_user_role(uid) or "manager",
+                "manual marketing text added via bot",
+            )
+            await update.message.reply_text("✅ تم حفظ النص التسويقي.")
+        except Exception as e:
+            await update.message.reply_text(f"⚠️ خطأ: {e}")
+        reset_session(uid)
+        return
+
     # Task 1: إذا كان في وضع إدخال معرّف مدير جديد
     if session["state"] == "awaiting_admin_id":
         await _admin_add_by_id(update, context)
@@ -5343,6 +5527,321 @@ async def error_handler(update, context):
 
 
 # ============================================================
+# Phase 5/6 — عرض العقارات + الصور + الروابط الدائمة
+# ============================================================
+
+def _build_listing_perm_link(listing: dict) -> str:
+    """بناء الرابط الدائم للعقار.
+    العروض الجديدة: /offer/{external_id}/{slug}
+    العروض القديمة: /property/{old_id} (الحفاظ على الرابط المفهرس)
+    """
+    site_url = CONFIG.get("website_url", "https://abonasr0907-beep.github.io/-/")
+    eid = listing.get("external_id", "")
+    slug = listing.get("slug", "")
+    old_id = listing.get("old_id", "")
+    if eid:
+        if slug:
+            return f"{site_url}offer/{eid}/{slug}"
+        return f"{site_url}offer/{eid}"
+    if old_id:
+        return f"{site_url}property/{old_id}"
+    return site_url
+
+
+def _generate_marketing_text(listing: dict) -> str:
+    """ڪیتیاب عنصر تسويقي بسيط (لا يتطلب ذکاء اصطناعيا).
+    قالب (نوع، منطقة، سعر، تواصل).
+    لا توقف النشر إذا فشل التوليد."""
+    try:
+        title = listing.get("title", "") or "عقار"
+        category = listing.get("category", "") or ""
+        location = listing.get("location_text", "") or ""
+        price = listing.get("price", "")
+        extra = listing.get("extra", {}) or {}
+        size = extra.get("size_sqm", "") or ""
+        operation_type = extra.get("operation_type", "") or "sale"
+
+        price_str = ""
+        if price is not None:
+            try:
+                price_str = f"{float(price):,.0f}"
+            except (TypeError, ValueError):
+                price_str = str(price) if price else ""
+
+        op_word = "للإيجار" if operation_type == "rent" else "للبيع"
+
+        parts = []
+        parts.append(f"🏷️ {title} {op_word}")
+        if category:
+            parts.append(f"📂 النوع: {category}")
+        if location:
+            parts.append(f"📍 المنطقة: {location}")
+        if size:
+            parts.append(f"📐 المساحة: {size} م²")
+        if price_str:
+            parts.append(f"💰 السعر: {price_str}")
+        parts.append(f"📞 للتواصل: 0545888931 / 0544699933")
+        parts.append(f"🌐 مكتب آفاق الإنجاز العقارية")
+
+        return "\n".join(parts)
+    except Exception:
+        return ""
+
+
+def _format_listing_summary(listing: dict) -> str:
+    """تهيئة ملخص نصي للعقار."""
+    title = listing.get("title", "") or "عقار"
+    category = listing.get("category", "") or ""
+    status = listing.get("status", "")
+    status_labels = {
+        "published": "✅ منشور",
+        "pending": "⏳ بانتظار",
+        "draft": "✏️ مسودة",
+        "rejected": "❌ مرفوض",
+        "archived": "📦 أرشيف",
+    }
+    status_label = status_labels.get(status, status)
+    loc = listing.get("location_text", "") or ""
+    price = listing.get("price", "")
+    price_text = ""
+    if price is not None:
+        try:
+            price_text = f"{float(price):,.0f}"
+        except (TypeError, ValueError):
+            price_text = str(price) if price else ""
+    extra = listing.get("extra", {}) or {}
+    size = extra.get("size_sqm", "") or ""
+    size_str = f" | {size} م²" if size else ""
+    return f"🏷️ {title} | {category} | {status_label}{size_str}"
+
+
+async def cmd_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض قائمة العقارات مع الروابط الدائمة — /listings
+
+    يعرض: العنوان، النوع، الحالة، زر عرض، زر تعديل (مدير)، رابط مباشر.
+    """
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        return
+
+    try:
+        listing_lifecycle.init()
+    except Exception:
+        pass
+
+    # العملاء يرون المنشورة فقط، المسؤولون يرون الكل
+    is_staff = is_admin(uid) or user_manager.is_manager(uid) or user_manager.is_editor(uid)
+    if is_staff:
+        all_listings = listing_lifecycle.get_all_listings()
+    else:
+        all_listings = listing_lifecycle.get_published_listings()
+
+    if not all_listings:
+        await update.message.reply_text("📋 لا توجد عقارات حالياً.")
+        return
+
+    # آخر 15 عقار
+    recent = all_listings[-15:]
+    await update.message.reply_text(
+        f"📋 قائمة العقارات ({len(recent)} من {len(all_listings)}):"
+    )
+
+    for listing in recent:
+        eid = listing.get("external_id", "")
+        summary = _format_listing_summary(listing)
+        perm_link = _build_listing_perm_link(listing)
+
+        buttons = []
+        # زر العرض (للجميع)
+        buttons.append(InlineKeyboardButton("👁️ عرض", callback_data=f"lst_view_{eid}"))
+        # زر الرابط المباشر
+        buttons.append(InlineKeyboardButton("🌐 رابط", url=perm_link))
+        # زر التعديل (للمدير فقط)
+        if user_manager.can_edit_listing(uid):
+            buttons.append(InlineKeyboardButton("✏️ تعديل", callback_data=f"lst_edit_{eid}"))
+
+        kb = InlineKeyboardMarkup([buttons])
+        await update.message.reply_text(summary, reply_markup=kb)
+
+
+async def _show_listing_details(update, context, external_id: str, query=None):
+    """عرض تفاصيل العقار + الصور + زر الرابط الدائم."""
+    try:
+        listing_lifecycle.init()
+    except Exception:
+        pass
+
+    listing = listing_lifecycle.get_listing(external_id)
+    if not listing:
+        msg = "⚠️ العقار غير موجود."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    uid = (query.from_user.id if query else update.effective_user.id)
+    is_staff = is_admin(uid) or user_manager.is_manager(uid) or user_manager.is_editor(uid)
+
+    # العملاء يرون المنشور فقط
+    if not is_staff and listing.get("status") != listing_lifecycle.STATUS_PUBLISHED:
+        msg = "⚠️ هذا العقار غير متاح للعرض."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    title = listing.get("title", "") or "عقار"
+    category = listing.get("category", "") or ""
+    description = listing.get("description", "") or ""
+    marketing_text = listing.get("marketing_text", "") or ""
+    location_text = listing.get("location_text", "") or ""
+    price = listing.get("price", "")
+    price_mode = listing.get("price_mode", "")
+    status = listing.get("status", "")
+    source = listing.get("source", "")
+    old_id = listing.get("old_id", "")
+    extra = listing.get("extra", {}) or {}
+
+    status_labels = {
+        "published": "✅ منشور",
+        "pending": "⏳ بانتظار",
+        "draft": "✏️ مسودة",
+        "rejected": "❌ مرفوض",
+        "archived": "📦 أرشيف",
+    }
+    status_label = status_labels.get(status, status)
+
+    price_str = ""
+    if price is not None:
+        try:
+            price_str = f"{float(price):,.0f}"
+        except (TypeError, ValueError):
+            price_str = str(price) if price else ""
+
+    size = extra.get("size_sqm", "") or ""
+    operation_type = extra.get("operation_type", "") or ""
+
+    msg = (
+        f"🏷️ {title}\n\n"
+        f"📂 النوع: {category}\n"
+        f"📍 المنطقة: {location_text}\n"
+    )
+    if size:
+        msg += f"📐 المساحة: {size} م²\n"
+    if price_str:
+        msg += f"💰 السعر: {price_str}\n"
+    if operation_type:
+        op_label = "🏠 إيجار" if operation_type == "rent" else "🏷️ بيع"
+        msg += f"📂 العملية: {op_label}\n"
+    if is_staff:
+        msg += f"🛡️ الحالة: {status_label}\n"
+        if source:
+            msg += f"👥 المصدر: {source}\n"
+        if old_id:
+            msg += f"🆔 المعرف القديم: {old_id}\n"
+    msg += f"\n📝 الوصف:\n{description}\n"
+    if marketing_text:
+        msg += f"\n📣 نص تسويقي:\n{marketing_text}\n"
+
+    perm_link = _build_listing_perm_link(listing)
+
+    # الصور
+    images = listing_lifecycle.get_listing_images(external_id)
+    image_urls = [img.get("image_url", "") for img in images if img.get("image_url")]
+
+    # بناء الأزرار
+    buttons = [[InlineKeyboardButton("🌐 عرض على الموقع", url=perm_link)]]
+    if user_manager.can_edit_listing(uid):
+        buttons.append([InlineKeyboardButton("✏️ تعديل النص", callback_data=f"lst_edit_{external_id}")])
+    if user_manager.can_add_marketing_text(uid):
+        buttons.append([InlineKeyboardButton("📣 نص تسويقي", callback_data=f"lst_mkt_{external_id}")])
+    kb = InlineKeyboardMarkup(buttons)
+
+    # إرسال النص
+    if query:
+        await query.edit_message_text(msg, reply_markup=kb, parse_mode=None)
+    else:
+        await update.message.reply_text(msg, reply_markup=kb)
+
+    # إرسال الصور (sendMediaGroup لأكثر من صورة)
+    if image_urls:
+        try:
+            base = Path(__file__).resolve().parent.parent
+            media_group = []
+            for idx, img_url in enumerate(image_urls):
+                img_path = base / img_url if not img_url.startswith("http") else None
+                if img_path and img_path.exists():
+                    if idx == 0:
+                        media_group.append(InputMediaPhoto(open(img_path, "rb"), caption=title))
+                    else:
+                        media_group.append(InputMediaPhoto(open(img_path, "rb")))
+                elif img_url.startswith("http"):
+                    if idx == 0:
+                        media_group.append(InputMediaPhoto(img_url, caption=title))
+                    else:
+                        media_group.append(InputMediaPhoto(img_url))
+
+            if media_group:
+                chat_id = (query.message.chat_id if query else update.effective_chat.id)
+                if len(media_group) == 1:
+                    # صورة واحدة — إرسال كصورة عادية
+                    if media_group[0].caption:
+                        await context.bot.send_photo(chat_id, photo=media_group[0].media, caption=media_group[0].caption)
+                    else:
+                        await context.bot.send_photo(chat_id, photo=media_group[0].media)
+                else:
+                    await context.bot.send_media_group(chat_id, media=media_group)
+        except Exception as e:
+            logger.warning(f"خطأ في إرسال صور العقار {external_id}: {e}")
+
+
+async def cmd_view_listing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض عقار بالمعرف الدائم — /view_listing <external_id>"""
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        return
+    if not context.args:
+        await update.message.reply_text("استخدام: /view_listing <external_id>\nمثال: /view_listing abc123def456")
+        return
+    external_id = context.args[0].strip()
+    await _show_listing_details(update, context, external_id)
+
+
+async def cmd_pending_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض العقارات المعلقة (للمدير/المسؤول) — /pending"""
+    uid = update.effective_user.id
+    if not (is_admin(uid) or user_manager.is_manager(uid)):
+        await update.message.reply_text("غير مسموح.")
+        return
+
+    try:
+        listing_lifecycle.init()
+    except Exception:
+        pass
+
+    pending = listing_lifecycle.get_pending_listings()
+    if not pending:
+        await update.message.reply_text("✅ لا توجد عقارات معلقة بانتظار الاعتماد.")
+        return
+
+    await update.message.reply_text(f"⏳ العقارات المعلقة ({len(pending)}):")
+    for listing in pending:
+        eid = listing.get("external_id", "")
+        summary = _format_listing_summary(listing)
+        buttons = [
+            InlineKeyboardButton("👁️ عرض", callback_data=f"lst_view_{eid}"),
+            InlineKeyboardButton("✅ اعتماد", callback_data=f"lst_approve_{eid}"),
+            InlineKeyboardButton("❌ رفض", callback_data=f"lst_reject_{eid}"),
+        ]
+        kb = InlineKeyboardMarkup([buttons])
+        await update.message.reply_text(summary, reply_markup=kb)
+
+
+# ============================================================
+
+# ============================================================
 
 # ============================================================
 # Phase 3 — الأنظمة الذكية (Smart Systems)
@@ -5814,6 +6313,10 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("add_manager", cmd_add_manager))
     app.add_handler(CommandHandler("remove_manager", cmd_remove_manager))
     app.add_handler(CommandHandler("managers", cmd_managers))
+    # ── Phase 5/6: listing view commands ──
+    app.add_handler(CommandHandler("listings", cmd_listings))
+    app.add_handler(CommandHandler("view_listing", cmd_view_listing))
+    app.add_handler(CommandHandler("pending", cmd_pending_listings))
     app.add_handler(CommandHandler("change_role", cmd_change_role))
     app.add_handler(CommandHandler("backups", cmd_backups))
     app.add_handler(CommandHandler("sync_status", cmd_sync_status))
