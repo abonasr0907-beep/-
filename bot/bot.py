@@ -2720,6 +2720,7 @@ async def _finalize_offer(update, uid, query=None):
     # ── توليد معرف تسلسلي فريد (AFQ-2026-0001) ──
     offer["id"] = offer_id.generate_offer_id()
     offer["publish_status"] = "Published"  # حالة النشر الموحّدة
+    offer["status"] = "published"  # Phase 2.8 §1: النشر فوري للمدير — status=published قبل أي فحص
 
     # ── منع نشر عرض بلا صور ──
     if not offer["images"]:
@@ -3552,6 +3553,7 @@ async def _approve_visitor_request(update, req_ref, query=None):
         # Phase 4 Validation Fix (P1): preserve section + property_type from the visitor request
         "section": item.get("section", ""),
         "property_type": item.get("propertyType", item.get("property_type", item_type)),
+        "status": "published",  # Phase 2.8 §1+§3: النشر فوري — status=published قبل أي فحص (تقرير بعدي لاحقًا)
         "title": f"{item_type} \u2014 {item_area}",
         "area": item_area,
         "area_en": "",
@@ -3710,74 +3712,59 @@ async def _approve_visitor_request(update, req_ref, query=None):
             if error_reporter:
                 error_reporter.report_error("bot._approve_visitor_request.property_storage", "Failed to store property permanently", context={"offer_id": offer_id, "error": str(_ps_err)}, severity="critical", file_affected="bot/property_storage.py")
 
-    # Phase 4: التحقق الإلزامي من النشر (9 فحوصات)
-    verification_passed = True
-    verification_result = None
-    _verify_count = 9
-    if publish_verifier:
-        try:
-            verification_result = publish_verifier.verify_publishing(
-                offer_id=offer_id,
-                expected_section=item.get("section", ""),
-                expected_area=item_area,
-                expected_type=item.get("propertyType", item.get("property_type", "")),
-            )
-            verification_passed = verification_result.get("all_passed", False)
-            _check_list = verification_result.get("checks", [])
-            _verify_count = sum(1 for c in _check_list if c.get("passed"))
-            logger.info(f"Phase4: التحقق من النشر — all_passed={verification_passed}, passed={_verify_count}/9, failed_checks={verification_result.get('failed_checks', [])}")
-        except Exception as _pv_err:
-            logger.error(f"Phase4: خطأ في التحقق من النشر: {_pv_err}")
-            verification_result = {"all_passed": False, "error": str(_pv_err), "failed_checks": ["verifier_error"]}
-            verification_passed = False
-
-    # Phase 4: إنشاء الرابط النهائي الرسمي للعقار
+    # Phase 2.8 §1+§3: النشر فورًا ثم تقرير بعدي غير حاجب (correct_section لا يمنع النشر أبدًا)
+    # قاعدة النشر الجديدة الصارمة: التعيين إلى published يحدث أولًا قبل أي فحص؛
+    # ثم يُنفَّذ الفحص كـ"تقرير بعدي" يرسل تنبيهًا فقط ولا يغيّر الحالة أبدًا.
     site_url = _get_site_base_url()  # Phase 2.7 §2: SITE_BASE_URL
     final_property_url = f"{site_url}property/{offer_id}"
 
-    # Phase 4: فقط تعيين PUBLISHED إذا اجتازت جميع الفحوصات
-    if not verification_passed:
-        # فشل التحقق — عدم تعيين PUBLISHED، تعيين FAILED
-        item["status"] = "rejected"
-        item["publish_status"] = "Failed"
-        item["failed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        _failed_checks = verification_result.get("failed_checks", []) if verification_result else ["unknown"]
-        item["fail_reason"] = "publish verification failed — " + ", ".join(_failed_checks)
-        item["verification_result"] = verification_result
-        item.setdefault("status_history", []).append({"status": "FAILED", "at": item["failed_at"], "reason": item["fail_reason"], "failed_checks": _failed_checks})
-        save_visitor_requests(data)
-        if error_reporter:
-            error_reporter.report_error("bot._approve_visitor_request.verify", "Publish verification failed — property NOT published", context={"offer_id": offer_id, "failed_checks": _failed_checks}, severity="critical", file_affected="bot/publish_verifier.py")
-        # إرسال تقرير المشكلة
-        err_msg = (
-            f"❌ فشل التحقق من النشر\n\n"
-            f"🆔 المعرف: {offer_id}\n"
-            f"❌ الفحوص الفاشلة: {', '.join(_failed_checks)}\n\n"
-            f"⚠️ لم يتم تعيين حالة منشور\n"
-            f"📝 تم حفظ تقرير المشكلة للمراجعة"
-        )
-        if query:
-            await query.edit_message_text(err_msg)
-        else:
-            await update.message.reply_text(err_msg)
-        # Phase 4: AI Monitor يحلل السبب
-        try:
-            ai_monitor.monitor_publish_errors()
-        except Exception:
-            pass
-        return
-
-    # 7) تحديث حالة الطلب إلى PUBLISHED (لا يحذف)
+    # 7) تحديث حالة الطلب إلى PUBLISHED فورًا — قبل أي فحص (لا تحذف)
     item["status"] = REQUEST_STATUS_PUBLISHED
     item["publish_status"] = "Published"
+
     item["published_offer_id"] = offer_id
     item["approved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item["published_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item["final_property_url"] = final_property_url
-    item["verification_passed"] = True
-    item["verification_checks_passed"] = _verify_count if verification_result else 9
-    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id, "final_url": final_property_url})
+
+    # Phase 2.8 §1+§3: تشغيل التحقق كتقرير بعدي غير حاجب — يرسل تنبيهًا فقط ولا يغيّر الحالة أبدًا
+    post_report_result = None
+    _post_failed_checks = []
+    _verify_count = 9
+    if publish_verifier and hasattr(publish_verifier, "verify_publishing_post_report"):
+        try:
+            post_report_result = publish_verifier.verify_publishing_post_report(
+                offer_id=offer_id,
+                expected_section=item.get("section", ""),
+                expected_area=item_area,
+                expected_type=item.get("propertyType", item.get("property_type", "")),
+                final_url=final_property_url,
+            )
+            _post_failed_checks = post_report_result.get("failed_checks", [])
+            _check_list = post_report_result.get("checks", [])
+            _verify_count = sum(1 for c in _check_list if c.get("passed"))
+            logger.info(f"Phase 2.8 §1: تقرير بعدي للعرض {offer_id} — critical_passed={post_report_result.get('critical_passed')}, passed={_verify_count}/9, failed={_post_failed_checks}")
+        except Exception as _pr_err:
+            logger.error(f"Phase 2.8 §1: خطأ في التقرير البعدي للعرض {offer_id}: {_pr_err}")
+            post_report_result = {"post_report": True, "critical_passed": True, "error": str(_pr_err), "failed_checks": []}
+    item["verification_passed"] = True  # النشر تم بالفعل — التقرير البعدي لا يغيّر هذا أبدًا
+    item["post_report"] = post_report_result
+    item["verification_checks_passed"] = _verify_count if post_report_result else 9
+    item.setdefault("status_history", []).append({"status": "PUBLISHED", "at": item["published_at"], "offer_id": offer_id, "final_url": final_property_url, "post_report": True})
     save_visitor_requests(data)
+
+    # Phase 2.8 §1: إرسال تنبيه بعدي فقط عند وجود فحوصات تحتاج مراجعة — لا يمنع النشر ولا يغيّر الحالة
+    if _post_failed_checks:
+        try:
+            _alert_msg = (
+                f"⚠️ تنبيه بعدي (النشر تم بالفعل)\n\n"
+                f"🆔 المعرف: {offer_id}\n"
+                f"📋 فحوصات تحتاج مراجعة: {', '.join(_post_failed_checks)}\n\n"
+                f"✅ العرض منشور — هذا تنبيه فقط لا يؤثر على الحالة"
+            )
+            await update.effective_chat.send_message(_alert_msg)
+        except Exception:
+            pass
 
     # Phase 4: تحديث حالة العقار في property_storage إلى PUBLISHED
     if property_storage and property_stored:

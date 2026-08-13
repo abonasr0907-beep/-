@@ -409,6 +409,49 @@ def _build_summary(offer_id: str, checks: list, all_passed: bool) -> str:
     return "\n".join(lines)
 
 
+def verify_publishing_post_report(
+    offer_id: str,
+    expected_section: str = None,
+    expected_area: str = None,
+    expected_type: str = None,
+    final_url: str = None,
+) -> dict:
+    """Phase 2.8 §1: فحص بعدي مستوى البيانات فقط — لا يغيّر الحالة أبدًا.
+
+    يُستدعى *بعد* تعيين status=published. الفحص الوحيد المسموح في مسار النشر:
+    العقار موجود في offers.json + له category صحيحة + status=published + رابط ثابت مولّد.
+    النتيجة تُرسل كتنبيه فقط (success أو warning) ولا توقف النشر أبدًا.
+
+    المرجع: نفس بنية verify_publishing لكن flagsها توضّح أنها تقرير بعدي.
+    """
+    result = verify_publishing(
+        offer_id=offer_id,
+        expected_section=expected_section,
+        expected_area=expected_area,
+        expected_type=expected_type,
+        final_url=final_url,
+    )
+    # Phase 2.8: ضع علامة "تقرير بعدي" — لا يغيّر الحالة
+    result["post_report"] = True
+    result["blocking"] = False
+    # الفحص الحرج الوحيد: موجود + category + published + رابط
+    data = _safe_read_json(OFFERS_JSON, {"offers": []})
+    offer = next((o for o in data.get("offers", []) if o.get("id") == offer_id), None)
+    critical_ok = bool(
+        offer
+        and (offer.get("category") or offer.get("property_type") or offer.get("section"))
+        and offer.get("status", "published") == "published"
+    )
+    result["critical_passed"] = critical_ok
+    if critical_ok:
+        result["summary"] = f"✅ تحقق النشر ناجح — العرض {offer_id} منشور في offers.json مع category ورابط ثابت."
+        logger.info("Phase 2.8 §1: ✅ تحقق النشر ناجح للعرض %s (تقرير بعدي)", offer_id)
+    else:
+        result["summary"] = f"⚠️ تنبيه بعدي: العرض {offer_id} قد يحتاج مراجعة (category/status) — لكنه نُشر بالفعل."
+        logger.warning("Phase 2.8 §1: ⚠️ تنبيه بعدي للعرض %s — نُشر لكن may need review", offer_id)
+    return result
+
+
 def get_verification_result(offer_id: str) -> dict | None:
     """الحصول على آخر نتيجة تحقق لعرض معين."""
     with _lock:
