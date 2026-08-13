@@ -311,9 +311,9 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
                     </div>
                     ${isGeneral ? '<div class="offer-admin-alert" style="color:#b8860b;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> عقار بدون قسم — يظهر في "عامة"</div>' : ''}
                     <div class="offer-price">${offer.price_text}</div>
-                    ${(offer.priceType === 'auction' || offer.price_type === 'auction') ? `<div class="offer-auction-info"><i class="fas fa-gavel"></i> على السوم — أعلى سوم: <strong>${(offer.highestBid || offer.highest_bid || 0).toLocaleString('en-US')} ريال</strong></div>` : ''}
+                    ${(offer.priceType === 'auction' || offer.price_type === 'auction' || offer.price_mode === 'auction' || offer.price_mode === 'sum') ? `<div class="offer-auction-info"><i class="fas fa-gavel"></i> ${offer.price_mode === 'sum' ? 'على السوم' : 'على السوم'} — أعلى سوم: <strong>${(offer.current_bid || offer.highestBid || offer.highest_bid || offer.sum_price || 0).toLocaleString('en-US')} ريال</strong></div>` : ''}
                     ${(offer.priceType === 'negotiable' || offer.price_type === 'negotiable') ? `<div class="offer-price-tag"><i class="fas fa-handshake"></i> قابل للتفاوض</div>` : ''}
-                    ${(offer.priceType === 'auction' || offer.price_type === 'auction') ? `<button class="offer-btn offer-btn-bid" onclick="submitBid('${offer.id}'); return false;"><i class="fas fa-gavel"></i> طلب مزايدة</button>` : ''}
+                    ${((offer.priceType === 'auction' || offer.price_type === 'auction' || offer.price_mode === 'auction' || (offer.price_mode === 'sum' && offer.allow_bidding !== false))) ? `<button class="offer-btn offer-btn-bid" onclick="submitBid('${offer.id}'); return false;"><i class="fas fa-gavel"></i> طلب مزايدة</button>` : ''}
                     <div class="offer-features">${featuresHtml}</div>
                     <div class="offer-bousla">
                         <div class="offer-bousla-title">
@@ -1323,12 +1323,19 @@ async function sendBid(offerId) {
         showToast('يرجى تعبئة جميع الحقل المطلوبة', 'error');
         return;
     }
-    const offer = OFFERS.find(o => String(o.id) === String(offerId));
-    const currentBid = offer ? (offer.highestBid || offer.highest_bid || offer.price || 0) : 0;
-    if (parseFloat(amount) <= parseFloat(currentBid)) {
-        showToast('مبلغ المزايدة تجب أن تكون أعلى من السوم الحالي', 'error');
+    // Phase 2: التحقق من المبلغ — رقم بين 1000 و 5000000000 ريال فقط
+    var amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum < 1000 || amountNum > 5000000000) {
+        showToast('المبلغ يجب أن يكون رقمًا بين 1,000 و 5,000,000,000 ريال', 'error');
         return;
     }
+    var phoneClean = phone.replace(/\D/g, '');
+    if (phoneClean.length < 9) {
+        showToast('يرجى إدخال رقم جوال صحيح', 'error');
+        return;
+    }
+    const offer = OFFERS.find(o => String(o.id) === String(offerId));
+    const currentBid = offer ? (offer.highestBid || offer.highest_bid || offer.current_bid || offer.price || 0) : 0;
 
     // إرسال المزايدة للإدارة عبر تيليجرام
     const siteBaseUrl = (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.siteUrl) ? OFFICE_DATA.siteUrl : 'https://abonasr0907-beep.github.io/-/';
@@ -1397,13 +1404,42 @@ async function sendBid(offerId) {
         waBidMsg += `\n*💡 مكتب آفاق الإنجاز العقاري*\n`;
         waBidMsg += `🌐 abonasr0907-beep.github.io/-`;
         const waBidUrl = `https://wa.me/${OFFICE_DATA.whatsapp}?text=${encodeURIComponent(waBidMsg)}`;
-        openWhatsAppFast(waBidUrl);
+        // Phase 2: نص wa.me المخصص المبسط
+        var extId = (offer && offer.external_id) ? offer.external_id : offerId;
+        var simpleText = 'طلب مزايدة | العقار: ' + extId + ' | الاسم: ' + name + ' | الجوال: ' + phone + ' | المبلغ: ' + formattedAmount + ' ريال';
+        var simpleWaUrl = 'https://wa.me/' + OFFICE_DATA.whatsapp + '?text=' + encodeURIComponent(simpleText);
+        // Phase 2: deep-link البوت — اسم البوت من الإعدادات
+        var botUser = (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.botUsername) ? OFFICE_DATA.botUsername : '';
+        var deepLink = botUser ? ('https://t.me/' + botUser + '?start=bid_' + extId + '_' + amountNum) : '';
+        openWhatsAppFast(simpleWaUrl);
     } catch (e) {
         console.warn('⚠️ تعذر فتح واتساب للمزايدة:', e.message);
     }
 
     closeBidModal();
-    showToast('تم إرسال طلب المزايدة بنجاح! سنتواصل معك قريباً.', 'success');
+    // Phase 2: عرض خيار الإرسال عبر البوت أيضًا
+    if (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.botUsername) {
+        var extId2 = (offer && offer.external_id) ? offer.external_id : offerId;
+        var deepLink2 = 'https://t.me/' + OFFICE_DATA.botUsername + '?start=bid_' + extId2 + '_' + amountNum;
+        showBidSuccessModal(deepLink2);
+    } else {
+        showToast('تم إرسال طلب بنجاح! سنتواصل معك قريباً.', 'success');
+    }
+}
+
+// Phase 2: نافذذة تأكيد المزايدة مع زر البوت
+function showBidSuccessModal(deepLink) {
+    var existing = document.getElementById('bid-success-modal');
+    if (existing) existing.remove();
+    var html = '<div id="bid-success-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;">' +
+        '<div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;text-align:center;font-family:inherit;">' +
+        '<i class="fas fa-check-circle" style="font-size:48px;color:#2A5050;margin-bottom:12px;"></i>' +
+        '<h3 style="color:#2A5050;margin:0 0 8px;">تم إرسال طلبك!</h3>' +
+        '<p style="color:#666;font-size:14px;margin:0 0 18px;">فتحنا واتساب بالرسالة. يمكنك أيضًا إرسال المزايدة عبر البوت.</p>' +
+        '<a href="' + deepLink + '" target="_blank" style="display:block;padding:12px;border:none;border-radius:8px;background:#0088cc;color:#fff;text-decoration:none;font-weight:700;margin-bottom:10px;font-family:inherit;"><i class="fab fa-telegram"></i> إرسال عبر البوت</a>' +
+        '<button onclick="document.getElementById(\'bid-success-modal\').remove()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إغلاق</button>' +
+        '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
 }
 
 function showInquiryForm() {

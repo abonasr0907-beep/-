@@ -50,6 +50,8 @@ import ai_monitor
 import smart_repair
 import emergency_protection
 import listing_lifecycle
+# Phase 2: Bidding storage module (snake_case structure, no auto price change)
+import bids
 # Phase 6.2: Automated Weekly SEO Intelligence System
 try:
     import seo_monitor
@@ -301,6 +303,7 @@ def save_bot_offers(data):
 
 
 BIDS_FILE = DATA_DIR / "bids.json"
+bids.init(BIDS_FILE)
 
 
 def load_bids():
@@ -780,11 +783,217 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
 )
 
 # ============================================================
+#  Phase 2 — نظام المزايدات (deep-link + أوامر المدراء)
+#  القاعدة الذهبية: سعر العقار و current_bid لا يتغيران تلقائيًا أبدًا.
+# ============================================================
+
+async def _handle_bid_deep_link(update, context, uid):
+    """
+    يفكك حمولة /start التي تبدأ بـ bid_{external_id}_{amount}.
+    يطلب الاسم والجوال إن نقصا (من بيانات Telegram إن أمكن)،
+    يحفظ المزايدة بحالة pending، ويُرسل إشعارًا فوريًا للمدراء.
+    لا يُغيّر سعر العقار أو current_bid — مجرد تخزين وإشعار.
+    """
+    payload = context.args[0]  # bid_{eid}_{amount}
+    parts = payload.split("_")
+    # parts = ["bid", external_id, amount, ...]
+    if len(parts) < 3:
+        await update.message.reply_text(
+            "⚠️ رابط المزايدة غير صحيح. يواصل مع المكتب مباشرة."
+        )
+        return
+
+    listing_id = parts[1]
+    raw_amount = "_".join(parts[2:])  # في حال احتوى المبلغ على شرطات
+    try:
+        amount = float(raw_amount.replace(",", ""))
+    except (ValueError, TypeError):
+        await update.message.reply_text(
+            "⚠️ مبلغ المزايدة غير صحيح."
+        )
+        return
+
+    if amount < 1000 or amount > 5000000000:
+        await update.message.reply_text(
+            "⚠️ المزايدة يجب أن تكون بين 1,000 و 5,000,000,000 ر.س."
+        )
+        return
+
+    # الاسم والجوال من بيانات المستخدم (يُكمل لاحقًا إن نقصا)
+    bidder_name = (update.effective_user.first_name or "").strip()
+    if update.effective_user.last_name:
+        bidder_name += " " + update.effective_user.last_name
+    bidder_phone = ""  # لا يتوفر من Telegram — يُطلب لاحقًا
+
+    # البحث عن العرض لتسجيل العنوان
+    offer_title = ""
+    offer_url = ""
+    try:
+        offers_data = load_offers_json()
+        for o in offers_data.get("offers", []):
+            eid = o.get("external_id") or str(o.get("id", ""))
+            if str(eid) == str(listing_id):
+                offer_title = o.get("title", "") or o.get("category", "") or ""
+                offer_url = o.get("offer_url", "") or ""
+                break
+    except Exception:
+        pass
+
+    # حفظ المزايدة (pending فقط — لا تغيير للسعر)
+    try:
+        record = bids.add_bid(
+            listing_id=listing_id,
+            bidder_name=bidder_name,
+            bidder_phone=bidder_phone,
+            amount=amount,
+            extra={"offerTitle": offer_title, "offerUrl": offer_url},
+        )
+    except Exception as e:
+        logger.error(f"خطأ حفظ المزايدة: {e}")
+        await update.message.reply_text(
+            "⚠️ حدث خطأ أثناء حفظ مزايدتك. يواصل مع المكتب."
+        )
+        return
+
+    # إشعار المدراء فوريًا
+    notif = (
+        f"💰 مزايدة جديدة بانتظار المراجعة\n\n"
+        f"🏡 العقار: {offer_title or listing_id}\n"
+        f"💰 المبلغ: {amount:,.0f} ر.س.\n"
+        f"👤 المزايد: {bidder_name or '—'}\n"
+        f"📞 الجوال: {bidder_phone or 'لم يسجل بعد'}\n"
+        f"🆔 رقم المزايدة: {record['id']}\n"
+        f"📍 رقم العقار: {listing_id}\n\n"
+        f"✅ للمراجعة: /bids\n"
+        f"✅ للقبول: /approve_bid {record['id']}\n"
+        f"❌ للرفض: /reject_bid {record['id']}"
+    )
+    try:
+        staff = user_manager.get_staff_for_notifications()
+        recipients = [int(m.get("user_id")) for m in staff if m.get("user_id")]
+        for admin_id in ADMIN_IDS:
+            recipients.append(int(admin_id))
+        for rid in set(recipients):
+            try:
+                await context.bot.send_message(chat_id=rid, text=notif)
+            except Exception as e:
+                logger.warning(f"تعذر إشعار {rid} بالمزايدة: {e}")
+    except Exception as e:
+        logger.error(f"خطأ إشعار المدراء بالمزايدة: {e}")
+
+    await update.message.reply_text(
+        f"✅ تم تسجيل مزايدتك بمبلغ {amount:,.0f} ر.س. \u200f\n\n"
+        f"📋 رقم المزايدة: {record['id']}\n"
+        f"👥 تم إشعار إدارة المكتب وسيتواصل معك قريبًا.\n\n"
+        f"📞 للاستفسار السريع:\n"
+        f"واتساب: 0545888931\n"
+        f"اتصال: 0544699933"
+    )
+
+
+async def cmd_bids(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض المزايدات المنتظرة (pending) — للمدير فقط."""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("هذا الأمر للمدير فقط.")
+        return
+    pending = bids.get_pending()
+    if not pending:
+        await update.message.reply_text("✅ لا توجد مزايدات منتظرة حاليًا.")
+        return
+    lines = ["📋 المزايدات المنتظرة:\n"]
+    for b in pending[:30]:
+        lines.append(
+            f"\u200f\u2022 {b['id']}\n"
+            f"  🏡 عقار: {b.get('offerTitle') or b.get('listing_id', '—')}\n"
+            f"  💰 المبلغ: {float(b.get('amount', 0)):,.0f} ر.س.\n"
+            f"  👤 الاسم: {b.get('bidder_name') or '—'}\n"
+            f"  📞 الجوال: {b.get('bidder_phone') or '—'}\n"
+            f"  ⏰ {b.get('created_at', '—')}\n"
+            f"  ✅ /approve_bid {b['id']}  \u200f|  ❌ /reject_bid {b['id']}\n"
+        )
+    await update.message.reply_text("\n".join(lines))
+
+
+async def cmd_approve_bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    قبول مزايدة: /approve_bid {bid_id}
+    القاعدة الذهبية: يعديل الحالة إلى approved وتحديث
+    current_bid يدويًا فقط — بعد موافقة صريحة.
+    سعر العقار (الاساسي) لا يتغير أبدًا.
+    """
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("هذا الأمر للمدير فقط.")
+        return
+    if not context.args:
+        await update.message.reply_text("الاستخدام: /approve_bid {bid_id}")
+        return
+    bid_id = context.args[0]
+    reviewer = update.effective_user.id
+
+    record = bids.set_status(bid_id, "approved", reviewer)
+    if not record:
+        await update.message.reply_text(f"⚠️ لم يوجد مزايدة برقم {bid_id}.")
+        return
+
+    # تحديث current_bid يدويًا فقط (offer price لا يمس) — في offers.json
+    updated_bid = False
+    try:
+        offers_data = load_offers_json()
+        for o in offers_data.get("offers", []):
+            eid = o.get("external_id") or str(o.get("id", ""))
+            if str(eid) == str(record.get("listing_id", "")):
+                o["current_bid"] = float(record.get("amount", 0))
+                o["price_mode"] = o.get("price_mode", "auction")
+                updated_bid = True
+                break
+        if updated_bid:
+            save_offers_json(offers_data)
+            logger.info(f"تم تحديث current_bid={record.get('amount')} يدويًا للعقار {record.get('listing_id')} بعد قبول المزايدة {bid_id}")
+    except Exception as e:
+        logger.warning(f"تحذير: فشل تحديث current_bid بعد القبول: {e}")
+
+    await update.message.reply_text(
+        f"✅ تم قبول المزايدة {bid_id}\n\n"
+        f"💰 المبلغ: {float(record.get('amount', 0)):,.0f} ر.س.\n"
+        f"🏡 العقار: {record.get('offerTitle') or record.get('listing_id', '—')}\n"
+        + ("✅ تم تحديث current_bid يدويًا." if updated_bid else "⚠️ تم القبول لكن لم يُستخدم السعر الحالي تلقائيًا.")
+    )
+
+
+async def cmd_reject_bid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """رفض مزايدة: /reject_bid {bid_id} — للمدير فقط. لا يغيير أي سعر."""
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("هذا الأمر للمدير فقط.")
+        return
+    if not context.args:
+        await update.message.reply_text("الاستخدام: /reject_bid {bid_id}")
+        return
+    bid_id = context.args[0]
+    reviewer = update.effective_user.id
+    record = bids.set_status(bid_id, "rejected", reviewer)
+    if not record:
+        await update.message.reply_text(f"⚠️ لم توجد مزايدة برقم {bid_id}.")
+        return
+    await update.message.reply_text(
+        f"❌ تم رفض المزايدة {bid_id}\n\n"
+        f"💰 المبلغ المرفوض: {float(record.get('amount', 0)):,.0f} ر.س.\n"
+        f"🏡 العقار: {record.get('offerTitle') or record.get('listing_id', '—')}\n"
+        f"ℹ️ لم يتغير أي سعر."
+    )
+
+
+# ============================================================
 #  الأوامر
 # ============================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     uid = user.id
+
+    # Phase 2: deep-link bid_ payload -> /start bid_{external_id}_{amount}
+    # البوت يفكك الحمولة، يحفظ المزايدة (pending)، ويُشعِر المدراء فوريًا.
+    if context.args and context.args[0].startswith("bid_"):
+        await _handle_bid_deep_link(update, context, uid)
+        return
 
     # أول مستخدم يبدأ البوت يصبح أدمن تلقائياً
     if len(ADMIN_IDS) == 0:
@@ -843,7 +1052,10 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/add — إضافة عرض\n"
         "/list — قائمة العروض\n"
         "/stats — إحصائيات\n"
-        "/setadmin <id> — تعيين مدير"
+        "/setadmin <id> — تعيين مدير\n"
+        "/bids — المزايدات المنتظرة\n"
+        "/approve_bid <id> — قبول مزايدة\n"
+        "/reject_bid <id> — رفض مزايدة"
     )
     await update.message.reply_text(help_text)
 
@@ -6325,6 +6537,11 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("admin_log", cmd_admin_log))
     app.add_handler(CommandHandler("emergency", cmd_emergency))
     app.add_handler(CommandHandler("request_history", cmd_request_history))
+
+    # ── Phase 2: Bidding manager commands ──
+    app.add_handler(CommandHandler("bids", cmd_bids))
+    app.add_handler(CommandHandler("approve_bid", cmd_approve_bid))
+    app.add_handler(CommandHandler("reject_bid", cmd_reject_bid))
 
     # ── Phase 6.2: SEO Intelligence Commands ──
     app.add_handler(CommandHandler("seo_check", cmd_seo_check))
