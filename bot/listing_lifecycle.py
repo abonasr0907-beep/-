@@ -426,6 +426,12 @@ def add_listing_image(
     listing_id = external_id للعقار.
     """
     init()
+    # Phase 2 §4: ALT auto-generation if not provided
+    if not alt_ar:
+        listing_rec = get_listing(listing_id)
+        if listing_rec:
+            existing_imgs = get_listing_images(listing_id)
+            alt_ar = auto_generate_alt(listing_rec, len(existing_imgs))
     img = {
         "id": _uuid.uuid4().hex,
         "listing_id": listing_id,
@@ -705,3 +711,206 @@ def log_listing_action(
 #  التهيئة عند الاستيراد (lazy)
 # ============================================================
 # init() يُستدعى عند أول استخدام — لا هنا، لتجنب مشاكل الاستيراد
+
+
+# ============================================================
+#  Phase 2 §4 — Guardrails: Quality Score + Anti-Duplicate + ALT auto-gen
+# ============================================================
+
+def quality_score(listing: dict) -> dict:
+    """
+    درجة جودة العقار (0–100) — تحذير فقط (warn)، لا تمنع النشر.
+
+    المعايير:
+      - العنوان موجود وطوله مناسب: 15
+      - الوصف موجود وطوله > 50 حرف: 15
+      - القسم/النوع موجود: 10
+      - صورة واحدة على الأقل: 20
+      - إحداثيات (lat/lng): 10
+      - نص تسويقي: 10
+      - سعر أو وضع مزايدة: 10
+      - نص الموقع (location_text): 10
+
+    يُرجع: {score, max, warnings: [...], passed: bool}
+    """
+    score = 0
+    max_score = 100
+    warnings = []
+
+    title = (listing.get("title") or "").strip()
+    if title:
+        score += 15
+        if len(title) < 10:
+            warnings.append("العنوان قصير جدًا (أقل من 10 أحرف).")
+    else:
+        warnings.append("لا يوجد عنوان.")
+
+    desc = (listing.get("description") or "").strip()
+    if desc:
+        score += 15
+        if len(desc) < 50:
+            warnings.append("الوصف قصير (أقل من 50 حرف).")
+    else:
+        warnings.append("لا يوجد وصف.")
+
+    category = (listing.get("category") or listing.get("property_type") or "").strip()
+    if category:
+        score += 10
+    else:
+        warnings.append("لا يوجد قسم/نوع للعقار.")
+
+    # صور: تحقق من listing_images أو حقل images في listing
+    has_image = False
+    imgs = listing.get("images")
+    if imgs and isinstance(imgs, list) and len(imgs) > 0:
+        has_image = True
+    else:
+        listing_imgs = get_listing_images(listing.get("external_id", ""))
+        if listing_imgs:
+            has_image = True
+    if has_image:
+        score += 20
+    else:
+        warnings.append("لا توجد صور للعقار.")
+
+    lat = listing.get("lat")
+    lng = listing.get("lng")
+    if lat is not None and lng is not None:
+        try:
+            float(lat)
+            float(lng)
+            score += 10
+        except (ValueError, TypeError):
+            warnings.append("إحداثيات غير صالحة.")
+    else:
+        warnings.append("لا توجد إحداثيات (lat/lng).")
+
+    if (listing.get("marketing_text") or "").strip():
+        score += 10
+    else:
+        warnings.append("لا يوجد نص تسويقي.")
+
+    price = listing.get("price")
+    sum_price = listing.get("sum_price")
+    current_bid = listing.get("current_bid")
+    if price is not None or sum_price is not None or current_bid is not None:
+        score += 10
+    else:
+        warnings.append("لا يوجد سعر.")
+
+    if (listing.get("location_text") or listing.get("area") or "").strip():
+        score += 10
+    else:
+        warnings.append("لا يوجد نص موقع.")
+
+    return {
+        "score": score,
+        "max": max_score,
+        "warnings": warnings,
+        "passed": score >= 60,
+    }
+
+
+def find_duplicates(new_listing: dict, existing_listings: list = None) -> list:
+    """
+    كشف التكرار: يُرجع قائمة بالعقارات المكررة المحتملة.
+
+    معيار التطابق (أحدها يكفي):
+      1. نفس العنوان (بعد تطبيع) + نفس السعر
+      2. نفس العنوان + نفس الموقع (location_text/area)
+      3. نفس رقم الجوال (إن وُجد في extra)
+
+    التطبيع: إزالة المسافات الزائدة، توحيد حالة الأحرف (للإنجليزي)،
+    إزالة التشكيل الأساسي.
+    لا يحذف شيئًا — مجرد تنبيه.
+    """
+    def normalize(text):
+        if not text:
+            return ""
+        t = str(text).strip().lower()
+        # إزالة المسافات الزائدة
+        t = re.sub(r"\s+", " ", t)
+        return t
+
+    def norm_title(t):
+        return normalize(t)
+
+    if existing_listings is None:
+        existing_listings = list(get_all_listings().values())
+
+    new_title = norm_title(new_listing.get("title", ""))
+    new_price = new_listing.get("price")
+    new_area = normalize(new_listing.get("location_text") or new_listing.get("area"))
+    new_phone = ""
+    extra = new_listing.get("extra") or new_listing.get("contact")
+    if isinstance(extra, dict):
+        new_phone = normalize(extra.get("phone") or extra.get("whatsapp"))
+
+    duplicates = []
+    for existing in existing_listings:
+        # تخطي نفس العقار (عند التحديث)
+        if existing.get("external_id") == new_listing.get("external_id"):
+            continue
+        ex_title = norm_title(existing.get("title", ""))
+        ex_price = existing.get("price")
+        ex_area = normalize(existing.get("location_text") or existing.get("area"))
+        ex_phone = ""
+        ex_extra = existing.get("extra") or existing.get("contact")
+        if isinstance(ex_extra, dict):
+            ex_phone = normalize(ex_extra.get("phone") or ex_extra.get("whatsapp"))
+
+        is_dup = False
+        reasons = []
+
+        # المعيار 1: نفس العنوان + نفس السعر
+        if new_title and ex_title and new_title == ex_title:
+            if new_price is not None and ex_price is not None and float(new_price) == float(ex_price):
+                is_dup = True
+                reasons.append("نفس العنوان + نفس السعر")
+
+        # المعيار 2: نفس العنوان + نفس الموقع
+        if new_title and ex_title and new_title == ex_title:
+            if new_area and ex_area and new_area == ex_area:
+                is_dup = True
+                reasons.append("نفس العنوان + نفس الموقع")
+
+        # المعيار 3: نفس رقم الجوال
+        if new_phone and ex_phone and new_phone == ex_phone and len(new_phone) >= 9:
+            is_dup = True
+            reasons.append("نفس رقم الجوال")
+
+        if is_dup:
+            duplicates.append({
+                "external_id": existing.get("external_id", ""),
+                "title": existing.get("title", ""),
+                "reasons": reasons,
+            })
+
+    return duplicates
+
+
+def auto_generate_alt(listing: dict, image_index: int = 0) -> str:
+    """
+    توليد نص بديل (ALT) تلقائيًا للصورة إذا لم يُحدد يدويًا.
+
+    الصيغة: "{نوع العقار} {المساحة} — {المنطقة} | صورة {رقم} | مكتب آفاق الإنجاز العقاري"
+    مثال: "مزرعة 5000م² — الخرج | صورة 1 | مكتب آفاق الإنجاز العقاري"
+    """
+    prop_type = (listing.get("category") or listing.get("property_type") or "عقار").strip()
+    area = (listing.get("area") or listing.get("location_text") or "").strip()
+    size = listing.get("size_sqm")
+    size_str = ""
+    if size:
+        try:
+            size_str = f" {int(float(size))}م²"
+        except (ValueError, TypeError):
+            size_str = f" {size}"
+
+    parts = [prop_type + size_str]
+    if area:
+        parts.append(area)
+    alt = " — ".join(parts)
+    if image_index > 0:
+        alt += f" | صورة {image_index + 1}"
+    alt += " | مكتب آفاق الإنجاز العقاري"
+    return alt
