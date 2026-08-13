@@ -910,7 +910,6 @@ def auto_generate_alt(listing: dict, image_index: int = 0) -> str:
     if area:
         parts.append(area)
     alt = " — ".join(parts)
-    if image_index > 0:
-        alt += f" | صورة {image_index + 1}"
+    alt += f" | صورة {image_index + 1}"
     alt += " | مكتب آفاق الإنجاز العقاري"
     return alt

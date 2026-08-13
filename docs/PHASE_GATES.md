@@ -20,25 +20,25 @@
 ## 2. بوابة Phase 2 → Phase 3
 
 ### متطلبات العبور:
-- [ ] كل أقسام Phase 2 (§1–§5) مكتملة ومُلتزمة ومُدفوعة
-- [ ] اختبارات Phase 2 مُضافة لـ `docs/TESTS.md` ومنفذة
-- [ ] `docs/HANDOFF_2.md` يحتوي: الفرع، آخر التزام، المكتمل/المتبقي، Phase 3 Locked Scope
-- [ ] دمج `feat/site-auction-map` إلى `main` (merge --no-ff) + دفع main
-- [ ] وسم `phase-2-stable` + دفع الوسم
-- [ ] فحص ما بعد النشر: الصفحة الرئيسية + صفحة عقار = 200، رابط `/offer/` يعمل، ≥1 صورة
+- [x] كل أقسام Phase 2 (§1–§5) مكتملة ومُلتزمة ومُدفوعة
+- [x] اختبارات Phase 2 مُضافة لـ `docs/TESTS.md` ومنفذة
+- [x] `docs/HANDOFF_2.md` يحتوي: الفرع، آخر التزام، المكتمل/المتبقي، Phase 3 Locked Scope
+- [x] دمج `feat/site-auction-map` إلى `main` (merge --no-ff) + دفع main
+- [x] وسم `phase-2-stable` + دفع الوسم
+- [x] فحص ما بعد النشر: الصفحة الرئيسية + صفحة عقار = 200، رابط `/offer/` يعمل، ≥1 صورة
 
 ### بوابات الحراسة (Guardrails):
-- [ ] `docs/SEO_GUARDRAILS.md` موجود ومُتبع
-- [ ] درجة الجودة `quality_score()` تعمل (تحذير فقط)
-- [ ] كشف التكرار `find_duplicates()` يعمل (تحذير فقط)
-- [ ] ALT تلقائي للصور يعمل
-- [ ] الروابط القديمة `/property/{old_id}` لا تزال تعمل
-- [ ] أرقام المكتب في `office-data.json` لم تتغير
-- [ ] لا مفاتيح API، لا تبعيات ثقيلة (الخريطة CDN فقط)
+- [x] `docs/SEO_GUARDRAILS.md` موجود ومُتبع
+- [x] درجة الجودة `quality_score()` تعمل (تحذير فقط)
+- [x] كشف التكرار `find_duplicates()` يعمل (تحذير فقط)
+- [x] ALT تلقائي للصور يعمل
+- [x] الروابط القديمة `/property/{old_id}` لا تزال تعمل
+- [x] أرقام المكتب في `office-data.json` لم تتغير
+- [x] لا مفاتيح API، لا تبعيات ثقيلة (الخريطة CDN فقط)
 
 ---
 
-## 3. قالب تقرير الحادث (Incident Report Template)
+ قالب تقرير الحادث (Incident Report Template)
 
 عند كسر أي قاعدة في `SEO_GUARDRAILS.md` أو أي بوابة أعلاه، أنشئ تقريرًا فوريًا:
 
