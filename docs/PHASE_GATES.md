@@ -142,3 +142,30 @@
 2. حدّث `docs/HANDOFF_2.md` بقسم "المكتمل/المتبقي".
 3. لا تترك عملًا غير مُلتزم (uncommitted).
 4. سجّل الخطوة التالية بوضوح للمهندس التالي.
+
+---
+
+## Phase 3 §1 — التطبيع + القوائم البيضاء + حرّاس الارتداد (بُوابة تثبيت)
+
+**التاريخ:** جلسة المرحلة الثالثة
+**الفرع:** `feat/phase3-normalizer-bounce-guard`
+**دمج main:** `ff001d34` (merge --no-ff)
+**آخر commit على الفرع:** `c5bc64bc`
+
+### العناصر المُنجَزة
+- [x] `bot/normalizer.py` — مُطبِّع نصوص عربي idempotent (أرقام، أحرف، مسافات) + قائمة بيضاء للفئات (مزرعة/استراحة/أرض سكنية) + قائمة بيضاء للمناطق (5 مناطق) — 11/11 اختبار ذاتي ✅
+- [x] `bot/bounce_guard.py` — حارس ارتداد: `_ensure_published` (idempotent)، `run_bounce_guard`، `fix_now`، `run_automatic_check`، `init_ref_count`، `verify_js_published_filter` — كل الاختبارات الذاتية ✅
+- [x] `bot/bot.py` — استيراد normalizer + bounce_guard، استدعاء `normalize_offer()` في `_finalize_offer` + `_approve_visitor_request`، أمر `/fix` للإدارة، `_bounce_guard_auto_check` (كل 6 ساعات عبر JobQueue)
+- [x] `js/main.js` — مرآة JS: `normalizeTextJS`، `normalizeCategoryJS`، `normalizeAreaJS`، `isKnownCategoryJS`، `shouldIncludeInAllSectionsJS` + حارس فلتر `propTypeFilter` يستخدم `normalizeCategoryJS` لمطابقة المرادفات
+- [x] `offers-data/offers.json` — إضافة `status:"published"` + `publish_status:"Published"` لكل العروض (add-only، لم تُحذف بيانات)
+- [x] `bot/data/bounce_guard_log.json` + `bot/data/manager_offer_refcount.json` — ملفات تتبُّع حارس الارتداد
+
+### بُوابة التثبيت (Gate)
+- [x] `py_compile bot/bot.py bot/normalizer.py bot/bounce_guard.py` ✅
+- [x] `node --check js/main.js` ✅
+- [x] عدد العروض: 27 (لم ينخفض — add-only) ✅
+- [x] كل العروض `status=published` ✅
+- [x] الفرع مُدمَج `--no-ff` إلى `main` + دفع `main` ✅
+- [x] commit على الفرع موجود في remote ✅
+
+**النتيجة:** بُوابة مَعْبُورة ✅
