@@ -238,3 +238,12 @@
 - **submitPropertyForm:** ضغط الصور قبل الإرسال؛ نموذج المزايدة: إرسال عبر `/ingest` بدل notifyTelegramAdmin.
 - **التطهير:** إزالة زر إرفاق البوت من list-property.html + رسالة النجاح، حذف showBidSuccessModal وكل deep-link t.me من main.js و property.html — الظاهر للزائر واتساب/هاتف فقط.
 - **التحقق:** `node --check js/main.js` ✅ | grep: لا form-success-attach/showBidSuccessModal/t.me في واجهات الزوار ✅
+
+---
+
+## بوابة المهمة M2 (مهمة معزولة UX/البوصلة) — mission/m2-ui
+- **node --check:** `node --check js/main.js` ✅ | `node --check js/silo.js` ✅
+- **عدد العروض:** `offers.json` == 27 ✅
+- **البوصلة والتخفيض:** دالة computeAverages موحدة حيًا من offers.json + شارة خُفّض السعر 🔻 عند وجود old_price > price + تدوير تلقائي لعرض الأسبوع حسب اليوم ✅
+- **صفحة المقارنة:** /compare جلب حقيقي من offers.json مع حسابات البوصلة وانحراف المتر وخلاصة الأفضل قيمة وأزرار واتساب فقط ✅
+- **الثلاثية الهيكلية:** زر المفضلة ❤️ + عداد الهيدر + درج "محفوظاتي" بـ afaq_favs + شبكة استجابة 3-4 أعمدة / 2 جوال والقائمة المنسدلة للهيدر الضيق ✅

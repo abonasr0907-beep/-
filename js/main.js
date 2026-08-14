@@ -439,6 +439,7 @@ function renderOffers(filter = 'all', areaFilter = 'all', propTypeFilter = 'all'
         const cat = offerCategory(offer);
         const isGeneral = !(offer.category || offer.property_type || offer.section);
         const featuredBadge = offer.featured ? '<span class="offer-badge featured">مميز ⭐</span>' : `<span class="offer-badge">${cat}</span>`;
+        const priceDropBadge = (offer.old_price && Number(offer.old_price) > Number(offer.price)) ? '<span class="offer-badge price-drop-badge" style="background:#d63031;color:#fff;">خُفّض السعر 🔻</span>' : '';
         const soldBadge = offer.sold ? '<span class="offer-badge sold-badge">✔️ تم البيع</span>' : '';
         const operationBadge = (offer.operation_type === 'rent' || offer.operationType === 'rent') ? '<span class="offer-badge operation-rent">🏠 للإيجار</span>' : '<span class="offer-badge operation-sale">🏷️ للبيع</span>';
 const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
@@ -450,6 +451,7 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
             <div class="offer-card" data-offer-id="${offer.id}">
                 <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
                 ${featuredBadge}
+                ${priceDropBadge}
                 ${operationBadge}
                 ${soldBadge}
                 ${morePhotosBadge}
@@ -468,7 +470,7 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
                     ${(offer.priceType === 'negotiable' || offer.price_type === 'negotiable') ? `<div class="offer-price-tag"><i class="fas fa-handshake"></i> قابل للتفاوض</div>` : ''}
                     ${((offer.priceType === 'auction' || offer.price_type === 'auction' || offer.price_mode === 'auction' || (offer.price_mode === 'sum' && offer.allow_bidding !== false))) ? `<button class="offer-btn offer-btn-bid" onclick="submitBid('${offer.id}'); return false;"><i class="fas fa-gavel"></i> طلب مزايدة</button>` : ''}
                     <div class="offer-features">${featuresHtml}</div>
-                    <div class="offer-bousla">
+                    <div class="offer-bousla" data-compass-offer-id="${offer.id}">
                         <div class="offer-bousla-title">
                             <i class="fas fa-compass"></i> البوصلة العقارية - ${offer.area}
                         </div>

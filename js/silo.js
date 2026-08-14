@@ -101,7 +101,131 @@
         return '<div class="silo-stat-item"><div class="silo-stat-number">' + num + '</div><div class="silo-stat-label">' + label + '</div></div>';
     }
 
-    // ===== Exclusives Bar (featured=true only) =====
+    // ===== Compass Single-Source Calculations =====
+    function computeAverages(offersList) {
+        var result = {};
+        var categories = ['مزرعة', 'استراحة', 'أرض سكنية'];
+        categories.forEach(function(cat) {
+            result[cat] = { sumUnitPrice: 0, count: 0, avgUnitPrice: 0 };
+        });
+
+        if (!offersList || !offersList.length) return result;
+
+        offersList.forEach(function(o) {
+            var rawCat = o.category || o.property_type || o.type || '';
+            var cat = rawCat;
+            if (rawCat === 'farm') cat = 'مزرعة';
+            if (rawCat === 'resthouse') cat = 'استراحة';
+            if (rawCat === 'land') cat = 'أرض سكنية';
+
+            if (!result[cat]) {
+                result[cat] = { sumUnitPrice: 0, count: 0, avgUnitPrice: 0 };
+            }
+
+            var price = Number(o.price);
+            var size = Number(o.size_sqm);
+            if (price > 0 && size > 0) {
+                result[cat].sumUnitPrice += (price / size);
+                result[cat].count += 1;
+            }
+        });
+
+        Object.keys(result).forEach(function(cat) {
+            if (result[cat].count > 0) {
+                result[cat].avgUnitPrice = Math.round(result[cat].sumUnitPrice / result[cat].count);
+            }
+        });
+
+        return result;
+    }
+    window.computeAverages = computeAverages;
+
+    function renderCompassWidgets() {
+        fetchOffers(function(offers) {
+            var avgs = computeAverages(offers);
+
+            // 1) Update main/hub compass grid if #bousla-grid exists
+            var grid = document.getElementById('bousla-grid');
+            if (grid) {
+                var widgetHtml = '<div style="grid-column: 1/-1; background:#ffffff; border:1px solid #e2d9c8; border-radius:12px; padding:20px; margin-bottom:20px; box-shadow:0 4px 15px rgba(0,0,0,0.05);">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #C4A956; padding-bottom:12px; margin-bottom:15px;">' +
+                    '<h3 style="margin:0; color:#2A5050; font-size:1.2rem;"><i class="fas fa-compass"></i> البوصلة العقارية الموحدة (معدل سعر المتر حيًا)</h3>' +
+                    '<button type="button" onclick="renderCompassWidgets(); return false;" class="btn" style="padding:6px 14px; font-size:0.85rem; background:#2A5050; color:#fff; border-radius:6px; cursor:pointer;"><i class="fas fa-sync-alt"></i> تحديث البوصلة</button>' +
+                    '</div>' +
+                    '<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; text-align:center;">';
+
+                ['مزرعة', 'استراحة', 'أرض سكنية'].forEach(function(cat) {
+                    var data = avgs[cat] || { avgUnitPrice: 0, count: 0 };
+                    widgetHtml += '<div style="background:#f8f6f0; padding:15px; border-radius:8px; border:1px solid #eee;">' +
+                        '<div style="font-weight:bold; color:#2A5050; margin-bottom:6px;">' + cat + '</div>' +
+                        '<div style="font-size:1.1rem; color:#C4A956; font-weight:bold;">متوسط سعر المتر: ' + (data.avgUnitPrice ? data.avgUnitPrice.toLocaleString('en-US') + ' ريال/م²' : 'غير متوفر') + '</div>' +
+                        '<div style="font-size:0.85rem; color:#666; margin-top:4px;">(بناءً على ' + data.count + ' عقاراً)</div>' +
+                        '</div>';
+                });
+
+                widgetHtml += '</div>' +
+                    '<p style="margin:12px 0 0 0; font-size:0.82rem; color:#888; text-align:center; font-style:italic;"><i class="fas fa-info-circle"></i> يُستبعد أي عقار بدون مساحة أو بسعر صفر من الحسابات لموثوقية البيانات</p>' +
+                    '</div>';
+
+                grid.innerHTML = widgetHtml;
+            }
+
+            // 2) Update Compass on single offer cards / property page
+            var offerCompassBlocks = document.querySelectorAll('.offer-bousla, #property-compass-widget');
+            offerCompassBlocks.forEach(function(block) {
+                var offerId = block.getAttribute('data-compass-offer-id');
+                var offerObj = null;
+
+                if (offerId && offers) {
+                    offerObj = offers.find(function(o){ return o.id === offerId; });
+                } else if (window.currentProperty) {
+                    offerObj = window.currentProperty;
+                }
+
+                if (!offerObj) return;
+
+                var rawCat = offerObj.category || offerObj.property_type || offerObj.type || '';
+                var cat = rawCat;
+                if (rawCat === 'farm') cat = 'مزرعة';
+                if (rawCat === 'resthouse') cat = 'استراحة';
+                if (rawCat === 'land') cat = 'أرض سكنية';
+
+                var catAvgData = avgs[cat] || { avgUnitPrice: 0, count: 0 };
+                var avgPrice = catAvgData.avgUnitPrice;
+
+                var price = Number(offerObj.price);
+                var size = Number(offerObj.size_sqm);
+                var unitPrice = (price > 0 && size > 0) ? Math.round(price / size) : 0;
+
+                var deviationHtml = '';
+                if (unitPrice > 0 && avgPrice > 0) {
+                    var diff = Math.round(((unitPrice - avgPrice) / avgPrice) * 100);
+                    if (diff > 0) {
+                        deviationHtml = ' <span style="color:#d63031; font-weight:bold;">(أعلى بـ ' + diff + '% عن متوسط الفئة)</span>';
+                    } else if (diff < 0) {
+                        deviationHtml = ' <span style="color:#27ae60; font-weight:bold;">(أقل بـ ' + Math.abs(diff) + '% عن متوسط الفئة - قيمة ممتازة)</span>';
+                    } else {
+                        deviationHtml = ' <span style="color:#2980b9; font-weight:bold;">(يطابق متوسط الفئة تماماً)</span>';
+                    }
+                }
+
+                block.innerHTML =
+                    '<div style="background:#fdfcf9; border:1px solid #e8e0d0; border-radius:10px; padding:12px 15px; margin-top:10px;">' +
+                    '<div style="font-weight:bold; color:#2A5050; font-size:0.95rem; margin-bottom:5px;">' +
+                    '<i class="fas fa-compass"></i> بوصلة الأسعار الحية — ' + cat +
+                    '</div>' +
+                    '<div style="font-size:0.88rem; color:#444; line-height:1.6;">' +
+                    'متوسط سعر المتر في ' + cat + ': <strong>' + (avgPrice ? avgPrice.toLocaleString('en-US') + ' ريال/م²' : 'غير محدد') + '</strong> (بناءً على ' + catAvgData.count + ' عقاراً)<br>' +
+                    (unitPrice > 0 ? 'سعر متر هذا العقار: <strong>' + unitPrice.toLocaleString('en-US') + ' ريال/م²</strong>' + deviationHtml + '<br>' : '') +
+                    '<small style="color:#888;">يُستبعد أي عقار بدون مساحة | <a href="#" onclick="renderCompassWidgets(); return false;" style="color:#C4A956; text-decoration:none;"><i class="fas fa-sync-alt"></i> تحديث الحسابات</a></small>' +
+                    '</div>' +
+                    '</div>';
+            });
+        });
+    }
+    window.renderCompassWidgets = renderCompassWidgets;
+
+    // ===== Exclusives Bar (featured=true only, rotated by day) =====
     function initExclusivesBar() {
         var bar = document.getElementById('silo-exclusives-scroll');
         if (!bar) return;
@@ -112,13 +236,25 @@
                 if (container) container.style.display = 'none';
                 return;
             }
+
+            // T3.c: Select "Offer of the Week" automatically based on current date
+            var today = new Date();
+            var dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+            var selectedIndex = dayOfYear % featured.length;
+
+            // Sort/reorder featured so selected element is first as "عرض الأسبوع"
+            var reordered = [featured[selectedIndex]].concat(featured.filter(function(_, idx){ return idx !== selectedIndex; }));
+
             var html = '';
-            featured.forEach(function(o) {
+            reordered.forEach(function(o, idx) {
                 var img = (o.images && o.images[0]) || 'images/logo.jpg';
+                var badgeText = (idx === 0) ? '🌟 عرض الأسبوع' : 'حصري آفاق';
+                var badgeStyle = (idx === 0) ? 'background:#e67e22; color:#fff;' : '';
+
                 html += '<a href="' + buildOfferUrl(o) + '" class="silo-exclusive-card">' +
                     '<img src="' + img + '" alt="' + escHtml(o.title || '') + ' | آفاق الإنجاز العقاري" loading="lazy">' +
                     '<div class="silo-exclusive-info">' +
-                    '<span class="silo-exclusive-badge">حصري آفاق</span>' +
+                    '<span class="silo-exclusive-badge" style="' + badgeStyle + '">' + badgeText + '</span>' +
                     '<h3>' + escHtml(o.title || '') + '</h3>' +
                     '<div class="silo-exclusive-price">' + escHtml(o.price_text || '') + '</div>' +
                     '<div class="silo-exclusive-area"><i class="fas fa-map-marker-alt"></i> ' + escHtml(o.area || '') + '</div>' +
@@ -276,6 +412,160 @@
         });
     }
 
+    // ===== Compare Page Generator =====
+    function renderComparePage() {
+        var emptyEl = document.getElementById('compare-empty');
+        var tableContainer = document.getElementById('compare-table-container');
+        if (!tableContainer) return;
+
+        var cmpList = getCompare();
+        if (!cmpList || cmpList.length === 0) {
+            if (emptyEl) emptyEl.style.display = 'block';
+            tableContainer.style.display = 'none';
+            return;
+        }
+
+        fetchOffers(function(allOffers) {
+            var cmpIds = cmpList.map(function(c){ return c.id; });
+            var matchedOffers = allOffers.filter(function(o){ return cmpIds.indexOf(o.id) >= 0; });
+
+            if (matchedOffers.length === 0) {
+                if (emptyEl) emptyEl.style.display = 'block';
+                tableContainer.style.display = 'none';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+            tableContainer.style.display = 'block';
+
+            var avgs = computeAverages(allOffers);
+
+            // Compute metrics for best value
+            var offerMetrics = matchedOffers.map(function(o) {
+                var price = Number(o.price) || 0;
+                var size = Number(o.size_sqm) || 0;
+                var unitPrice = (price > 0 && size > 0) ? Math.round(price / size) : 0;
+
+                var rawCat = o.category || o.property_type || o.type || '';
+                var cat = rawCat;
+                if (rawCat === 'farm') cat = 'مزرعة';
+                if (rawCat === 'resthouse') cat = 'استراحة';
+                if (rawCat === 'land') cat = 'أرض سكنية';
+
+                var catAvg = (avgs[cat] && avgs[cat].avgUnitPrice) ? avgs[cat].avgUnitPrice : 0;
+                var devPct = (unitPrice > 0 && catAvg > 0) ? Math.round(((unitPrice - catAvg) / catAvg) * 100) : null;
+
+                return {
+                    offer: o,
+                    cat: cat,
+                    unitPrice: unitPrice,
+                    catAvg: catAvg,
+                    devPct: devPct
+                };
+            });
+
+            // Find best value (lowest unit price or greatest negative deviation)
+            var bestOffer = null;
+            var validMetrics = offerMetrics.filter(function(m){ return m.unitPrice > 0; });
+            if (validMetrics.length > 0) {
+                validMetrics.sort(function(a, b){ return a.unitPrice - b.unitPrice; });
+                bestOffer = validMetrics[0];
+            }
+
+            var html = '<div style="overflow-x:auto; background:#ffffff; border-radius:12px; border:1px solid #e2d9c8; padding:20px; box-shadow:0 4px 20px rgba(0,0,0,0.06);">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid #C4A956; padding-bottom:10px;">' +
+                '<h2 style="margin:0; color:#2A5050; font-size:1.3rem;"><i class="fas fa-balance-scale"></i> جدول مقارنة العقارات المحددة</h2>' +
+                '<button onclick="localStorage.setItem(\'afaq_compare\',\'[]\'); location.reload();" class="btn" style="background:#e74c3c; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;"><i class="fas fa-trash-alt"></i> مسح المقارنة</button>' +
+                '</div>';
+
+            if (bestOffer) {
+                html += '<div style="background:#e8f8f5; border:1px solid #27ae60; border-radius:10px; padding:15px; margin-bottom:20px; color:#1e8449;">' +
+                    '<h4 style="margin:0 0 5px 0; font-size:1.1rem;"><i class="fas fa-trophy"></i> خلاصة البوصلة: العقار الأفضل قيمةً للمتر</h4>' +
+                    '<div>يعتبر <strong>' + escHtml(bestOffer.offer.title) + '</strong> هو الأفضل قيمةً للمتر بسعر <strong>' + bestOffer.unitPrice.toLocaleString('en-US') + ' ريال/م²</strong>' +
+                    (bestOffer.devPct !== null ? ' (أقل بـ ' + Math.abs(bestOffer.devPct) + '% عن متوسط فئة ' + bestOffer.cat + ')' : '') +
+                    '.</div>' +
+                    '</div>';
+            }
+
+            html += '<table style="width:100%; border-collapse:collapse; min-width:600px; text-align:right;">' +
+                '<thead><tr style="background:#2A5050; color:#fff;">' +
+                '<th style="padding:12px; border:1px solid #1B3D3D; width:180px;">وجه المقارنة</th>';
+
+            matchedOffers.forEach(function(o) {
+                html += '<th style="padding:12px; border:1px solid #1B3D3D; text-align:center;">' +
+                    '<div>' + escHtml(o.title) + '</div>' +
+                    '<button onclick="toggleCompare(\'' + o.id + '\',\'\',\'\'); renderComparePage();" style="background:none; border:none; color:#e8c969; cursor:pointer; font-size:0.85rem; margin-top:4px;"><i class="fas fa-times-circle"></i> إزالة</button>' +
+                    '</th>';
+            });
+            html += '</tr></thead><tbody>';
+
+            // Rows setup
+            var rows = [
+                {
+                    label: 'الصورة الرئيسية',
+                    fn: function(m) {
+                        var img = (m.offer.images && m.offer.images[0]) ? m.offer.images[0] : 'images/logo.jpg';
+                        return '<img src="' + img + '" style="width:120px; height:80px; object-fit:cover; border-radius:6px;" alt="' + escHtml(m.offer.title) + '">';
+                    }
+                },
+                {
+                    label: 'الفئة والنوع',
+                    fn: function(m) { return escHtml(m.cat); }
+                },
+                {
+                    label: 'الموقع والمنطقة',
+                    fn: function(m) { return escHtml(m.offer.area || 'الخرج'); }
+                },
+                {
+                    label: 'المساحة الإجمالية',
+                    fn: function(m) { return m.offer.size_sqm ? escHtml(m.offer.size_sqm) + ' م²' : 'غير محددة'; }
+                },
+                {
+                    label: 'السعر الإجمالي',
+                    fn: function(m) { return m.offer.price_text || (m.offer.price ? m.offer.price.toLocaleString('en-US') + ' ريال' : 'غير محدد'); }
+                },
+                {
+                    label: 'سعر المتر',
+                    fn: function(m) { return m.unitPrice > 0 ? '<strong>' + m.unitPrice.toLocaleString('en-US') + ' ريال/م²</strong>' : 'غير محسوب'; }
+                },
+                {
+                    label: 'متوسط الفئة في البوصلة',
+                    fn: function(m) { return m.catAvg > 0 ? m.catAvg.toLocaleString('en-US') + ' ريال/م²' : 'غير متوفر'; }
+                },
+                {
+                    label: 'انحراف السعر عن المتوسط',
+                    fn: function(m) {
+                        if (m.devPct === null) return '—';
+                        if (m.devPct > 0) return '<span style="color:#d63031; font-weight:bold;">أعلى بـ ' + m.devPct + '% 🔺</span>';
+                        if (m.devPct < 0) return '<span style="color:#27ae60; font-weight:bold;">أقل بـ ' + Math.abs(m.devPct) + '% 🔻 (قيمة ممتازة)</span>';
+                        return '<span style="color:#2980b9; font-weight:bold;">مطابق للمتوسط 🎯</span>';
+                    }
+                },
+                {
+                    label: 'التواصل والاستفسار',
+                    fn: function(m) {
+                        var waUrl = 'https://wa.me/' + OFFICE_WHATSAPP + '?text=' + encodeURIComponent('استفسار عن مقارنة عقار: ' + m.offer.title);
+                        return '<a href="' + waUrl + '" target="_blank" class="btn" style="display:inline-block; padding:8px 14px; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; font-size:0.88rem; font-weight:bold;"><i class="fab fa-whatsapp"></i> تواصل عبر واتساب</a>';
+                    }
+                }
+            ];
+
+            rows.forEach(function(row, idx) {
+                var bg = idx % 2 === 0 ? '#fdfdfd' : '#f8f6f0';
+                html += '<tr style="background:' + bg + ';">' +
+                    '<td style="padding:12px; border:1px solid #eee; font-weight:bold; color:#2A5050;">' + row.label + '</td>';
+                offerMetrics.forEach(function(m) {
+                    html += '<td style="padding:12px; border:1px solid #eee; text-align:center;">' + row.fn(m) + '</td>';
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            tableContainer.innerHTML = html;
+        });
+    }
+    window.renderComparePage = renderComparePage;
+
     // ===== QR Code (uses api.qrserver.com — no library) =====
     function generateQR(url, container) {
         if (!container) return;
@@ -404,8 +694,10 @@
         initStatsBar();
         initExclusivesBar();
         initHubCards();
+        renderCompassWidgets();
         updateFavCounter();
         updateCompareDrawer();
+        renderComparePage();
         initLuxuryProperty();
 
         // Inject breadcrumb schema if data attribute present
