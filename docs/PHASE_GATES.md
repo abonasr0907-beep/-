@@ -238,3 +238,14 @@
 - **submitPropertyForm:** ضغط الصور قبل الإرسال؛ نموذج المزايدة: إرسال عبر `/ingest` بدل notifyTelegramAdmin.
 - **التطهير:** إزالة زر إرفاق البوت من list-property.html + رسالة النجاح، حذف showBidSuccessModal وكل deep-link t.me من main.js و property.html — الظاهر للزائر واتساب/هاتف فقط.
 - **التحقق:** `node --check js/main.js` ✅ | grep: لا form-success-attach/showBidSuccessModal/t.me في واجهات الزوار ✅
+
+---
+
+## بوابة المهمة M1 — أساس الحالة + البوابة + طبقة الرواج 1
+- **الفرع:** `mission/m1-foundation`
+- **الحالة:** مكتملة واجتازت كافة الاختبارات ✅
+- **التحقق البنيوي والعملي:**
+  - [x] `py_compile bot/bot.py` ✅
+  - [x] `node --check js/main.js` و `node --check js/silo.js` ✅
+  - [x] عدد العروض في `offers.json` = 27 ✅
+  - [x] إنشاء `docs/STATE.md` كمصدر ثابت وتحديث حالة M1 ✅

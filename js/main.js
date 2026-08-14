@@ -12,9 +12,41 @@ const OFFICE_DATA = {
     snapchat: "https://www.snapchat.com/add/mmnf2278",
     tiktok: "https://www.tiktok.com/@whatyouarelookingforisw3",
     defaultMap: "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-    // telegramBot: مخفي عن العامة — للاستخدام الإداري فقط
     botUsername: "tlastlastlasbot",
+    CHANNEL_URL: typeof window.CHANNEL_URL !== 'undefined' ? window.CHANNEL_URL : ""
 };
+
+function initWhatsappChannel() {
+    var url = OFFICE_DATA.CHANNEL_URL || (typeof window.CHANNEL_URL !== 'undefined' ? window.CHANNEL_URL : '');
+    if (!url || typeof url !== 'string' || !url.trim()) return; // إن غاب الثابت لا يظهر الزر
+
+    url = url.trim();
+
+    var footers = document.querySelectorAll('.footer-social, .social-links');
+    footers.forEach(function(f) {
+        if (!f.querySelector('.wa-channel-link')) {
+            var a = document.createElement('a');
+            a.className = 'wa-channel-link';
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.title = 'قناة واتساب';
+            a.innerHTML = '<i class="fab fa-whatsapp"></i>';
+            f.appendChild(a);
+        }
+    });
+
+    var actionBar = document.getElementById('luxury-action-bar');
+    if (actionBar && !actionBar.querySelector('.btn-wa-channel')) {
+        var btn = document.createElement('a');
+        btn.className = 'luxury-action-btn btn-wa-channel';
+        btn.href = url;
+        btn.target = '_blank';
+        btn.rel = 'noopener';
+        btn.innerHTML = '<i class="fab fa-whatsapp"></i> قناة واتساب';
+        actionBar.appendChild(btn);
+    }
+}
 
 // Phase 2.8 §2: عرض العقارات المنشورة فقط — status يجب أن يكون 'published' صراحةً (لا افتراضي)
 function isOfferPublished(offer) {
@@ -2120,6 +2152,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadOffers(defaultFilter);
     renderBousla();
     loadNews();
+    initWhatsappChannel();
 
     // الترحيب
     if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/')) {
