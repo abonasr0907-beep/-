@@ -211,3 +211,12 @@
 - **Luxury property page:** facts grid, QR code (api.qrserver.com), share (navigator.share/clipboard), ❤ favorites (localStorage), ➕ compare (localStorage + drawer), 📅 appointment (wa.me deep-link), 🖨 PDF (window.print) — window.currentProperty = offer added (1 line)
 - **Intra-silo links** section on all hub pages
 - **Gate checks:** py_compile ✅ | node --check main.js+silo.js ✅ | 27 offers unchanged ✅
+
+---
+
+## بوابة الجزء 0 — إنعاش البوت (hotfix: worker crash)
+- **التاريخ:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+- **السبب:** `logger` استُخدم في كتل except للاستيرادات (سطور 60/76/83/98/101) قبل تعريفه عند السطر 193 → NameError مزدوج → Crash في Railway worker.
+- **الإصلاح الجراحي:** نقل `logging.basicConfig` + `logger = logging.getLogger("afaq_bot")` لأعلى الملف بعد الاستيرادات مباشرة (السطر 39-43)، واستبدال `logger.warning` بـ `print` في except الخاص بمحرك SEO احتياطًا، وإزالة التهيئة المكررة القديمة.
+- **التحقق:** `py_compile bot/bot.py` ✅ نظيف | `git log origin/main -1` = `3e0e924d hotfix: define logger before SEO import (worker crash)` ✅
+- **النشر:** push إلى main فقط — Railway سيقلع وحده تلقائيًا.
