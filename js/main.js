@@ -259,6 +259,73 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// ===== جسر الإرسال الموحّد /ingest (Phase hotfix-bot-flows) =====
+// السر يطابق ingest_secret في bot/config.json — يُرسل في هيدر X-Ingest-Secret
+const INGEST_SECRET = "afaq_ingest_2026_secure";
+
+// ضغط صورة عبر canvas: أقصى بُعد 1280px وجودة 0.8 — يُعيد Blob من نوع JPEG
+function compressImage(file) {
+    return new Promise((resolve) => {
+        try {
+            if (!file || !file.type || file.type.indexOf('image/') !== 0) { resolve(file); return; }
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    try {
+                        const MAX_DIM = 1280;
+                        let w = img.width, h = img.height;
+                        if (w > MAX_DIM || h > MAX_DIM) {
+                            if (w >= h) { h = Math.round(h * MAX_DIM / w); w = MAX_DIM; }
+                            else { w = Math.round(w * MAX_DIM / h); h = MAX_DIM; }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        canvas.toBlob(function (blob) {
+                            if (blob) {
+                                const name = (file.name || 'photo.jpg').replace(/\.[^.]+$/, '') + '.jpg';
+                                resolve(new File([blob], name, { type: 'image/jpeg' }));
+                            } else { resolve(file); }
+                        }, 'image/jpeg', 0.8);
+                    } catch (err) { resolve(file); }
+                };
+                img.onerror = function () { resolve(file); };
+                img.src = e.target.result;
+            };
+            reader.onerror = function () { resolve(file); };
+            reader.readAsDataURL(file);
+        } catch (err) { resolve(file); }
+    });
+}
+
+// ضغط مصفوفة صور دفعة واحدة
+async function compressImages(files) {
+    const out = [];
+    for (let i = 0; i < files.length; i++) {
+        out.push(await compressImage(files[i]));
+    }
+    return out;
+}
+
+// إرسال حمولة JSON إلى {botApiUrl}/ingest بهيدر X-Ingest-Secret — صامت للزائر
+async function postToIngest(payload) {
+    if (!TELEGRAM_BRIDGE.botApiUrl) return false;
+    try {
+        const apiUrl = TELEGRAM_BRIDGE.botApiUrl.replace(/\/+$/, '') + '/ingest';
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Ingest-Secret': INGEST_SECRET },
+            body: JSON.stringify(payload),
+        });
+        return response.ok;
+    } catch (err) {
+        console.warn('⚠️ تعذر الوصول إلى /ingest:', err.message);
+        return false;
+    }
+}
+
 // ===== Task 3: فتح WhatsApp بطريقة أسرع =====
 // استخدام عنصر <a> مخفي مع target=_blank بدل window.open المتزامن
 // هذا أسرع ولا يعطل الصفحة
@@ -1399,6 +1466,11 @@ function submitPropertyForm(event) {
     // Task 4: رفع الصور أولاً ثم إرسال الإشعار — يضمن وصول الصور مع الإشعار
     (async () => {
         try {
+            // 0) ضغط الصور قبل الإرسال (canvas ≤1280px جودة .8)
+            if (selectedImages.length > 0) {
+                selectedImages = await compressImages(selectedImages);
+                data.imageCount = selectedImages.length;
+            }
             // 1) إرسال الطلب إلى البوت أولاً (يحفظه في visitor_requests.json ثم يشعر المدير)
             //    هذا يضمن وجود سجل الطلب قبل رفع الصور فيتم ربط الصور به
             await notifyTelegramAdmin({
@@ -1433,23 +1505,16 @@ function submitPropertyForm(event) {
         openWhatsAppFast(whatsappUrl);
     })();
 
-    // عرض رسالة النجاح + حقن زر إرفاق الصور (Phase 2.8)
+    // عرض رسالة النجاح (واتساب/هاتف فقط — لا إشارة للبوت في واجهة الزائر)
     const fs = document.getElementById('form-success');
     if (fs) {
         fs.style.display = 'block';
         // رقم الطلب
         var reqIdEl = document.getElementById('form-success-reqid');
         if (reqIdEl) reqIdEl.textContent = data.id;
-        // زر deep-link attach_{id} — اسم البوت من OFFICE_DATA
+        // إخفاء زر الإرفاق القديم إن وُجد (سرّية البوت — الظاهر واتساب/هاتف فقط)
         var attachBtn = document.getElementById('form-success-attach');
-        if (attachBtn) {
-            var botUser = (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.botUsername) ? OFFICE_DATA.botUsername : '';
-            if (botUser) {
-                attachBtn.href = 'https://t.me/' + botUser + '?start=attach_' + encodeURIComponent(data.id);
-            } else {
-                attachBtn.style.display = 'none';
-            }
-        }
+        if (attachBtn) attachBtn.style.display = 'none';
     }
     event.target.reset();
 
@@ -1607,7 +1672,8 @@ async function sendBid(offerId) {
         bidDescription += '\nملاحظات: ' + notes;
     }
 
-    notifyTelegramAdmin({
+    // جسر الإرسال الموحّد: POST /ingest بهيدر X-Ingest-Secret (صامت للزائر)
+    postToIngest({
         id: bidData.id,
         name: name,
         phone: phone,
@@ -1617,6 +1683,7 @@ async function sendBid(offerId) {
         price: amount,
         priceType: 'auction',
         bidType: 'bid',
+        type: 'bid',
         offerId: offerId,
         offerUrl: offerUrl,
         currentHighestBid: currentBid,
@@ -1649,39 +1716,16 @@ async function sendBid(offerId) {
         var extId = (offer && offer.external_id) ? offer.external_id : offerId;
         var simpleText = 'طلب مزايدة | العقار: ' + extId + ' | الاسم: ' + name + ' | الجوال: ' + phone + ' | المبلغ: ' + formattedAmount + ' ريال';
         var simpleWaUrl = 'https://wa.me/' + OFFICE_DATA.whatsapp + '?text=' + encodeURIComponent(simpleText);
-        // Phase 2: deep-link البوت — اسم البوت من الإعدادات
-        var botUser = (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.botUsername) ? OFFICE_DATA.botUsername : '';
-        var deepLink = botUser ? ('https://t.me/' + botUser + '?start=bid_' + extId + '_' + amountNum) : '';
         openWhatsAppFast(simpleWaUrl);
     } catch (e) {
         console.warn('⚠️ تعذر فتح واتساب للمزايدة:', e.message);
     }
 
     closeBidModal();
-    // Phase 2: عرض خيار الإرسال عبر البوت أيضًا
-    if (typeof OFFICE_DATA !== 'undefined' && OFFICE_DATA.botUsername) {
-        var extId2 = (offer && offer.external_id) ? offer.external_id : offerId;
-        var deepLink2 = 'https://t.me/' + OFFICE_DATA.botUsername + '?start=bid_' + extId2 + '_' + amountNum;
-        showBidSuccessModal(deepLink2);
-    } else {
-        showToast('تم إرسال طلب بنجاح! سنتواصل معك قريباً.', 'success');
-    }
+    // نجاح → رسالة النجاح الحالية (واتساب فقط — لا إشارة للبوت في واجهة الزائر)
+    showToast('تم إرسال طلب بنجاح! سنتواصل معك قريبًا.', 'success');
 }
 
-// Phase 2: نافذذة تأكيد المزايدة مع زر البوت
-function showBidSuccessModal(deepLink) {
-    var existing = document.getElementById('bid-success-modal');
-    if (existing) existing.remove();
-    var html = '<div id="bid-success-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;">' +
-        '<div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;text-align:center;font-family:inherit;">' +
-        '<i class="fas fa-check-circle" style="font-size:48px;color:#2A5050;margin-bottom:12px;"></i>' +
-        '<h3 style="color:#2A5050;margin:0 0 8px;">تم إرسال طلبك!</h3>' +
-        '<p style="color:#666;font-size:14px;margin:0 0 18px;">فتحنا واتساب بالرسالة. يمكنك أيضًا إرسال المزايدة عبر البوت.</p>' +
-        '<a href="' + deepLink + '" target="_blank" style="display:block;padding:12px;border:none;border-radius:8px;background:#0088cc;color:#fff;text-decoration:none;font-weight:700;margin-bottom:10px;font-family:inherit;"><i class="fab fa-telegram"></i> إرسال عبر البوت</a>' +
-        '<button onclick="document.getElementById(\'bid-success-modal\').remove()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إغلاق</button>' +
-        '</div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-}
 
 function showInquiryForm() {
     window.location.href = 'inquiry.html';
