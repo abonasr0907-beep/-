@@ -33,6 +33,15 @@ from pathlib import Path
 import requests
 from PIL import Image, ImageEnhance, ImageFilter
 
+# ============================================================
+#  تهيئة الـ logger مبكرًا — يجب أن يسبق أي استخدام داخل كتل الاستيراد
+# ============================================================
+logging.basicConfig(
+    format="%(asctime)s — %(name)s — %(levelname)s — %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger("afaq_bot")
+
 import github_sync
 try:
     import error_reporter
@@ -98,7 +107,7 @@ try:
     logger.info("✅ تم استيراد محرك SEO (ai_system/seo_engine)")
 except Exception as _seo_imp:
     _seo_engine = None
-    logger.warning(f"⚠️ تعذّر استيراد محرك SEO: {_seo_imp}")
+    print(f"⚠️ تعذّر استيراد محرك SEO: {_seo_imp}")
 
 from telegram import (
     Update,
@@ -185,12 +194,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # توكن البوت — مقدم من المستخدم
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os")
 # التوكن: يُقرأ من متغير البيئة BOT_TOKEN (Railway) أو القيمة الافتراضية
-
-logging.basicConfig(
-    format="%(asctime)s — %(name)s — %(levelname)s — %(message)s",
-    level=logging.INFO,
-)
-logger = logging.getLogger("afaq_bot")
+# ملاحظة: تهيئة الـ logger تمت أعلى الملف بعد الاستيرادات مباشرة (hotfix)
 
 # ============================================================
 #  سجل الأخطاء — حفظ الأخطاء على القرص للعرض في لوحة التحكم
