@@ -169,3 +169,34 @@
 - [x] commit على الفرع موجود في remote ✅
 
 **النتيجة:** بُوابة مَعْبُورة ✅
+
+---
+
+## Phase 3 §2 — SEO + Schema + Sitemap + IndexNow + Reviews (بُوابة تثبيت)
+
+**الفرع:** `feat/phase3-seo-engine`
+**دمج main:** `88d7b744` (merge --no-ff)
+**آخر commit على الفرع:** `115d1afd`
+
+### العناصر المُنجَزة
+- [x] §2.1 `ai_system/seo_engine/` — محرك SEO كامل (schema_generator + meta_generator + sitemap_updater + indexnow + reviews)
+- [x] §2.2 `meta_generator.py` — توليد Title/Meta/ALT/canonical/og/twitter/keywords (idempotent)
+- [x] §2.3 `schema_generator.py` — Schema types: Organization + RealEstateAgent + RealEstateListing + Offer + ImageObject + BreadcrumbList + FAQPage + Article (كلها idempotent)
+- [x] §2.4 `css/luxury.css` — هوية فاخرة: متغيرات داكن/ذهبي، خط عربي فاخر (Reem Kufi + Amiri)، Hero بصورة قمر صناعي + عبارة قوية + CTA واتساب، Footer NAP، بطاقات عرض فاخرة، أزرار مفضلة
+- [x] §2.5 `sitemap_updater.py` — تحديث sitemap.xml (إضافة فقط): 27 رابط عرض جديد (19→46)، robots.txt: noindex على forms/thanks/filter-results
+- [x] §2.6 `indexnow.py` — مفتاح IndexNow في جذر الموقع + POST لمحركات البحث عند النشر + سجل (log) — تم اختبار إرسال ناجح لـ Bing
+- [x] §2.7 `reviews.py` — مراجعات شرعية فقط: pending → موافقة المدير → approved → AggregateRating من المعتمدة فقط
+- [x] `bot/bot.py` — استيراد محرك SEO + تشغيل sitemap update + IndexNow فورًا بعد نشر عرض في `_finalize_offer`
+- [x] noindex على list-property.html + inquiry.html + contact.html (forms/thanks)
+
+### بُوابة التثبيت (Gate)
+- [x] `py_compile` (bot/bot.py + 6 ملفات seo_engine) ✅
+- [x] `node --check js/main.js` ✅
+- [x] عدد العروض: 27 (لم ينخفض — add-only) ✅
+- [x] sitemap.xml: 46 رابط (من 19 — إضافة فقط) ✅
+- [x] robots.txt: 28 Allow + 6 Disallow (إضافة فقط) ✅
+- [x] 3 صفحات forms بـ noindex ✅
+- [x] مفتاح IndexNow موجود في جذر الموقع ✅
+- [x] الفرع مُدمَج `--no-ff` إلى `main` + دفع `main` ✅
+
+**النتيجة:** بُوابة مَعْبُورة ✅
