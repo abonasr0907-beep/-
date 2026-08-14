@@ -5913,6 +5913,32 @@ async def error_handler(update, context):
             await update.effective_message.reply_text("⚠️ حدث خطأ غير متوقع. تم تسجيله وسيتم معالجته.")
     except Exception:
         pass
+    # تنبيه نصي للمالك/المدراء بدل صمت البوت
+    try:
+        _tb = traceback.format_exc() or ""
+        _alert = (
+            "🚨 تنبيه: خطأ غير متوقع في البوت\n"
+            f"النوع: {type(error).__name__ if error else 'unknown'}\n"
+            f"الرسالة: {str(error)[:400]}\n"
+            f"المستخدم: {update.effective_user.id if update and update.effective_user else '—'}\n"
+            f"آخر سطر: {_tb.strip().splitlines()[-1][:300] if _tb.strip() else '—'}"
+        )
+        _recipients = []
+        try:
+            for _m in user_manager.get_staff_for_notifications():
+                if _m.get("user_id"):
+                    _recipients.append(int(_m["user_id"]))
+        except Exception:
+            pass
+        for _aid in ADMIN_IDS:
+            _recipients.append(int(_aid))
+        for _rid in set(_recipients):
+            try:
+                await context.bot.send_message(chat_id=_rid, text=_alert)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 # ============================================================

@@ -220,3 +220,10 @@
 - **الإصلاح الجراحي:** نقل `logging.basicConfig` + `logger = logging.getLogger("afaq_bot")` لأعلى الملف بعد الاستيرادات مباشرة (السطر 39-43)، واستبدال `logger.warning` بـ `print` في except الخاص بمحرك SEO احتياطًا، وإزالة التهيئة المكررة القديمة.
 - **التحقق:** `py_compile bot/bot.py` ✅ نظيف | `git log origin/main -1` = `3e0e924d hotfix: define logger before SEO import (worker crash)` ✅
 - **النشر:** push إلى main فقط — Railway سيقلع وحده تلقائيًا.
+
+---
+
+## بوابة الجزء 1 — حارس شامل + إحياء الأوامر والأزرار
+- **الحارس الشامل:** `error_handler` مسجل عبر `app.add_error_handler` (PTB v20 يلتقط كل استثناءات الـ handlers تلقائيًا). حُدّث قسم الأخطاء غير المتوقعة ليرسل تنبيهًا نصيًا فوريًا للمالك/المدراء (get_staff_for_notifications + ADMIN_IDS) بدل صمت البوت — يتضمن النوع والرسالة والمستخدم وآخر سطر من الـ traceback.
+- **إحياء الأوامر والأزرار:** الكسر الجذري كان الـ worker crash (الجزء 0) الذي أسقط كل شيء. بعد الإنعاش: `add_offer_start` (إضافة عرض) ✅، `handle_callback` (أزرار الكيبورد) ✅، `cmd_listings` (/listings) ✅، `cmd_pending_listings` (/pending) ✅، معالجات الموافقات (vreq_approve_/vreq_reject_) ✅ — كلها سليمة بنيويًا ولم تُعَد كتابتها (تعديل جراحي فقط).
+- **التحقق:** `py_compile bot/bot.py` ✅ | فحص AST: كل المعالجات الحرجة موجودة (162 دالة) ✅
