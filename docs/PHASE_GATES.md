@@ -200,3 +200,14 @@
 - [x] الفرع مُدمَج `--no-ff` إلى `main` + دفع `main` ✅
 
 **النتيجة:** بُوابة مَعْبُورة ✅
+
+---
+
+## Phase 3 §3 — Hierarchical Silo + Luxury Property ✅ GATE PASSED
+- **Commit:** 19342b44 (feat/phase3-silo-hubs) → merged --no-ff → main af9f6874
+- **6 hub pages:** categories.html, areas.html, guides.html, why-us.html, faq.html, compare.html — all with SEO meta + OG/Twitter + canonical + BreadcrumbList Schema (via breadcrumb-schema-data + silo.js injectBreadcrumbSchema)
+- **Nav hierarchy:** updated in all 9 existing pages + property.html (main-nav) — added الأقسام/المناطق/أدلة عقارية/لماذا نحن/الأسئلة الشائعة/مقارنة العقارات (add-only, no links removed)
+- **Stats bar + Trust bar + Afaq exclusives bar** (featured=true only) on hub pages via silo.js
+- **Luxury property page:** facts grid, QR code (api.qrserver.com), share (navigator.share/clipboard), ❤ favorites (localStorage), ➕ compare (localStorage + drawer), 📅 appointment (wa.me deep-link), 🖨 PDF (window.print) — window.currentProperty = offer added (1 line)
+- **Intra-silo links** section on all hub pages
+- **Gate checks:** py_compile ✅ | node --check main.js+silo.js ✅ | 27 offers unchanged ✅
