@@ -44,6 +44,7 @@
     <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/luxury.css">
+    <link rel="stylesheet" href="css/silo.css">
 
     <!-- Canonical (static fallback; updated dynamically by JS to /property/{id}) -->
     <link rel="canonical" href="https://abonasr0907-beep.github.io/-/property.html">
@@ -488,10 +489,17 @@
             </a>
             <nav class="main-nav" id="main-nav">
                 <a href="index.html">الرئيسية</a>
+                <a href="categories.html">الأقسام</a>
                 <a href="farms.html">مزارع</a>
                 <a href="resthouses.html">استراحات</a>
                 <a href="lands.html">أراضي سكنية</a>
+                <a href="areas.html">المناطق</a>
                 <a href="services.html">خدماتنا</a>
+                <a href="guides.html">أدلة عقارية</a>
+                <a href="why-us.html">لماذا نحن</a>
+                <a href="faq.html">الأسئلة الشائعة</a>
+                <a href="compare.html">مقارنة العقارات</a>
+                <a href="list-property.html">اعرض عقارك</a>
                 <a href="contact.html">تواصل معنا</a>
             </nav>
             <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="القائمة">
@@ -591,6 +599,21 @@
                             <i class="fas fa-gavel"></i> طلب مزايدة
                         </a>
                     </div>
+                </div>
+            </div>
+
+            <!-- Phase 3 §3: Luxury Facts Grid -->
+            <div class="luxury-facts-grid" id="luxury-facts-grid"></div>
+
+            <!-- Phase 3 §3: Luxury Action Bar (❤ ➕ 📅 share 🖨 PDF) -->
+            <div class="luxury-action-bar" id="luxury-action-bar"></div>
+
+            <!-- Phase 3 §3: QR Code Section -->
+            <div class="luxury-qr-section">
+                <div class="luxury-qr-box" id="luxury-qr-box"></div>
+                <div class="luxury-qr-text">
+                    <h3>امسح الرمز للمشاركة</h3>
+                    <p>امسح رمز QR بكاميرا هاتفك لمشاركة رابط هذا العقار بسهولة مع الأصدقاء والعائلة.</p>
                 </div>
             </div>
 
@@ -1298,6 +1321,7 @@
                         return;
                     }
 
+                    window.currentProperty = offer;
                     renderProperty(offer);
                 } catch(e) {
                     console.error('Property page error:', e);
@@ -1313,5 +1337,19 @@
             }
         })();
     </script>
+    <!-- Phase 3 §3: Compare Drawer -->
+    <div class="luxury-compare-drawer" id="luxury-compare-drawer">
+        <div class="luxury-compare-drawer-header">
+            <h3><i class="fas fa-balance-scale"></i> مقارنة العقارات</h3>
+            <button class="luxury-compare-drawer-close" onclick="document.getElementById('luxury-compare-drawer').classList.remove('active')">&times;</button>
+        </div>
+        <div class="luxury-compare-drawer-items"></div>
+        <div class="luxury-compare-drawer-actions">
+            <a href="compare.html" class="luxury-compare-go">عرض المقارنة الكاملة</a>
+            <button class="luxury-compare-clear" onclick="localStorage.setItem('afaq_compare','[]'); location.reload();">مسح الكل</button>
+        </div>
+    </div>
+
+    <script src="js/silo.js"></script>
 </body>
 </html>

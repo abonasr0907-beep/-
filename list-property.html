@@ -33,6 +33,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/luxury.css">
+    <link rel="stylesheet" href="css/silo.css">
     <!-- Leaflet.js for interactive map -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
     <!-- Phase 2.7 §1: MapLibre GL for 3D satellite map (Esri World Imagery) -->
@@ -132,18 +133,28 @@
             </div>
             <nav>
                 <ul class="nav-menu" id="nav-menu">
-                    <li><a href="index.html" class=""><i class="fas fa-home"></i> الرئيسية</a></li>
-                    <li><a href="farms.html" class=""><i class="fas fa-seedling"></i> المزارع</a></li>
-                    <li><a href="resthouses.html" class=""><i class="fas fa-home"></i> الاستراحات</a></li>
-                    <li><a href="lands.html" class=""><i class="fas fa-map"></i> الأراضي السكنية</a></li>
-                    <li><a href="services.html" class=""><i class="fas fa-tools"></i> الخدمات</a></li>
+                    <li><a href="index.html"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li><a href="categories.html"><i class="fas fa-th-large"></i> الأقسام</a></li>
+                    <li><a href="farms.html"><i class="fas fa-seedling"></i> المزارع</a></li>
+                    <li><a href="resthouses.html"><i class="fas resthouses"></i> الاستراحات</a></li>
+                    <li><a href="lands.html"><i class="fas fa-map"></i> الأراضي السكنية</a></li>
+                    <li><a href="areas.html"><i class="fas fa-map-marked-alt"></i> المناطق</a></li>
+                    <li><a href="services.html"><i class="fas fa-tools"></i> الخدمات</a></li>
+                    <li><a href="guides.html"><i class="fas fa-book-open"></i> أدلة عقارية</a></li>
+                    <li><a href="why-us.html"><i class="fas fa-award"></i> لماذا نحن</a></li>
+                    <li><a href="faq.html"><i class="fas fa-question-circle"></i> الأسئلة الشائعة</a></li>
+                    <li><a href="compare.html"><i class="fas fa-balance-scale"></i> مقارنة العقارات</a></li>
                     <li><a href="list-property.html" class="active"><i class="fas fa-plus-circle"></i> اعرض عقارك</a></li>
-                    <li><a href="contact.html" class=""><i class="fas fa-phone"></i> تواصل معنا</a></li>
+                    <li><a href="contact.html"><i class="fas fa-phone"></i> تواصل معنا</a></li>
                 </ul>
             </nav>
             <div class="header-buttons">
-                <a href="https://wa.me/966545888931" target="_blank" class="contact-icon-btn btn-whatsapp" title="واتساب"><i class="fab fa-whatsapp"></i></a>
+                <a href="https://wa.me/966545888931" target="_blank" class="contact-icon-btn btn-whatsapp" style="position:relative;" title="واتساب"><i class="fab fa-whatsapp"></i></a>
                 <a href="tel:0548601430" class="contact-icon-btn btn-phone" title="اتصال: 0548601430"><i class="fas fa-phone"></i></a>
+                <a href="#" onclick="document.getElementById('luxury-compare-drawer'); return false;" class="contact-icon-btn" id="header-fav-link" title="المفضلة" style="position:relative; color:#C4A956;">
+                    <i class="fas fa-heart"></i>
+                    <span class="fav-counter-badge"></span>
+                </a>
                 <button class="btn-menu-toggle" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
             </div>
         </div>
@@ -433,5 +444,6 @@
     <!-- Phase 2.7 §1: MapLibre GL (3D satellite map) -->
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/silo.js"></script>
 </body>
 </html>
