@@ -621,6 +621,13 @@ def is_authorized(user_id):
     return user_manager.is_authorized(user_id)
 
 
+def is_owner(user_id):
+    """التحقق إن كان المستخدم المالك (owner)"""
+    if ADMIN_IDS and user_id == ADMIN_IDS[0]:
+        return True
+    return user_manager.is_owner(user_id)
+
+
 # ============================================================
 #  دوال الصلاحيات — نظام الأدوار الثلاثة (admin/reviewer/publisher)
 # ============================================================
@@ -933,9 +940,15 @@ async def _handle_bid_deep_link(update, context, uid):
 async def _handle_attach_deep_link(update, context, uid):
     """
     يفكك حمولة /start التي تبدأ بـ attach_{request_id}.
-    يطلب من الزائر إرسال صور العقار، يخزنها عبر handle_photo،
-    ثم يربطها بطلب الزائر في visitor_requests.json (link_images_to_property).
+    مقيّد للمدراء والمالك فقط (is_authorized / is_owner).
     """
+    if not is_authorized(uid):
+        await update.message.reply_text(
+            "⛔ هذا الرابط مخصص لإدارة المكتب فقط.\n"
+            "للتواصل: واتساب 0545888931 | اتصال 0544699933"
+        )
+        return
+
     payload = context.args[0]  # attach_{request_id}
     parts = payload.split("_", 1)
     if len(parts) < 2 or not parts[1]:
@@ -1643,6 +1656,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     session = get_session(uid)
     data = query.data
+
+    if data in ("reinit_system", "reinit"):
+        await cmd_reinit_system(update, context)
+        return
+
+    if data.startswith("lst_tweet_"):
+        eid = data.replace("lst_tweet_", "")
+        await cmd_generate_tweet_prompt(update, context, external_id=eid)
+        return
 
     # ── استئناف مسودة عرض غير مكتمل ──
     if data == "resume_draft":
@@ -5504,13 +5526,100 @@ async def dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         msg += f"\n🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-        await update.message.reply_text(msg)
+        reply_markup = None
+        if is_owner(uid):
+            keyboard = [[InlineKeyboardButton("🔄 إعادة تهيئة النظام", callback_data="reinit_system")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+        await update.message.reply_text(msg, reply_markup=reply_markup)
         user_manager.update_last_active(uid)
 
     except Exception as e:
         logger.error(f"خطأ في لوحة التحكم: {e}")
         log_error("dashboard", str(e), uid)
         await update.message.reply_text(f"❌ خطأ في عرض لوحة التحكم: {e}")
+
+
+async def cmd_reinit_system(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    زر/أمر '🔄 إعادة تهيئة النظام' (للمالك فقط).
+    يعيد تحميل الحالة، ينظف الكاش، يفحص حرّاس الصحة، ويرسل تقريرًا خفيًا.
+    """
+    uid = update.effective_user.id
+    if not is_owner(uid):
+        if update.callback_query:
+            await update.callback_query.answer("⛔ هذا الأمر مخصص لمالك النظام فقط.", show_alert=True)
+        elif update.message:
+            await update.message.reply_text("⛔ هذا الأمر مخصص لمالك النظام فقط.")
+        return
+
+    if update.callback_query:
+        await update.callback_query.answer("🔄 جاري إعادة تهيئة النظام...")
+
+    # 1) إعادة تحميل الحالة والملفات
+    try:
+        global CONFIG, OFFICE_DATA
+        if os.path.exists("bot/config.json"):
+            with open("bot/config.json", "r", encoding="utf-8") as f:
+                CONFIG = json.load(f)
+        if os.path.exists("offers-data/office-data.json"):
+            with open("offers-data/office-data.json", "r", encoding="utf-8") as f:
+                OFFICE_DATA = json.load(f)
+
+        user_manager.load_users()
+        site_data = load_offers_json()
+        offers = site_data.get("offers", [])
+        visitor_data = load_visitor_requests()
+    except Exception as e:
+        logger.error("Reinit load error: " + str(e))
+        offers = []
+
+    # 2) مسح/إعادة تهيئة الكاش والجلسات المؤقتة
+    try:
+        if hasattr(persistence, "clear_cache"):
+            persistence.clear_cache()
+    except Exception:
+        pass
+
+    # 3) فحص حرّاس الصحة
+    offers_count = len(offers)
+    missing_files = []
+    for fpath in ["offers-data/offers.json", "sitemap.xml", "robots.txt", "bot/config.json"]:
+        if not os.path.exists(fpath):
+            missing_files.append(fpath)
+
+    severity = "OK"
+    if offers_count < 27 or missing_files:
+        severity = "HIGH"
+    elif offers_count != 27:
+        severity = "WARNING"
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # 4) تقرير خفي (للمالك فقط)
+    report_lines = [
+        "🔄 <b>تقرير إعادة تهيئة النظام الخفي (للمالك فقط)</b>\n",
+        f"⏱️ <b>التاريخ:</b> {now_str}",
+        f"📊 <b>حالة العروض:</b> {offers_count} / 27",
+        f"📁 <b>الملفات المفقودة:</b> {len(missing_files)}",
+        f"🚦 <b>مستوى الصحة:</b> {severity}\n",
+        "✅ تم إعادة تحميل الحالة، وتطهير الكاش، وتشغيل حرّاس الصحة بنجاح."
+    ]
+
+    if severity == "HIGH":
+        report_lines.extend([
+            "\n🚨 <b>توصية هامة جداً [HIGH]:</b>",
+            "لوحظ وجود خلل في العروض أو الملفات الأساسية.",
+            "يوصى فوراً باسترجاع آخر tag مستقر فقط:",
+            "<code>git checkout hotfix-bot-flows</code> أو <code>phase-2.8-hotfix</code>"
+        ])
+
+    report = "\n".join(report_lines)
+
+    if update.callback_query:
+        await update.callback_query.message.reply_text(report, parse_mode="HTML")
+    elif update.message:
+        await update.message.reply_text(report, parse_mode="HTML")
 
 
 async def cmd_add_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -6191,6 +6300,8 @@ async def _show_listing_details(update, context, external_id: str, query=None):
         buttons.append([InlineKeyboardButton("✏️ تعديل النص", callback_data=f"lst_edit_{external_id}")])
     if user_manager.can_add_marketing_text(uid):
         buttons.append([InlineKeyboardButton("📣 نص تسويقي", callback_data=f"lst_mkt_{external_id}")])
+    if is_staff:
+        buttons.append([InlineKeyboardButton("🐦 نص تغريدة جاهز", callback_data=f"lst_tweet_{external_id}")])
     kb = InlineKeyboardMarkup(buttons)
 
     # إرسال النص
@@ -6241,6 +6352,90 @@ async def cmd_view_listing(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     external_id = context.args[0].strip()
     await _show_listing_details(update, context, external_id)
+
+
+async def cmd_generate_tweet_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE, external_id: str = None):
+    """توليد نص تغريدة جاهز للنسخ للعقار (للمدراء) — /tweet <external_id>"""
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        return
+
+    if not external_id and context.args:
+        external_id = context.args[0].strip()
+
+    if not external_id:
+        if update.callback_query:
+            await update.callback_query.answer("⚠️ الرجاء تحديد رقم العرض")
+        else:
+            await update.message.reply_text("استخدام: /tweet <external_id>")
+        return
+
+    listing = None
+    try:
+        listing_lifecycle.init()
+        listing = listing_lifecycle.get_listing(external_id)
+    except Exception:
+        pass
+
+    if not listing:
+        site_data = load_offers_json()
+        offers = site_data.get("offers", [])
+        for o in offers:
+            if str(o.get("id")) == str(external_id) or str(o.get("external_id")) == str(external_id):
+                listing = o
+                break
+
+    if not listing:
+        msg = "⚠️ لم نتمكن من العثور على العرض."
+        if update.callback_query:
+            await update.callback_query.answer(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+
+    title_str = listing.get("title", "") or listing.get("category", "عقار")
+    category = (listing.get("category", "") or "").strip().lower()
+    location_str = listing.get("location_text", "") or listing.get("area", "الخرج")
+    price_val = listing.get("price", "") or listing.get("price_text", "على السوم")
+    if price_val and str(price_val).isdigit():
+        try:
+            price_formatted = f"{int(price_val):,} ريال"
+        except Exception:
+            price_formatted = str(price_val)
+    else:
+        price_formatted = str(price_val) if price_val else "على السوم"
+
+    if "مزرع" in category:
+        tags = "#عقارات_الخرج #مزارع #مزرعة_للبيع #فرصة_عقارية"
+    elif "استراح" in category or "شاليه" in category:
+        tags = "#عقارات_الخرج #استراحات #شاليهات #فرصة_عقارية"
+    elif "أرض" in category or "ارض" in category:
+        tags = "#عقارات_الخرج #أراضي #أراضي_الخرج #فرصة_عقارية"
+    elif "فل" in category or "فيلا" in category:
+        tags = "#عقارات_الخرج #فلل #فلل_الخرج #فرصة_عقارية"
+    else:
+        tags = "#عقارات_الخرج #عقارات #فرصة_عقارية #الخرج"
+
+    perm_link = _build_listing_perm_link(listing)
+
+    tweet_body = (
+        f"{title_str}\n"
+        f"📍 الموقع: {location_str}\n"
+        f"💰 السعر: {price_formatted}\n"
+        f"🔗 للتفاصيل والمعاينة:\n"
+        f"{perm_link}\n\n"
+        f"{tags}"
+    )
+
+    reply_msg = (
+        "🐦 <b>نص التغريدة الجاهز (اضغط للنسخ):</b>\n\n"
+        f"<code>{tweet_body}</code>"
+    )
+
+    if update.callback_query:
+        await update.callback_query.message.reply_text(reply_msg, parse_mode="HTML")
+    else:
+        await update.message.reply_text(reply_msg, parse_mode="HTML")
 
 
 async def cmd_pending_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -6826,6 +7021,9 @@ def _setup_handlers(app):
 
     # ── Phase 3 §1.3: Bounce Guard /fix command ──
     app.add_handler(CommandHandler("fix", cmd_fix))
+    app.add_handler(CommandHandler("reinit", cmd_reinit_system))
+    app.add_handler(CommandHandler("reinit_system", cmd_reinit_system))
+    app.add_handler(CommandHandler("tweet", cmd_generate_tweet_prompt))
 
     # الصور
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))

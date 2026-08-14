@@ -299,16 +299,283 @@
         }
     }
 
-    // ===== Appointment (deep-link to bot) =====
+    // ===== .ICS Calendar File Generator =====
+    function generateIcsFile(propertyTitle, appointmentDate, period) {
+        var now = new Date();
+        var dtstamp = now.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+        var startDate = appointmentDate || now.toISOString().split('T')[0].replace(/-/g, '');
+        var startTime = '090000';
+        var endTime = '110000';
+        if (period === 'مسائية') {
+            startTime = '160000';
+            endTime = '180000';
+        }
+
+        var dtstart = startDate + 'T' + startTime;
+        var dtend = startDate + 'T' + endTime;
+
+        var icsLines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Afaq Al-Injaz//Property Appointment//AR',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'BEGIN:VEVENT',
+            'UID:apt-' + Date.now() + '@afaqalqary.com',
+            'DTSTAMP:' + dtstamp,
+            'DTSTART:' + dtstart,
+            'DTEND:' + dtend,
+            'SUMMARY:موعد معاينة عقار - ' + (propertyTitle || 'آفاق الإنجاز'),
+            'DESCRIPTION:موعد معاينة عقار مع مكتب آفاق الإنجاز العقاري\\nالفترة: ' + (period || 'معاينة عقار') + '\\nتواصل: 0545888931',
+            'LOCATION:مكتب آفاق الإنجاز العقاري - الخرج',
+            'STATUS:CONFIRMED',
+            'END:VEVENT',
+            'END:VCALENDAR'
+        ];
+
+        var icsContent = icsLines.join('\r\n');
+        var blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        var link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = 'appointment-' + (propertyTitle ? propertyTitle.replace(/\s+/g, '_') : 'viewing') + '.ics';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // ===== Appointment Modal & Calendar (.ics) Integration =====
     function openAppointment(id, title) {
-        var msg = 'أرغب في حجز موعد معاينة لعقار: ' + title + ' (معرف: ' + id + ')';
-        var waUrl = 'https://wa.me/' + OFFICE_WHATSAPP + '?text=' + encodeURIComponent(msg);
-        window.open(waUrl, '_blank');
+        var existingModal = document.getElementById('appointment-modal');
+        if (existingModal) existingModal.remove();
+
+        var today = new Date().toISOString().split('T')[0];
+
+        var modalHtml =
+            '<div id="appointment-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;">' +
+            '  <div style="background:#FFFFFF;border-radius:16px;max-width:480px;width:100%;padding:24px;direction:rtl;text-align:right;box-shadow:0 10px 30px rgba(0,0,0,0.3);position:relative;font-family:Tajawal,sans-serif;">' +
+            '    <button id="close-apt-modal" style="position:absolute;top:16px;left:16px;background:none;border:none;font-size:22px;cursor:pointer;color:#888;">✕</button>' +
+            '    <h3 style="color:#1B3D3D;margin-bottom:12px;font-size:22px;">📅 حجز موعد معاينة</h3>' +
+            '    <p style="color:#555;margin-bottom:16px;font-size:15px;">' + escHtml(title) + '</p>' +
+            '    <div style="margin-bottom:12px;">' +
+            '      <label style="display:block;margin-bottom:6px;font-weight:bold;color:#333;">تاريخ المعاينة:</label>' +
+            '      <input type="date" id="apt-date" value="' + today + '" min="' + today + '" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-family:inherit;">' +
+            '    </div>' +
+            '    <div style="margin-bottom:20px;">' +
+            '      <label style="display:block;margin-bottom:6px;font-weight:bold;color:#333;">فترة المعاينة:</label>' +
+            '      <select id="apt-period" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-family:inherit;">' +
+            '        <option value="صباحية">صباحية (9:00 ص - 11:00 ص)</option>' +
+            '        <option value="مسائية">مسائية (4:00 م - 6:00 م)</option>' +
+            '      </select>' +
+            '    </div>' +
+            '    <div style="display:flex;gap:10px;flex-wrap:wrap;">' +
+            '      <button id="confirm-apt-wa" style="flex:1;background:#25D366;color:#FFF;border:none;padding:12px;border-radius:8px;font-weight:bold;cursor:pointer;font-family:inherit;">💬 تأكيد عبر واتساب</button>' +
+            '      <button id="add-to-calendar-btn" style="flex:1;background:#2A5050;color:#FFF;border:none;padding:12px;border-radius:8px;font-weight:bold;cursor:pointer;font-family:inherit;">📅 أضف للتقويم (.ics)</button>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('close-apt-modal').onclick = function() {
+            var m = document.getElementById('appointment-modal');
+            if (m) m.remove();
+        };
+
+        document.getElementById('confirm-apt-wa').onclick = function() {
+            var d = document.getElementById('apt-date').value;
+            var p = document.getElementById('apt-period').value;
+            var msg = 'أرغب في حجز موعد معاينة لعقار: ' + title + ' (معرف: ' + id + ')\nالتاريخ: ' + d + '\nالفترة: ' + p;
+            var waUrl = 'https://wa.me/' + OFFICE_WHATSAPP + '?text=' + encodeURIComponent(msg);
+            window.open(waUrl, '_blank');
+        };
+
+        document.getElementById('add-to-calendar-btn').onclick = function() {
+            var d = document.getElementById('apt-date').value;
+            var p = document.getElementById('apt-period').value;
+            var cleanDate = d ? d.replace(/-/g, '') : '';
+            generateIcsFile(title, cleanDate, p);
+        };
     }
 
     // ===== PDF / Print =====
     function printProperty() {
         window.print();
+    }
+
+    // ===== Poster Canvas Generator (1080x1350) =====
+    function generatePropertyPoster(prop) {
+        if (!prop) return;
+        var canvas = document.createElement('canvas');
+        canvas.width = 1080;
+        canvas.height = 1350;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // 1. Background linear gradient
+        var grad = ctx.createLinearGradient(0, 0, 0, 1350);
+        grad.addColorStop(0, '#102A2A');
+        grad.addColorStop(0.5, '#1B3D3D');
+        grad.addColorStop(1, '#0C1E1E');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1080, 1350);
+
+        // Gold border inner
+        ctx.strokeStyle = '#C4A956';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(30, 30, 1020, 1290);
+
+        // 2. Header Box: Office Name & Badge
+        ctx.fillStyle = '#C4A956';
+        ctx.font = 'bold 44px Tajawal, Cairo, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('مكتب آفاق الإنجاز العقاري', 1010, 95);
+
+        // Badge: مرخص وموثق
+        ctx.fillStyle = '#D4BD75';
+        ctx.fillRect(70, 55, 230, 50);
+        ctx.fillStyle = '#102A2A';
+        ctx.font = 'bold 24px Tajawal, Cairo, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('مرخّص وموثّق ✓', 185, 88);
+
+        // Header Divider Line
+        ctx.strokeStyle = 'rgba(196, 169, 86, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(70, 125);
+        ctx.lineTo(1010, 125);
+        ctx.stroke();
+
+        // 3. Helper to draw details after images are loaded
+        var currentUrl = window.location.href;
+        var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(currentUrl);
+
+        var firstImgUrl = (prop.images && prop.images[0]) || prop.image || '';
+
+        var propImg = new Image();
+        propImg.crossOrigin = 'anonymous';
+
+        var qrImg = new Image();
+        qrImg.crossOrigin = 'anonymous';
+
+        var imagesLoaded = 0;
+        function checkAndDraw() {
+            imagesLoaded++;
+            if (imagesLoaded < 2) return;
+
+            // Draw Property Image (70, 145, 940, 560)
+            try {
+                if (propImg.complete && propImg.naturalWidth !== 0) {
+                    ctx.drawImage(propImg, 70, 145, 940, 560);
+                } else {
+                    throw new Error('Image not loaded');
+                }
+            } catch(e) {
+                // Fallback luxury placeholder box
+                ctx.fillStyle = '#2A5050';
+                ctx.fillRect(70, 145, 940, 560);
+                ctx.fillStyle = '#D4BD75';
+                ctx.font = 'bold 36px Tajawal, Cairo, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('آفاق الإنجاز العقاري', 540, 425);
+            }
+
+            // Image Border
+            ctx.strokeStyle = '#C4A956';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(70, 145, 940, 560);
+
+            // 4. Content Area
+            var titleText = prop.title || (prop.category + ' في ' + (prop.area || ''));
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 42px Tajawal, Cairo, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(titleText, 1010, 770);
+
+            var priceVal = prop.price_text || (prop.price ? prop.price + ' ريال' : 'على السوم');
+            ctx.fillStyle = '#D4BD75';
+            ctx.font = 'bold 50px Tajawal, Cairo, sans-serif';
+            ctx.fillText('السعر: ' + priceVal, 1010, 845);
+
+            var pricePerSqm = '—';
+            if (prop.price && prop.size_sqm && Number(prop.size_sqm) > 0) {
+                pricePerSqm = Math.round(Number(prop.price) / Number(prop.size_sqm)) + ' ريال / م²';
+            } else if (prop.price_per_sqm) {
+                pricePerSqm = prop.price_per_sqm;
+            }
+            ctx.fillStyle = '#E8E0D0';
+            ctx.font = 'bold 34px Tajawal, Cairo, sans-serif';
+            ctx.fillText('سعر / م²: ' + pricePerSqm, 1010, 910);
+
+            var infoText = 'القسم: ' + (prop.category || 'عقار') + ' | المساحة: ' + (prop.size_sqm ? prop.size_sqm + ' م²' : '—');
+            ctx.font = '30px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#B0C2C2';
+            ctx.fillText(infoText, 1010, 965);
+
+            // Divider Line
+            ctx.strokeStyle = 'rgba(196, 169, 86, 0.4)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(70, 1000);
+            ctx.lineTo(1010, 1000);
+            ctx.stroke();
+
+            // 5. Bottom Section: Contacts & QR
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(70, 1030, 200, 200);
+
+            try {
+                if (qrImg.complete && qrImg.naturalWidth !== 0) {
+                    ctx.drawImage(qrImg, 80, 1040, 180, 180);
+                }
+            } catch(e) {}
+
+            ctx.fillStyle = '#D4BD75';
+            ctx.font = 'bold 22px Tajawal, Cairo, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('امسح لمعاينة العرض', 170, 1260);
+
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 32px Tajawal, Cairo, sans-serif';
+            ctx.fillText('📞 للتواصل والاستفسار:', 1010, 1060);
+
+            ctx.font = 'bold 30px Tajawal, Cairo, sans-serif';
+            ctx.fillStyle = '#D4BD75';
+            ctx.fillText('💬 واتساب: 0545888931', 1010, 1115);
+            ctx.fillText('📞 مكالمات: 0544699933', 1010, 1165);
+            ctx.fillText('📲 واتساب + مكالمات: 0561610748', 1010, 1215);
+
+            ctx.fillStyle = '#88AAAA';
+            ctx.font = '22px Tajawal, Cairo, sans-serif';
+            ctx.fillText('آفاق الإنجاز العقاري — الخرج والدلم', 1010, 1265);
+
+            // 6. Download PNG
+            try {
+                var dataUrl = canvas.toDataURL('image/png');
+                var a = document.createElement('a');
+                a.download = 'poster-' + (prop.id || 'property') + '.png';
+                a.href = dataUrl;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch(err) {
+                alert('تعذر تنزيل البوستر تلقائياً.');
+            }
+        }
+
+        propImg.onload = checkAndDraw;
+        propImg.onerror = checkAndDraw;
+        if (firstImgUrl) {
+            propImg.src = firstImgUrl;
+        } else {
+            checkAndDraw();
+        }
+
+        qrImg.onload = checkAndDraw;
+        qrImg.onerror = checkAndDraw;
+        qrImg.src = qrUrl;
     }
 
     // ===== HTML escape =====
@@ -367,7 +634,8 @@
                     '<button class="luxury-action-btn' + cmpActive + '" data-compare-id="' + escHtml(id) + '" data-compare-title="' + escHtml(title) + '" data-compare-img="' + escHtml(img) + '" aria-label="إضافة للمقارنة"><i class="fas fa-plus"></i> ' + (cmpActive ? 'في المقارنة' : 'أضف للمقارنة') + '</button>' +
                     '<button class="luxury-action-btn btn-appointment" id="luxury-appointment-btn" aria-label="حجز موعد معاينة"><i class="fas fa-calendar-check"></i> حجز معاينة</button>' +
                     '<button class="luxury-action-btn" id="luxury-share-btn" aria-label="مشاركة العقار"><i class="fas fa-share-alt"></i> مشاركة</button>' +
-                    '<button class="luxury-action-btn btn-pdf" id="luxury-pdf-btn" aria-label="طباعة / PDF"><i class="fas fa-print"></i> طباعة / PDF</button>';
+                    '<button class="luxury-action-btn btn-pdf" id="luxury-pdf-btn" aria-label="طباعة / PDF"><i class="fas fa-print"></i> طباعة / PDF</button>' +
+                    '<button class="luxury-action-btn btn-poster" id="luxury-poster-btn" aria-label="تحميل البوستر"><i class="fas fa-image"></i> 🖼 تحميل البوستر</button>';
 
                 // Wire fav
                 actionBar.querySelector('[data-fav-id]').addEventListener('click', function() {
@@ -388,6 +656,10 @@
                 // Wire PDF
                 document.getElementById('luxury-pdf-btn').addEventListener('click', function() {
                     printProperty();
+                });
+                // Wire Poster
+                document.getElementById('luxury-poster-btn').addEventListener('click', function() {
+                    generatePropertyPoster(prop);
                 });
             }
 
