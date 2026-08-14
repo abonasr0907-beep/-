@@ -227,3 +227,8 @@
 - **الحارس الشامل:** `error_handler` مسجل عبر `app.add_error_handler` (PTB v20 يلتقط كل استثناءات الـ handlers تلقائيًا). حُدّث قسم الأخطاء غير المتوقعة ليرسل تنبيهًا نصيًا فوريًا للمالك/المدراء (get_staff_for_notifications + ADMIN_IDS) بدل صمت البوت — يتضمن النوع والرسالة والمستخدم وآخر سطر من الـ traceback.
 - **إحياء الأوامر والأزرار:** الكسر الجذري كان الـ worker crash (الجزء 0) الذي أسقط كل شيء. بعد الإنعاش: `add_offer_start` (إضافة عرض) ✅، `handle_callback` (أزرار الكيبورد) ✅، `cmd_listings` (/listings) ✅، `cmd_pending_listings` (/pending) ✅، معالجات الموافقات (vreq_approve_/vreq_reject_) ✅ — كلها سليمة بنيويًا ولم تُعَد كتابتها (تعديل جراحي فقط).
 - **التحقق:** `py_compile bot/bot.py` ✅ | فحص AST: كل المعالجات الحرجة موجودة (162 دالة) ✅
+
+## وسم hotfix-bot-flows — إحياء البوت + حارس + استقبال صامت
+- **التحقق من الثلاثة آثار:** (أ) logger معرّف قبل استيراد SEO ✅ | (ب) `_handle_ingest_api` + تسجيل مسار `/ingest` بهيدر `X-Ingest-Secret` (أُضيف جراحيًا في كلا خادمَي aiohttp) ✅ | (ج) `error_handler` يرسل تنبيهًا نصيًا للمالك/المدراء ✅
+- **الوسم:** `hotfix-bot-flows` أُنشئ على رأس main الحالي ودُفع إلى origin.
+- **التحقق:** `py_compile bot/bot.py` ✅
