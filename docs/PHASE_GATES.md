@@ -232,3 +232,9 @@
 - **التحقق من الثلاثة آثار:** (أ) logger معرّف قبل استيراد SEO ✅ | (ب) `_handle_ingest_api` + تسجيل مسار `/ingest` بهيدر `X-Ingest-Secret` (أُضيف جراحيًا في كلا خادمَي aiohttp) ✅ | (ج) `error_handler` يرسل تنبيهًا نصيًا للمالك/المدراء ✅
 - **الوسم:** `hotfix-bot-flows` أُنشئ على رأس main الحالي ودُفع إلى origin.
 - **التحقق:** `py_compile bot/bot.py` ✅
+
+## جزء 0.2 — جسر الإرسال /ingest + تطهير تيليجرام من واجهات الزوار
+- **compressImage:** canvas بأقصى بُعد 1280px وجودة 0.8 (JPEG) + compressImages + postToIngest بهيدر `X-Ingest-Secret` (يطابق `ingest_secret` في bot/config.json) في js/main.js.
+- **submitPropertyForm:** ضغط الصور قبل الإرسال؛ نموذج المزايدة: إرسال عبر `/ingest` بدل notifyTelegramAdmin.
+- **التطهير:** إزالة زر إرفاق البوت من list-property.html + رسالة النجاح، حذف showBidSuccessModal وكل deep-link t.me من main.js و property.html — الظاهر للزائر واتساب/هاتف فقط.
+- **التحقق:** `node --check js/main.js` ✅ | grep: لا form-success-attach/showBidSuccessModal/t.me في واجهات الزوار ✅

@@ -21,12 +21,12 @@
 - [x] إحياء الأوامر والأزرار: الكسر الجذري = worker crash (أُصلح في الجزء 0). بعد الإنعاش كل المعالجات الحرجة سليمة: إضافة عرض (add_offer_start)، أزرار الكيبورد (handle_callback)، /listings، /pending، الموافقات (vreq_approve_/vreq_reject_) — تعديل جراحي فقط، لا إعادة بناء.
 - [x] التحقق: py_compile ✅ + فحص AST (162 دالة، لا مفقود) ✅
 
-## الجزء 2 — التدفق الصامت ⏳ متبقٍ
-- [ ] حذف إحالات البوت من واجهات الزوار (attach_ + "أرسل عبر البوت").
-- [ ] مسار POST /ingest (سر في هيدر + حد معدل) يستقبل JSON + صور base64.
+## الجزء 2 — التدفق الصامت 🔄 قيد الإكمال (0.2 ✅)
+- [x] حذف إحالات البوت من واجهات الزوار (attach_ + "أرسل عبر البوت") — commit 2ebaf029.
+- [x] مسار POST /ingest (سر في هيدر X-Ingest-Secret) يستقبل JSON — موجود من الوسم hotfix-bot-flows.
+- [x] JS: ضغط صور client-side (canvas ≤1280px جودة .8) + fetch POST /ingest — compressImage/compressImages/postToIngest.
 - [ ] عند الاستقبال: ملاحظة للمدراء + sendPhoto + link_images_to_property (لا عرض منشور).
-- [ ] JS: ضغط صور client-side (canvas ≤1280px جودة .8) + fetch POST /ingest.
-- [ ] معالج attach_ للمدراء فقط.
+- [ ] معالج attach_ للمدراء فقط (0.3 التالي).
 
 ## الجزء 3 — زر إعادة التهيئة (مالك فقط) ⏳ متبقٍ
 - [ ] زر/أمر "🔄 إعادة تهيئة النظام" للمالك فقط.
