@@ -6987,6 +6987,28 @@ async def _handle_visitor_request_api(request):
     return _json_response({"ok": True, "id": request_id, "message": "تم استلام الطلب بنجاح"})
 
 
+async def _handle_ingest_api(request):
+    """
+    جسر استقبال موحّد من الموقع — المسار: POST /ingest
+    يتحقق من هيدر X-Ingest-Secret ثم يمرّر الحمولة إلى معالج طلبات الزائر.
+    يقبل نموذج إضافة عقار ونموذج المزايدة (type=bid).
+    """
+    try:
+        expected = str(CONFIG.get("ingest_secret", "") or os.environ.get("INGEST_SECRET", "")).strip()
+    except Exception:
+        expected = os.environ.get("INGEST_SECRET", "").strip()
+    provided = ""
+    try:
+        provided = str(request.headers.get("X-Ingest-Secret", "")).strip()
+    except Exception:
+        provided = ""
+    if not expected or provided != expected:
+        logger.warning("⛔ /ingest مرفوض — X-Ingest-Secret غير صالح")
+        return _json_response({"ok": False, "error": "unauthorized"}, status=401)
+    # التحقق من الصحة بعد السر — إعادة استخدام معالج طلب الزائر القائم
+    return await _handle_visitor_request_api(request)
+
+
 async def _notify_admins_new_request(bot, visitor_request, vdata):
     """إرسال إشعار للمدراء بطلب زائر جديد مع أزرار موافقة/رفض"""
     requests_list = vdata.get("requests", [])
@@ -7343,6 +7365,7 @@ def _create_api_app():
 
     app = web.Application()
     app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
+    app.router.add_post("/ingest", _handle_ingest_api)
     app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
     app.router.add_get("/api/visitor-request", _handle_root)
     app.router.add_get("/health", _handle_health)
@@ -7426,6 +7449,7 @@ async def _run_custom_webhook(app, webhook_url, port):
     web_app.router.add_post(webhook_path, telegram_webhook_handler)
     # إضافة مسارات API على نفس الخادم
     web_app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
+    web_app.router.add_post("/ingest", _handle_ingest_api)
     web_app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
     web_app.router.add_get("/api/visitor-request", _handle_root)
     web_app.router.add_get("/health", _handle_health)
