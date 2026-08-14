@@ -22,6 +22,7 @@ import sys
 import time
 import uuid
 import shutil
+import base64
 import logging
 import hashlib
 import asyncio
@@ -7333,6 +7334,187 @@ async def _handle_visitor_images_api(request):
         except Exception:
             return _json_response({"ok": False, "error": str(e)}, status=500)
 
+
+# ============================================================
+#  POST /ingest — مسار موحّد لاستقبال طلبات الموقع (bid/lead/listing/valuation)
+#  سرّ بسيط في هيدر X-Ingest-Secret + حد معدل — لا ينشئ عرضًا منشورًا
+# ============================================================
+INGEST_SECRET = os.environ.get("INGEST_SECRET", "afaq-ingest-2024")
+_ingest_rate = {}  # {ip: [timestamps]}
+INGEST_RATE_LIMIT = 10      # أقصى عدد طلبات
+INGEST_RATE_WINDOW = 60     # خلال نافذة زمنية (ثانية)
+
+
+def _ingest_rate_ok(ip):
+    """حد معدل بسيط: 10 طلبات / 60 ثانية لكل IP."""
+    now = time.time()
+    stamps = _ingest_rate.get(ip, [])
+    stamps = [t for t in stamps if now - t < INGEST_RATE_WINDOW]
+    if len(stamps) >= INGEST_RATE_LIMIT:
+        _ingest_rate[ip] = stamps
+        return False
+    stamps.append(now)
+    _ingest_rate[ip] = stamps
+    return True
+
+
+async def _handle_ingest_api(request):
+    """
+    مسار موحّد POST /ingest — يستقبل JSON:
+    {kind: bid|lead|listing|valuation, ...fields, images: [base64, ...]}
+    - سرّ في هيدر X-Ingest-Secret
+    - حد معدل لكل IP
+    - يحفظ الطلب + يرسل ملاحظة خفية للمدراء + الصور sendPhoto
+    - لا ينشئ عرضًا منشورًا (pending فقط)
+    """
+    try:
+        from aiohttp import web
+    except ImportError:
+        return _json_response({"ok": False, "error": "aiohttp not available"}, status=500)
+
+    # 1) التحقق من السرّ في الهيدر
+    secret = request.headers.get("X-Ingest-Secret", "")
+    if secret != INGEST_SECRET:
+        logger.warning("⚠️ /ingest: سرّ غير صحيح")
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
+
+    # 2) حد المعدل
+    peer = request.remote or "unknown"
+    if not _ingest_rate_ok(peer):
+        logger.warning(f"⚠️ /ingest: تجاوز حد المعدل من {peer}")
+        return web.json_response({"ok": False, "error": "rate limited"}, status=429)
+
+    # 3) قراءة البيانات
+    try:
+        data = await request.json()
+    except Exception as e:
+        return web.json_response({"ok": False, "error": f"invalid json: {e}"}, status=400)
+
+    kind = str(data.get("kind", "lead")).strip().lower()
+    if kind not in ("bid", "lead", "listing", "valuation"):
+        kind = "lead"
+
+    # فكّ صور base64 (إن وُجدت) — حد أقصى 10 صور
+    raw_images = data.get("images", [])
+    if not isinstance(raw_images, list):
+        raw_images = []
+    decoded_images = []  # [(filename, bytes)]
+    for idx, b64 in enumerate(raw_images[:10]):
+        try:
+            if not isinstance(b64, str):
+                continue
+            # دعم صيغة data:image/...;base64,XXXX
+            payload = b64.split(",", 1)[1] if "," in b64 else b64
+            blob = base64.b64decode(payload)
+            if not blob:
+                continue
+            decoded_images.append((f"ingest_{idx}.jpg", blob))
+        except Exception as ie:
+            logger.warning(f"⚠️ /ingest: صورة {idx} غير صالحة: {ie}")
+
+    # 4) بناء سجل الطلب (نفس منطق _handle_visitor_request_api)
+    request_id = str(data.get("id", f"REQ-{int(time.time())}"))
+    visitor_request = {
+        "id": request_id,
+        "name": str(data.get("name", "")),
+        "phone": str(data.get("phone", "")),
+        "propertyType": str(data.get("propertyType", data.get("property_type", ""))),
+        "location": str(data.get("location", "")),
+        "area": str(data.get("area", "")),
+        "price": str(data.get("price", "")),
+        "description": str(data.get("description", "")),
+        "latitude": str(data.get("latitude", "")),
+        "longitude": str(data.get("longitude", "")),
+        "mapsLink": str(data.get("mapsLink", data.get("maps_link", ""))),
+        "imageCount": len(decoded_images),
+        "images": [],
+        "priceType": str(data.get("priceType", data.get("price_type", "fixed"))),
+        "highestBid": str(data.get("highestBid", data.get("highest_bid", ""))),
+        "operation_type": str(data.get("operation_type", data.get("operationType", "sale"))),
+        "bidType": str(data.get("bidType", data.get("bid_type", ""))),
+        "offerId": str(data.get("offerId", data.get("offer_id", ""))),
+        "offerUrl": str(data.get("offerUrl", data.get("offer_url", ""))),
+        "currentHighestBid": str(data.get("currentHighestBid", data.get("current_highest_bid", ""))),
+        "bidAmount": str(data.get("bidAmount", data.get("bid_amount", ""))),
+        "bidNotes": str(data.get("bidNotes", data.get("bid_notes", data.get("notes", "")))),
+        "source": str(data.get("source", "ingest")),
+        "ingest_kind": kind,
+        "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "status": "pending",
+        "publish_status": "Received",
+    }
+    # للمزايدات: علّم bidType
+    if kind == "bid" and not visitor_request["bidType"]:
+        visitor_request["bidType"] = "bid"
+
+    # 5) حفظ الطلب في visitor_requests.json (pending — لا نشر)
+    try:
+        vdata = load_visitor_requests()
+        vdata.setdefault("requests", []).append(visitor_request)
+        save_visitor_requests(vdata)
+        logger.info(f"📥 /ingest [{kind}]: حُفظ الطلب {request_id} — {visitor_request['name']}")
+    except Exception as e:
+        logger.error(f"❌ /ingest: خطأ في حفظ الطلب: {e}")
+        return web.json_response({"ok": False, "error": "save failed"}, status=500)
+
+    # 6) حفظ الصور محليًا + ربطها بالطلب
+    image_paths = []
+    if decoded_images:
+        try:
+            visitor_img_dir = WEBSITE_DIR / "images" / "visitor" / request_id
+            visitor_img_dir.mkdir(parents=True, exist_ok=True)
+            for idx, (filename, blob) in enumerate(decoded_images):
+                safe_name = f"img_{idx}.jpg"
+                local_path = visitor_img_dir / safe_name
+                with open(local_path, "wb") as f:
+                    f.write(blob)
+                image_paths.append(f"images/visitor/{request_id}/{safe_name}")
+            # ربط الصور بالطلب
+            try:
+                property_storage.link_images_to_property(request_id, image_paths)
+            except Exception as le:
+                logger.error(f"⚠️ /ingest: خطأ ربط الصور: {le}")
+            # تحديث السجل بمسارات الصور
+            try:
+                for r in vdata.get("requests", []):
+                    if r.get("id") == request_id:
+                        r["images"] = image_paths
+                        r["imageCount"] = len(image_paths)
+                        break
+                save_visitor_requests(vdata)
+            except Exception as ue:
+                logger.error(f"⚠️ /ingest: خطأ تحديث مسارات الصور: {ue}")
+        except Exception as se:
+            logger.error(f"❌ /ingest: خطأ حفظ الصور: {se}")
+
+    # 7) ملاحظة خفية للمدراء + الصور sendPhoto
+    try:
+        if _bot_app_ref and _bot_app_ref.bot:
+            await _notify_admins_new_request(_bot_app_ref.bot, visitor_request, vdata)
+            # إرسال الصور الفعلية للمدراء
+            if image_paths:
+                media_group = []
+                for img_rel in image_paths[:10]:
+                    local_full = WEBSITE_DIR / img_rel
+                    if local_full.exists():
+                        try:
+                            media_group.append(InputMediaPhoto(open(str(local_full), "rb")))
+                        except Exception:
+                            pass
+                if media_group:
+                    for admin_id in ADMIN_IDS:
+                        try:
+                            await _bot_app_ref.bot.send_media_group(admin_id, media=media_group)
+                        except Exception as mge:
+                            logger.warning(f"⚠️ /ingest: فشل إرسال صور للمدير: {mge}")
+        else:
+            logger.warning("⚠️ /ingest: مرجع البوت غير متوفر — حُفظ الطلب بدون إشعار")
+    except Exception as e:
+        logger.error(f"❌ /ingest: خطأ في إشعار المدراء: {e}")
+
+    return web.json_response({"ok": True, "id": request_id, "kind": kind, "images": len(image_paths)})
+
+
 def _create_api_app():
     """إنشاء تطبيق aiohttp لخادم API"""
     try:
@@ -7344,6 +7526,7 @@ def _create_api_app():
     app = web.Application()
     app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
     app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
+    app.router.add_post("/ingest", _handle_ingest_api)
     app.router.add_get("/api/visitor-request", _handle_root)
     app.router.add_get("/health", _handle_health)
     app.router.add_get("/", _handle_root)
@@ -7427,6 +7610,7 @@ async def _run_custom_webhook(app, webhook_url, port):
     # إضافة مسارات API على نفس الخادم
     web_app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
     web_app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
+    web_app.router.add_post("/ingest", _handle_ingest_api)
     web_app.router.add_get("/api/visitor-request", _handle_root)
     web_app.router.add_get("/health", _handle_health)
     web_app.router.add_get("/", _handle_root)
