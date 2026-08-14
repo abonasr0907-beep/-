@@ -1084,8 +1084,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Phase 2.8: deep-link attach_ payload -> /start attach_{request_id}
-    # زائر يرفع صور عقاره عبر deep-link بعد إرسال النموذج على الموقع.
+    # مقيّد بالمدراء فقط (is_authorized) — لا يُقبل من الزوار (سرّية البوت).
     if context.args and context.args[0].startswith("attach_"):
+        if not is_authorized(uid):
+            await update.message.reply_text(
+                "⛔ هذا الرابط مخصص لإدارة المكتب فقط.\n"
+                "للتواصل: واتساب 0545888931 | اتصال 0544699933"
+            )
+            return
         await _handle_attach_deep_link(update, context, uid)
         return
 
