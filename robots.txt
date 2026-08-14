@@ -27,6 +27,9 @@ Allow: /offers-data/
 Disallow: /bot/
 Disallow: /docs/
 Disallow: /admin.html
+Disallow: /filter-results
+Disallow: /search-results
+Disallow: /thanks
 
 # Google
 User-agent: Googlebot
@@ -45,3 +48,6 @@ User-agent: YandexBot
 Allow: /
 
 Sitemap: https://abonasr0907-beep.github.io/-/sitemap.xml
+
+# Phase 3 §2.6: IndexNow key location
+# https://abonasr0907-beep.github.io/-/afaq_indexnow_key.txt
