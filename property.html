@@ -677,7 +677,6 @@
             var DEFAULT_IMG = 'images/farms-bg.jpg';
             var DEFAULT_LAT = 24.1554;
             var DEFAULT_LNG = 47.3068;
-            var BOT_USERNAME = 'tlastlastlasbot';
 
             // Phase 2 §3: Simple admin check for map fallback alert (localStorage flag)
             function isAdmin() {
@@ -1027,7 +1026,6 @@
                 var waText = 'طلب مزايدة | العقار: ' + extId + ' | الاسم: ' + name + ' | الجوال: ' + phone + ' | المبلغ: ' + formattedAmount + ' ريال';
                 var waUrl = 'https://wa.me/' + OFFICE_WHATSAPP + '?text=' + encodeURIComponent(waText);
                 // deep-link البوت
-                var deepLink = BOT_USERNAME ? ('https://t.me/' + BOT_USERNAME + '?start=bid_' + extId + '_' + amountNum) : '';
                 document.getElementById('prop-bid-modal').remove();
                 // عرض نافذة تأكيد مع زري واتساب + البوت
                 var successHtml = '<div id="prop-bid-success" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;">' +
@@ -1036,7 +1034,6 @@
                     '<h3 style="color:#2A5050;margin:0 0 8px;">تم تجهيز طلبك!</h3>' +
                     '<p style="color:#666;font-size:14px;margin:0 0 18px;">اختر طريقة إرسال المزايدة:</p>' +
                     '<a href="' + waUrl + '" target="_blank" style="display:block;padding:12px;border:none;border-radius:8px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;margin-bottom:10px;font-family:inherit;"><i class="fab fa-whatsapp"></i> إرسال عبر واتساب</a>' +
-                    (deepLink ? '<a href="' + deepLink + '" target="_blank" style="display:block;padding:12px;border:none;border-radius:8px;background:#0088cc;color:#fff;text-decoration:none;font-weight:700;margin-bottom:10px;font-family:inherit;"><i class="fab fa-telegram"></i> إرسال عبر البوت</a>' : '') +
                     '<button onclick="document.getElementById(\'prop-bid-success\').remove()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إغلاق</button>' +
                     '</div></div>';
                 document.body.insertAdjacentHTML('beforeend', successHtml);
