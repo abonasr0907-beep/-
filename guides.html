@@ -47,6 +47,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/luxury.css">
     <link rel="stylesheet" href="css/silo.css">
+    <link rel="stylesheet" href="css/content.css">
 </head>
 <body>
 <div class="welcome-banner">
@@ -87,7 +88,7 @@
                 <a href="https://wa.me/966545888931" target="_blank" class="contact-icon-btn btn-whatsapp" title="واتساب">
                     <i class="fab fa-whatsapp"></i>
                 </a>
-                <a href="tel:0548601430" class="contact-icon-btn btn-phone" title="اتصال: 0548601430">
+                <a href="tel:0544699933" class="contact-icon-btn btn-phone" title="اتصال: 0544699933">
                     <i class="fas fa-phone"></i>
                 </a>
                 <button class="btn-menu-toggle" onclick="toggleMenu()">
@@ -98,8 +99,8 @@
     </header>
 <div class="silo-hub-page">
     <div class="silo-hub-header">
-        <h1>الأدلة العقارية</h1>
-        <p>أدلة شاملة تساعدك على اتخاذ القرار العقاري الصحيح. تعلم كيف تشتري وتستثمر في العقارات بالخرج والرياض بخبرة 20 سنة.</p>
+        <h1>الأدلة العقارية الشاملة</h1>
+        <p>مقالات وأدلة تفصيلية أعدها خبراء العقار بمكتب آفاق الإنجاز لتوجيهك نحو القرار العقاري الصحيح بالخرج والرياض بخبرة تمتد لأكثر من 20 سنة.</p>
     </div>
     <div class="silo-breadcrumb"><a href="index.html"><i class="fas fa-home"></i> الرئيسية</a><span class="sep"><i class="fas fa-chevron-left"></i></span><span class="current">الأدلة العقارية</span></div>
     <script type="application/json" id="breadcrumb-schema-data">[{"name": "الرئيسية", "url": "https://abonasr0907-beep.github.io/-/index.html"}, {"name": "الأدلة العقارية", "url": "https://abonasr0907-beep.github.io/-/guides.html"}]</script>
@@ -109,35 +110,10 @@
         <div class="silo-trust-item"><i class="fas fa-shield-alt"></i> صكوك إلكترونية موثقة</div>
         <div class="silo-trust-item"><i class="fas fa-users"></i> أكثر من 1000 عميل سعيد</div>
     </div>
-    <div class="silo-hub-grid"><a href="guides/farms-guide.html" class="silo-hub-card">
-            <div class="silo-hub-card-icon"><i class="fas fa-seedling"></i></div>
-            <div class="silo-hub-card-body">
-                <h3>دليل شراء المزارع</h3>
-                <p>دليل شامل لشراء المزارع في الخرج والرياض — كيف تختار المزرعة المناسبة، ما هي الآبار والصكوك المطلوبة، وكيف تقيّم السعر العادل.</p>
-                <span class="silo-hub-card-link">اقرأ الدليل</span>
-            </div>
-        </a><a href="guides/resthouses-guide.html" class="silo-hub-card">
-            <div class="silo-hub-card-icon"><i class="fas fa-home"></i></div>
-            <div class="silo-hub-card-body">
-                <h3>دليل الاستراحات</h3>
-                <p>كل ما تحتاج معرفته عن شراء الاستراحات في الخرج والرياض — الموقع، المساحة، المرافق، وكيف تحقق أفضل صفقة.</p>
-                <span class="silo-hub-card-link">اقرأ الدليل</span>
-            </div>
-        </a><a href="guides/lands-guide.html" class="silo-hub-card">
-            <div class="silo-hub-card-icon"><i class="fas fa-map"></i></div>
-            <div class="silo-hub-card-body">
-                <h3>دليل الأراضي السكنية</h3>
-                <p>دليل شراء الأراضي السكنية — المخططات المعتمدة، الصكوك الإلكترونية، رخص البناء، والتقسيم.</p>
-                <span class="silo-hub-card-link">اقرأ الدليل</span>
-            </div>
-        </a><a href="guides/investment-guide.html" class="silo-hub-card">
-            <div class="silo-hub-card-icon"><i class="fas fa-chart-line"></i></div>
-            <div class="silo-hub-card-body">
-                <h3>دليل الاستثمار العقاري</h3>
-                <p>كيف تستثمر في العقارات بالخرج والرياض — العائد المتوقع، المناطق الواعدة، واستراتيجيات الاستثمار.</p>
-                <span class="silo-hub-card-link">اقرأ الدليل</span>
-            </div>
-        </a></div>
+
+    <!-- Guides Dynamic Render Container -->
+    <div id="guides-app-container"></div>
+
     <div class="silo-links-section"><h2>روابط ذات صلة</h2><ul class="silo-links-list"><li><a href="categories.html"><i class="fas fa-th-large"></i> الأقسام العقارية</a></li><li><a href="areas.html"><i class="fas fa-map-marked-alt"></i> المناطق المغطاة</a></li><li><a href="guides.html"><i class="fas fa-book-open"></i> الأدلة العقارية</a></li><li><a href="why-us.html"><i class="fas fa-award"></i> لماذا نحن</a></li><li><a href="faq.html"><i class="fas fa-question-circle"></i> الأسئلة الشائعة</a></li><li><a href="compare.html"><i class="fas fa-balance-scale"></i> مقارنة العقارات</a></li><li><a href="farms.html"><i class="fas fa-seedling"></i> المزارع</a></li><li><a href="resthouses.html"><i class="fas fa-home"></i> الاستراحات</a></li><li><a href="lands.html"><i class="fas fa-map"></i> الأراضي السكنية</a></li><li><a href="services.html"><i class="fas fa-tools"></i> الخدمات</a></li><li><a href="list-property.html"><i class="fas fa-plus-circle"></i> اعرض عقارك</a></li><li><a href="contact.html"><i class="fas fa-phone"></i> تواصل معنا</a></li></ul></div>
 </div>
 <footer class="footer">
@@ -193,7 +169,7 @@
         </div>
     </footer>
     <!-- Scripts -->
-    <script src="js/main.js"></script>
+    <script src="js/guides.js"></script>
     <script src="js/silo.js"></script>
 </body>
 </html>

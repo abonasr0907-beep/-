@@ -238,3 +238,17 @@
 - **submitPropertyForm:** ضغط الصور قبل الإرسال؛ نموذج المزايدة: إرسال عبر `/ingest` بدل notifyTelegramAdmin.
 - **التطهير:** إزالة زر إرفاق البوت من list-property.html + رسالة النجاح، حذف showBidSuccessModal وكل deep-link t.me من main.js و property.html — الظاهر للزائر واتساب/هاتف فقط.
 - **التحقق:** `node --check js/main.js` ✅ | grep: لا form-success-attach/showBidSuccessModal/t.me في واجهات الزوار ✅
+
+---
+
+## بوابة المهمة M3 — طبقة المحتوى الصامت (Silent Content Layer) ✅ GATE PASSED
+- **الفرع:** `mission/m3-content`
+- **التشخيص والتحقق:**
+  - `node --check js/guides.js` ✅
+  - `node --check js/leads.js` ✅
+- **العناصر المُنجَزة:**
+  - `data/guides.json` يحوي 12 مقالاً أصلياً بأسلوب خبير عقاري سعودي (400-600 كلمة) مقسمة على 4 أقسام.
+  - `js/guides.js` + `css/content.css` + `guides.html` يعرض المقالات مع تصنيفات تفاعلية ونوافذ القراءة والتنسيق الفاخر وSchema Article ديناميكي.
+  - `why-us.html` محتوى محدد (20 عاماً، 24 ساعة، التراخيص، 8 خدمات، 3 خطوات، شريط تقييمات ديناميكي لا يظهر إلا عند وجود تقييمات معتمدة).
+  - `faq.html` 30 سؤالاً وجواباً مجمعة حسب المواضيع مع صندوق انتقال سريع وFAQPage Schema.
+  - `js/leads.js` يحقن أقسام "أوصلني بعقار"، "قيّم عقارك مجاناً"، "حجز معاينة" قبل `</body>` في `property.html` و `list-property.html` مع إرسال صامت إلى `/ingest` ورسائل نجاح فورية.
