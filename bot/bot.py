@@ -82,6 +82,24 @@ except Exception as _bg_imp:
     _bounce_guard = None
     logger.warning(f"⚠️ تعذّر استيراد bounce_guard: {_bg_imp}")
 
+# Phase 3 §2: محرك SEO (ai_system/seo_engine)
+_seo_engine = None
+try:
+    import sys as _sys
+    _repo_root = str(Path(__file__).resolve().parent.parent)
+    if _repo_root not in _sys.path:
+        _sys.path.insert(0, _repo_root)
+    from ai_system.seo_engine import (
+        update_sitemap_add_only as _seo_update_sitemap,
+        submit_offer as _seo_indexnow_submit,
+        get_or_create_key as _seo_indexnow_key,
+    )
+    _seo_engine = True
+    logger.info("✅ تم استيراد محرك SEO (ai_system/seo_engine)")
+except Exception as _seo_imp:
+    _seo_engine = None
+    logger.warning(f"⚠️ تعذّر استيراد محرك SEO: {_seo_imp}")
+
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -2876,6 +2894,20 @@ async def _finalize_offer(update, uid, query=None):
     site_data = load_offers_json()
     site_data["offers"].append(offer)
     save_offers_json(site_data)
+
+    # Phase 3 §2.5+§2.6: تحديث sitemap (add-only) + إرسال IndexNow فورًا بعد النشر
+    if _seo_engine:
+        try:
+            _added, _skipped, _total = _seo_update_sitemap()
+            logger.info(f"🗺️ sitemap: +{_added} روابط (إجمالي {_total})")
+        except Exception as _se:
+            logger.warning(f"⚠️ تعذّر تحديث sitemap: {_se}")
+        try:
+            _idx_result = _seo_indexnow_submit(offer)
+            if _idx_result.get("succeeded"):
+                logger.info(f"📡 IndexNow: تم إرسال رابط العرض لمحركات البحث")
+        except Exception as _ie:
+            logger.warning(f"⚠️ تعذّر إرسال IndexNow: {_ie}")
 
     # Task 4: المرحلة 1 — إظهار "جارٍ النشر..."
     if query:
