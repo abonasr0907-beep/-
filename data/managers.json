@@ -1,0 +1,12 @@
+{
+  "managers": [
+    {
+      "id": "7746757675",
+      "telegram_id": "7746757675",
+      "role": "owner",
+      "name": "المالك",
+      "permissions": "full",
+      "status": "active"
+    }
+  ]
+}

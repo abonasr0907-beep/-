@@ -817,6 +817,7 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
         ["🗑️ حذف عرض", "✏️ تعديل عرض"],
         ["📨 طلبات الزوار", "🏡 عروض الزوار"],
+        ["🎬 استوديو التسويق"],
         ["📦 الأرشيف", "📊 إحصائيات"],
         ["📈 التقرير الأسبوعي", "🧭 تحديث البوصلة"],
         ["🤖 المساعد الذكي", "🗞️ تحديث الأخبار"],
@@ -1710,6 +1711,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("vreq_reject_"):
         req_id = data[len("vreq_reject_"):]
         await _reject_visitor_request(update, req_id, query=query)
+
+    # ── استوديو التسويق ──
+    elif data == "studio_main":
+        await marketing_studio_menu(update, context)
+    elif data == "studio_tours":
+        await studio_tours_list(update, context)
+    elif data.startswith("studio_yt_add_"):
+        offer_id_val = data.replace("studio_yt_add_", "")
+        session["state"] = f"studio_yt_await_{offer_id_val}"
+        await query.message.reply_text(
+            f"🎥 أرسل رابط يوتيوب للعرض `{offer_id_val}`:\n(مثال: `https://www.youtube.com/watch?v=...` أو `https://youtu.be/...`)",
+            parse_mode="Markdown"
+        )
+    elif data.startswith("studio_yt_del_"):
+        offer_id_val = data.replace("studio_yt_del_", "")
+        await studio_yt_delete(update, context, offer_id_val)
+    elif data == "studio_reels":
+        await studio_generate_reels(update, context)
+    elif data == "studio_news":
+        await studio_renew_news(update, context)
+    elif data == "studio_rating":
+        await studio_rating_link(update, context)
+    elif data == "studio_newsletter":
+        await studio_newsletter_text(update, context)
 
     # Task 1: إدارة المدراء
     elif data == "renew_guides":
@@ -4945,6 +4970,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _admin_add_by_id(update, context)
         return
 
+    # حالة إضافة رابط يوتيوب من استوديو التسويق
+    if session["state"].startswith("studio_yt_await_"):
+        offer_id_val = session["state"].replace("studio_yt_await_", "")
+        yt_url = text.strip()
+        site_data = load_offers_json()
+        for o in site_data.get("offers", []):
+            if str(o.get("id")) == str(offer_id_val):
+                o["video_url"] = yt_url
+                o["youtube_url"] = yt_url
+                break
+        save_offers_json(site_data)
+        bot_data = load_bot_offers()
+        for o in bot_data.get("offers", []):
+            if str(o.get("id")) == str(offer_id_val):
+                o["video_url"] = yt_url
+                o["youtube_url"] = yt_url
+                break
+        save_bot_offers(bot_data)
+        reset_session(uid)
+        await update.message.reply_text(
+            f"✅ تم حفظ وتحديث رابط يوتيوب للعرض `{offer_id_val}` بنجاح!",
+            parse_mode="Markdown",
+            reply_markup=MAIN_KEYBOARD
+        )
+        return
+
     # ── حالات بحث الأرشيف ──
     if session["state"] == "awaiting_archive_search_num":
         _q = text.strip()
@@ -4972,7 +5023,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     _MAIN_BUTTONS = [
         "➕ إضافة عرض جديد", "📋 قائمة العروض", "🗑️ حذف عرض", "✏️ تعديل عرض",
-        "📨 طلبات الزوار", "🏡 عروض الزوار", "🔍 فلترة العروض",
+        "📨 طلبات الزوار", "🏡 عروض الزوار", "🎬 استوديو التسويق", "🔍 فلترة العروض",
         "📦 الأرشيف", "📊 إحصائيات", "📈 التقرير الأسبوعي", "🧭 تحديث البوصلة",
         "🤖 المساعد الذكي", "🗞️ تحديث الأخبار", "⚙️ الإعدادات",
         "🔄 إلغاء / بدء جديد",
@@ -5008,6 +5059,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await visitor_requests(update, context)
     elif text == "🏡 عروض الزوار":
         await visitor_offers_cmd(update, context)
+    elif text == "🎬 استوديو التسويق":
+        await marketing_studio_menu(update, context)
     elif text == "🔍 فلترة العروض":
         await filter_offers(update, context)
     elif text == "📊 إحصائيات":
@@ -6472,8 +6525,164 @@ async def cmd_pending_listings(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 # ============================================================
-
+#  استوديو التسويق — مكتب آفاق الإنجاز العقاري
 # ============================================================
+async def marketing_studio_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض لوحة التحكم الرئيسية لـ استوديو التسويق"""
+    uid = update.effective_user.id
+    if not is_authorized(uid):
+        return
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎥 إدارة الجولات (روابط يوتيوب)", callback_data="studio_tours")],
+        [InlineKeyboardButton("📜 سكريبت ريلز تسويقي", callback_data="studio_reels")],
+        [InlineKeyboardButton("📰 تجديد الأخبار والأدلة", callback_data="studio_news")],
+        [InlineKeyboardButton("⭐ رابط تقييم المالك/العملاء", callback_data="studio_rating")],
+        [InlineKeyboardButton("📣 نص النشرة التسويقية", callback_data="studio_newsletter")],
+    ])
+    msg = (
+        "🎬 *استوديو التسويق الإحترافي — مكتب آفاق الإنجاز*\n\n"
+        "أهلاً بك في استوديو التسويق الذكي! اختر من القائمة أدناه لإنشاء المحتوى وتحديث الجولات والأخبار:"
+    )
+    if update.message:
+        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=keyboard)
+    elif update.callback_query:
+        await update.callback_query.message.edit_text(msg, parse_mode="Markdown", reply_markup=keyboard)
+
+
+async def studio_tours_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """قائمة الجولات العقارية مع روابط يوتيوب والأزرار للتعديل/الحذف"""
+    query = update.callback_query
+    site_data = load_offers_json()
+    offers = site_data.get("offers", [])
+    if not offers:
+        msg = "⚠️ لا توجد عروض حالياً لإدارة جولاتها."
+        if query:
+            await query.message.edit_text(msg)
+        return
+
+    text = "🎥 *إدارة الجولات العقارية (روابط فيديو يوتيوب)*\n\n"
+    buttons = []
+    for o in offers[:10]:
+        oid = str(o.get("id", "N/A"))
+        title = o.get("title") or o.get("category") or "عقار"
+        v_url = o.get("video_url") or o.get("youtube_url") or "لا يوجد"
+        imgs_cnt = len(o.get("images") or [])
+        text += f"🔹 *[{oid}]* {title}\n"
+        text += f"   📸 الصور: {imgs_cnt} | 🎬 الفيديو: {v_url}\n\n"
+
+        row = [
+            InlineKeyboardButton(f"➕/✏️ يوتيوب {oid}", callback_data=f"studio_yt_add_{oid}")
+        ]
+        if v_url != "لا يوجد":
+            row.append(InlineKeyboardButton(f"🗑️ حذف {oid}", callback_data=f"studio_yt_del_{oid}"))
+        buttons.append(row)
+
+    buttons.append([InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")])
+    kb = InlineKeyboardMarkup(buttons)
+    if query:
+        await query.message.edit_text(text, parse_mode="Markdown", reply_markup=kb)
+
+
+async def studio_yt_delete(update: Update, context: ContextTypes.DEFAULT_TYPE, offer_id_val: str):
+    query = update.callback_query
+    site_data = load_offers_json()
+    updated = False
+    for o in site_data.get("offers", []):
+        if str(o.get("id")) == str(offer_id_val):
+            o.pop("video_url", None)
+            o.pop("youtube_url", None)
+            updated = True
+            break
+    if updated:
+        save_offers_json(site_data)
+        bot_data = load_bot_offers()
+        for o in bot_data.get("offers", []):
+            if str(o.get("id")) == str(offer_id_val):
+                o.pop("video_url", None)
+                o.pop("youtube_url", None)
+                break
+        save_bot_offers(bot_data)
+        if query:
+            await query.answer("✅ تم حذف رابط يوتيوب بنجاح")
+        await studio_tours_list(update, context)
+    else:
+        if query:
+            await query.answer("❌ لم يتم العثور على العرض")
+
+
+async def studio_generate_reels(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    site_data = load_offers_json()
+    offers = site_data.get("offers", [])
+    feat_offer = offers[0] if offers else {}
+    title = feat_offer.get("title", "مزرعة فاخرة بالخرج")
+    price = feat_offer.get("price") or feat_offer.get("price_text") or "على السوم"
+    area = feat_offer.get("area", "الخرج")
+
+    script = (
+        "📜 *سكريبت ريلز تسويقي جاهز (30 ثانية)*\n\n"
+        "🎬 *المشهد 1 (0-3 ثوانٍ) — الخطاف (Hook):*\n"
+        f"«لو تدور على أفضل فرصة عقارية في {area}.. هالمشهد إلك!»\n\n"
+        "📸 *المشهد 2 (3-15 ثانية) — استعراض العقار:*\n"
+        f"«شاهد معنا {title} بفرصة استثمارية ممتازة وموقع استراتيجي بسعر {price}!»\n\n"
+        "📞 *المشهد 3 (15-30 ثانية) — الدعوة لاتخاذ إجراء (CTA):*\n"
+        "«للتواصل والمعاينة المباشرة اتصل أو تراسل معنا الآن:\n"
+        "📱 0545888931 | مكتب آفاق الإنجاز العقاري»"
+    )
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")]])
+    if query:
+        await query.message.edit_text(script, parse_mode="Markdown", reply_markup=kb)
+
+
+async def studio_renew_news(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    if query:
+        await query.answer("جاري تجديد الأخبار...")
+    await update_news_cmd(update, context)
+
+
+async def studio_rating_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    rating_msg = (
+        "⭐ *رابط تقييم مكتب آفاق الإنجاز العقاري*\n\n"
+        "يسعدنا تقييمكم لخدماتنا العقارية على خرائط جوجل:\n"
+        "🔗 https://maps.app.goo.gl/SQhqCtgpeLNLb56w8\n\n"
+        "📋 *نص الدعوة للعملاء (جاهز للنسخ):*\n"
+        "«عميلنا العزيز، نسعد برأيك وتقييمك لخدمة مكتب آفاق الإنجاز العقاري عبر الرابط التالي ⭐:\n"
+        "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8 »"
+    )
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")]])
+    if query:
+        await query.message.edit_text(rating_msg, parse_mode="Markdown", reply_markup=kb)
+
+
+async def studio_newsletter_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    site_data = load_offers_json()
+    offers = site_data.get("offers", [])
+    bulletin = (
+        "📣 *النشرة التسويقية العقارية — مكتب آفاق الإنجاز*\n"
+        f"📅 *التاريخ:* {datetime.now().strftime('%Y-%m-%d')}\n\n"
+        "أبرز الفرص العقارية المتاحة لدينا اليوم:\n"
+        "━━━━━━━━━━━━━━━━━━━\n"
+    )
+    for o in offers[:5]:
+        oid = o.get("id", "")
+        title = o.get("title") or o.get("category") or "عقار"
+        price = o.get("price") or o.get("price_text") or "على السوم"
+        bulletin += f"🔹 *{title}* (كود: {oid})\n   💵 السعر: {price}\n"
+    bulletin += (
+        "━━━━━━━━━━━━━━━━━━━\n"
+        "📞 *للتواصل والحجز:*\n"
+        "📱 واتساب: 0545888931\n"
+        "☎️ مكالمات: 0544699933\n"
+        "🌐 موقعنا: https://abonasr0907-beep.github.io/-/"
+    )
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")]])
+    if query:
+        await query.message.edit_text(bulletin, parse_mode="Markdown", reply_markup=kb)
+
 
 # ============================================================
 # Phase 3 — الأنظمة الذكية (Smart Systems)
@@ -7711,6 +7920,54 @@ async def _handle_visitor_images_api(request):
         except Exception:
             return _json_response({"ok": False, "error": str(e)}, status=500)
 
+
+async def _handle_properties_map_api(request):
+    """
+    المسار: GET /api/properties/map
+    يعيد بيانات العروض لتقذية الخريطة التفاعلية بدون أسرار:
+    id, title, latitude, longitude, section, property_type, price, image, area, operation_type, map_link
+    """
+    try:
+        site_data = load_offers_json()
+        offers = site_data.get("offers", [])
+        map_items = []
+        for o in offers:
+            lat = o.get("visitor_lat") or o.get("lat") or o.get("latitude")
+            lng = o.get("visitor_lng") or o.get("lng") or o.get("longitude")
+            try:
+                lat_f = float(lat) if lat else None
+                lng_f = float(lng) if lng else None
+            except (ValueError, TypeError):
+                lat_f = lng_f = None
+            if lat_f is None or lng_f is None:
+                continue
+            images = o.get("images") or []
+            first_image = images[0] if isinstance(images, list) and len(images) > 0 else ""
+            price_val = o.get("price") or o.get("price_text") or ""
+            map_items.append({
+                "id": str(o.get("id", "")),
+                "title": o.get("title") or o.get("category") or "عقار",
+                "latitude": lat_f,
+                "longitude": lng_f,
+                "section": o.get("section") or "",
+                "property_type": o.get("property_type") or o.get("category") or "",
+                "type": o.get("type") or "",
+                "area": o.get("area") or "",
+                "price": str(price_val) if price_val else "",
+                "image": first_image,
+                "operation_type": o.get("operation_type") or "",
+                "size_sqm": o.get("size_sqm") or "",
+                "map_link": o.get("map_link") or o.get("visitor_map_link") or "",
+            })
+        return _json_response({
+            "ok": True,
+            "count": len(map_items),
+            "properties": map_items,
+        })
+    except Exception as e:
+        logger.error(f"خطأ في _handle_properties_map_api: {e}")
+        return _json_response({"ok": False, "error": str(e)}, status=500)
+
 def _create_api_app():
     """إنشاء تطبيق aiohttp لخادم API"""
     try:
@@ -7723,6 +7980,7 @@ def _create_api_app():
     app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
     app.router.add_post("/ingest", _handle_ingest_api)
     app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
+    app.router.add_get("/api/properties/map", _handle_properties_map_api)
     app.router.add_get("/api/visitor-request", _handle_root)
     app.router.add_get("/health", _handle_health)
     app.router.add_get("/", _handle_root)
@@ -7807,6 +8065,7 @@ async def _run_custom_webhook(app, webhook_url, port):
     web_app.router.add_post("/api/visitor-request", _handle_visitor_request_api)
     web_app.router.add_post("/ingest", _handle_ingest_api)
     web_app.router.add_post("/api/visitor-images", _handle_visitor_images_api)
+    web_app.router.add_get("/api/properties/map", _handle_properties_map_api)
     web_app.router.add_get("/api/visitor-request", _handle_root)
     web_app.router.add_get("/health", _handle_health)
     web_app.router.add_get("/", _handle_root)

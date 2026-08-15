@@ -440,12 +440,37 @@ def get_active_users() -> list:
 
 
 # ============================================================
-#  التحقق من الصلاحيات
+#  التحقق من الصلاحيات والقواعد الاحتياطية للمالك
 # ============================================================
+def get_owner_id() -> str:
+    """جلب معرف المالك من config.json أو office-data.json أو data/managers.json مع القيمة الاحتياطية '7746757675'"""
+    for path in [BASE_DIR / "config.json", BASE_DIR.parent / "bot" / "config.json", BASE_DIR.parent / "config.json"]:
+        if path.exists():
+            data = _safe_read_json(path, {})
+            oid = data.get("owner_id")
+            if oid:
+                return str(oid)
+    office_path = BASE_DIR.parent / "offers-data" / "office-data.json"
+    if office_path.exists():
+        odata = _safe_read_json(office_path, {})
+        oid = odata.get("office", {}).get("owner_id") or odata.get("owner_id")
+        if oid:
+            return str(oid)
+    managers_path = BASE_DIR.parent / "data" / "managers.json"
+    if managers_path.exists():
+        mdata = _safe_read_json(managers_path, {})
+        for mgr in mdata.get("managers", []):
+            if mgr.get("role") == "owner" and (mgr.get("id") or mgr.get("telegram_id")):
+                return str(mgr.get("id") or mgr.get("telegram_id"))
+    return "7746757675"
+
+
 def get_user_role(user_id) -> str:
-    """جلب دور المستخدم"""
+    """جلب دور المستخدم مع قاعدة احتياطية للمالك"""
+    uid = str(user_id) if user_id is not None else ""
+    if uid and uid == get_owner_id():
+        return ROLE_OWNER
     init()
-    uid = str(user_id)
     with _lock:
         user = _users.get(uid)
         if not user:
@@ -459,11 +484,17 @@ def is_admin(user_id) -> bool:
     """
     التحقق إن كان المستخدم مديراً نشطاً (admin أو owner — owner له كل صلاحيات admin).
     """
+    uid = str(user_id) if user_id is not None else ""
+    if uid and uid == get_owner_id():
+        return True
     return get_user_role(user_id) in (ROLE_ADMIN, ROLE_OWNER)
 
 
 def is_owner(user_id) -> bool:
     """التحقق إن كان المستخدم المالك (owner)."""
+    uid = str(user_id) if user_id is not None else ""
+    if uid and uid == get_owner_id():
+        return True
     return get_user_role(user_id) == ROLE_OWNER
 
 
@@ -499,6 +530,9 @@ def is_editor(user_id) -> bool:
 def is_authorized(user_id) -> bool:
     """General authorization check (any active staff role: owner, admin, manager, reviewer, publisher, editor).
     visitor is NOT authorized for bot admin commands."""
+    uid = str(user_id) if user_id is not None else ""
+    if uid and uid == get_owner_id():
+        return True
     role = get_user_role(user_id)
     return role in (ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
 
@@ -518,6 +552,9 @@ def has_permission(user_id, permission: str) -> bool:
     Protected permissions (delete_owner, change_token, change_webhook,
     change_git_settings, change_database_url) remain owner-only.
     """
+    uid = str(user_id) if user_id is not None else ""
+    if uid and uid == get_owner_id():
+        return True
     role = get_user_role(user_id)
     if role is None:
         return False

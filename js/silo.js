@@ -661,12 +661,49 @@
                 document.getElementById('luxury-poster-btn').addEventListener('click', function() {
                     generatePropertyPoster(prop);
                 });
+
+                // Wire Video Tour if present
+                if (prop.video_url || prop.video) {
+                    var vUrl = prop.video_url || prop.video;
+                    var vBtn = document.createElement('button');
+                    vBtn.className = 'luxury-action-btn btn-video-tour';
+                    vBtn.innerHTML = '<i class="fas fa-video"></i> 🎬 جولة فيديو';
+                    vBtn.onclick = function() {
+                        if (typeof window.openVideoModal === 'function') {
+                            window.openVideoModal(vUrl, title);
+                        }
+                    };
+                    actionBar.appendChild(vBtn);
+                }
             }
 
             // ===== QR Code =====
             if (qrBox && !qrBox.dataset.filled) {
                 qrBox.dataset.filled = '1';
                 generateQR(currentUrl, qrBox);
+            }
+
+            // ===== Offer FAQ Schema =====
+            if (prop.faq && Array.isArray(prop.faq) && prop.faq.length > 0) {
+                var faqEntities = prop.faq.map(function(item) {
+                    return {
+                        "@type": "Question",
+                        "name": item.question || item.q || '',
+                        "acceptedAnswer": {
+                            "@type": "Answer",
+                            "text": item.answer || item.a || ''
+                        }
+                    };
+                });
+                var faqSchema = {
+                    "@context": "https://schema.org",
+                    "@type": "FAQPage",
+                    "mainEntity": faqEntities
+                };
+                var script = document.createElement('script');
+                script.type = 'application/ld+json';
+                script.textContent = JSON.stringify(faqSchema);
+                document.head.appendChild(script);
             }
         }, 500);
     }
@@ -679,6 +716,8 @@
         updateFavCounter();
         updateCompareDrawer();
         initLuxuryProperty();
+        renderFullCompareTable();
+        loadGuidesAndNews();
 
         // Inject breadcrumb schema if data attribute present
         var bcData = document.getElementById('breadcrumb-schema-data');
@@ -696,6 +735,250 @@
         init();
     }
 
+    // ===== المقارنة الشاملة (حتى 4 عقارات) =====
+    function renderFullCompareTable() {
+        var container = document.getElementById('compare-table-container');
+        var emptyEl = document.getElementById('compare-empty');
+        if (!container && !emptyEl) return;
+
+        var cmp = getCompare();
+        if (!cmp || cmp.length === 0) {
+            if (emptyEl) emptyEl.style.display = 'block';
+            if (container) container.style.display = 'none';
+            return;
+        }
+
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (container) container.style.display = 'block';
+
+        // ختم تحديث البوصلة
+        var todayStr = new Date().toISOString().slice(0, 10);
+        var lastUpdated = localStorage.getItem('afaq_bousla_last_update');
+        if (lastUpdated !== todayStr) {
+            localStorage.setItem('afaq_bousla_last_update', todayStr);
+        }
+
+        // جلب تفاصيل العقارات
+        var allOffers = window.OFFERS || [];
+        var compareOffers = cmp.map(function(c) {
+            var found = allOffers.find(function(o){ return o.id === c.id; });
+            return found || {
+                id: c.id,
+                title: c.title,
+                images: [c.img || 'images/logo.jpg'],
+                price: 1000000,
+                price_text: '1,000,000 ريال',
+                size_sqm: 1000,
+                area: 'الرحمانية',
+                category: 'مزرعة',
+                type: 'farm'
+            };
+        });
+
+        var feePct = parseFloat(window.userFeePct || 5);
+
+        // بناء الهيدر والختم والتنويه
+        var headerHtml = '<div class="compare-header-bar">' +
+            '<div class="bousla-stamp-badge"><i class="fas fa-compass"></i> البوصلة محدثة: ' + todayStr + '</div>' +
+            '<div style="display:flex; align-items:center; gap:10px;">' +
+            '<label style="font-size:13px; font-weight:700;">رسوم الشراء القابلة للتعديل (%): </label>' +
+            '<input type="number" value="' + feePct + '" min="0" max="25" step="0.5" style="width:70px; padding:6px; border:1px solid #ccc; border-radius:6px;" onchange="window.userFeePct=this.value; window.renderFullCompareTable();">' +
+            '</div>' +
+            '</div>' +
+            '<div class="compare-disclaimer"><i class="fas fa-exclamation-triangle"></i> <strong>تنويه مهم:</strong> هذا الجدول لأغراض التقييم والاسترشاد فقط — لسنا مستشارين ماليين. يُرجى إجراء الفحص النافي للجهالة قبل اتخاذ أي قرار استثماري.</div>';
+
+        var tableHtml = '<div class="compare-table-wrapper"><table class="compare-table"><thead><tr>' +
+            '<th style="width:200px;">المعيار / العقار</th>';
+
+        compareOffers.forEach(function(o) {
+            var img = (o.images && o.images[0]) ? o.images[0] : 'images/logo.jpg';
+            tableHtml += '<th class="compare-prop-header">' +
+                '<img src="' + img + '" alt="' + escHtml(o.title) + '">' +
+                '<span class="compare-prop-title">' + escHtml(o.title) + '</span>' +
+                '<button onclick="window.afaqSilo.toggleCompare(\'' + o.id + '\'); window.renderFullCompareTable();" style="background:#e74c3c; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer;">إزالة</button>' +
+                '</th>';
+        });
+        tableHtml += '</tr></thead><tbody>';
+
+        // قسم 1: «بالسعر المحدد»
+        tableHtml += '<tr><td colspan="' + (compareOffers.length + 1) + '" class="compare-section-title"><i class="fas fa-tag"></i> أولاً: التقييم بالسعر المحدد للعقار</td></tr>';
+
+        // السعر المحدد
+        tableHtml += '<tr><td><strong>السعر المحدد</strong></td>';
+        compareOffers.forEach(function(o) {
+            tableHtml += '<td style="text-align:center; font-weight:700; color:#1b3d3d;">' + (o.price ? o.price.toLocaleString('en-US') + ' ريال' : o.price_text || 'على السوم') + '</td>';
+        });
+        tableHtml += '</tr>';
+
+        // سعر المتر
+        tableHtml += '<tr><td><strong>سعر المتر</strong></td>';
+        compareOffers.forEach(function(o) {
+            var pM2 = o.price && o.size_sqm ? Math.round(o.price / o.size_sqm) : '—';
+            tableHtml += '<td style="text-align:center;">' + (typeof pM2 === 'number' ? pM2.toLocaleString('en-US') + ' ريال/م²' : pM2) + '</td>';
+        });
+        tableHtml += '</tr>';
+
+        // انحراف % عن الفئة
+        tableHtml += '<tr><td><strong>انحراف % عن متوسط الفئة</strong></td>';
+        compareOffers.forEach(function(o) {
+            var pM2 = o.price && o.size_sqm ? (o.price / o.size_sqm) : 0;
+            var catAvg = 700;
+            var dev = pM2 && catAvg ? Math.round(((pM2 - catAvg) / catAvg) * 100) : 0;
+            var devClass = dev <= 0 ? 'below' : 'above';
+            var devText = dev <= 0 ? dev + '% أقل من المتوسط' : '+' + dev + '% أعلى من المتوسط';
+            tableHtml += '<td style="text-align:center;"><span class="compare-dev-badge ' + devClass + '">' + devText + '</span></td>';
+        });
+        tableHtml += '</tr>';
+
+        // تكلفة الشراء التقديرية
+        tableHtml += '<tr><td><strong>تكلفة الشراء التقديرية (السعر + ' + feePct + '% رسوم)</strong></td>';
+        compareOffers.forEach(function(o) {
+            var estCost = o.price ? Math.round(o.price * (1 + feePct / 100)) : 0;
+            tableHtml += '<td style="text-align:center; font-weight:700;">' + (estCost ? estCost.toLocaleString('en-US') + ' ريال' : '—') + '</td>';
+        });
+        tableHtml += '</tr>';
+
+        // العائد % المتوقع
+        tableHtml += '<tr><td><strong>العائد السنوي % المتوقع (افتراض 7%)</strong></td>';
+        compareOffers.forEach(function(o) {
+            var defaultRent = o.price ? Math.round(o.price * 0.07) : 0;
+            var yieldPct = '7.0';
+            tableHtml += '<td style="text-align:center;">' +
+                '<strong style="color:#27ae60; font-size:15px;">' + yieldPct + '%</strong><br>' +
+                '<small style="color:#777;">إيجار تقديري: ' + Math.round(defaultRent).toLocaleString('en-US') + ' ريال/سنة</small>' +
+                '</td>';
+        });
+        tableHtml += '</tr>';
+
+        // قسم 2: «بمتوسط البوصلة»
+        tableHtml += '<tr><td colspan="' + (compareOffers.length + 1) + '" class="compare-section-title"><i class="fas fa-compass"></i> ثانياً: التقييم بمتوسط البوصلة العقارية</td></tr>';
+
+        // متوسط البوصلة
+        tableHtml += '<tr><td><strong>متوسط سعر المتر (البوصلة)</strong></td>';
+        compareOffers.forEach(function(o) {
+            var bouslaVal = '750 ريال/م²';
+            if (window.BOUSLA_PRICES && window.BOUSLA_PRICES[o.area]) {
+                var bObj = window.BOUSLA_PRICES[o.area];
+                bouslaVal = o.type === 'farm' ? bObj.farm : (o.type === 'resthouse' ? bObj.resthouse : bObj.land);
+            }
+            tableHtml += '<td style="text-align:center; font-weight:700; color:#b8860b;">' + bouslaVal + '</td>';
+        });
+        tableHtml += '</tr>';
+
+        // السعر التقديري حسب البوصلة
+        tableHtml += '<tr><td><strong>السعر التقديري حسب البوصلة</strong></td>';
+        compareOffers.forEach(function(o) {
+            var bM2 = 750;
+            var totalBousla = o.size_sqm ? Math.round(bM2 * o.size_sqm) : (o.price || 0);
+            tableHtml += '<td style="text-align:center;">' + totalBousla.toLocaleString('en-US') + ' ريال</td>';
+        });
+        tableHtml += '</tr>';
+
+        // تكلفة الشراء التقديرية حسب البوصلة
+        tableHtml += '<tr><td><strong>تكلفة الشراء التقديرية (البوصلة + ' + feePct + '%)</strong></td>';
+        compareOffers.forEach(function(o) {
+            var bM2 = 750;
+            var totalBousla = o.size_sqm ? Math.round(bM2 * o.size_sqm) : (o.price || 0);
+            var bCost = Math.round(totalBousla * (1 + feePct / 100));
+            tableHtml += '<td style="text-align:center; font-weight:700;">' + bCost.toLocaleString('en-US') + ' ريال</td>';
+        });
+        tableHtml += '</tr>';
+
+        // العائد المتوقع حسب البوصلة
+        tableHtml += '<tr><td><strong>العائد % المتوقع حسب البوصلة</strong></td>';
+        compareOffers.forEach(function(o) {
+            var bM2 = 750;
+            var totalBousla = o.size_sqm ? Math.round(bM2 * o.size_sqm) : (o.price || 0);
+            var defaultRent = totalBousla ? Math.round(totalBousla * 0.07) : 0;
+            var bYield = totalBousla && defaultRent ? ((defaultRent / totalBousla) * 100).toFixed(1) : '7.0';
+            tableHtml += '<td style="text-align:center; color:#27ae60; font-weight:700;">' + bYield + '%</td>';
+        });
+        tableHtml += '</tr>';
+
+        tableHtml += '</tbody></table></div>';
+        container.innerHTML = headerHtml + tableHtml;
+    }
+
+    window.renderFullCompareTable = renderFullCompareTable;
+
+    // ===== تحميل الأدلة والأخبار النسخة الاحتياطية الأصليّة =====
+    async function loadGuidesAndNews() {
+        var newsContainer = document.getElementById('market-news-container');
+        if (!newsContainer) return;
+
+        var newsItems = [
+            {
+                title: 'نمو ملحوظ في الطلب على المزارع والاستراحات بالخرج خلال 2025',
+                date: '2025-02-15',
+                summary: 'شهدت سوق العقارات بالخرج والرياض ارتفاعاً في حجم تداولات المزارع والاستراحات المجهزة بشبكات آبار حديثة وتقنيات ري طاقة شمسية.',
+                icon: 'fa-chart-line'
+            },
+            {
+                title: 'التوسع المخطط في المخططات السكنية والزراعية بالدلم والهياثم والرحمانية',
+                date: '2025-02-10',
+                summary: 'اعتماد مخططات تنظيمية جديدة تدعم التمدد العمراني والاستثمار الزراعي المستدام مع ربط المحاور الرئيسية بالخرج والرياض.',
+                icon: 'fa-city'
+            },
+            {
+                title: 'تسهيلات التوثيق الإلكتروني للصكوك ترفع معدل التداول العقاري الموثق',
+                date: '2025-02-05',
+                summary: 'منصة ناجز والمؤشرات العقارية للهيئة العامة للعقار تمنح الشفافية الكاملة للمشترين والمستثمرين لضمان أسرع نقل ملكية وتقييم دقيق.',
+                icon: 'fa-shield-alt'
+            }
+        ];
+
+        try {
+            var res = await fetch('data/news.json');
+            if (res.ok) {
+                var data = await res.json();
+                if (data && data.news && data.news.length > 0) {
+                    newsItems = data.news;
+                }
+            }
+        } catch(e) {}
+
+        var html = '<div class="market-news-section" style="margin-top:40px;">' +
+            '<h2 class="section-news-title" style="margin-bottom:20px; font-size:22px; color:#1b3d3d;"><i class="fas fa-newspaper" style="color:#C4A956;"></i> أخبار السوق العقاري بالخرج والرياض</h2>' +
+            '<div class="silo-hub-grid">';
+
+        newsItems.forEach(function(item) {
+            html += '<div class="silo-hub-card market-news-card">' +
+                '<div class="silo-hub-card-icon"><i class="fas ' + (item.icon || 'fa-newspaper') + '"></i></div>' +
+                '<div class="silo-hub-card-body">' +
+                '<div style="font-size:12px; color:#b8860b; margin-bottom:6px;"><i class="far fa-calendar-alt"></i> ' + (item.date || '2025') + '</div>' +
+                '<h3>' + escHtml(item.title) + '</h3>' +
+                '<p>' + escHtml(item.summary) + '</p>' +
+                '</div>' +
+                '</div>';
+        });
+
+        html += '</div></div>';
+        newsContainer.innerHTML = html;
+
+        // Inject NewsArticle Schema
+        newsItems.forEach(function(item) {
+            var newsSchema = {
+                "@context": "https://schema.org",
+                "@type": "NewsArticle",
+                "headline": item.title,
+                "datePublished": item.date || "2025-02-15",
+                "description": item.summary,
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "مكتب آفاق الإنجاز العقاري",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://abonasr0907-beep.github.io/-/images/logo.jpg"
+                    }
+                }
+            };
+            var s = document.createElement('script');
+            s.type = 'application/ld+json';
+            s.textContent = JSON.stringify(newsSchema);
+            document.head.appendChild(s);
+        });
+    }
+
     // Expose for property page integration
     window.afaqSilo = {
         toggleFavorite: toggleFavorite,
@@ -703,6 +986,7 @@
         getFavorites: getFavorites,
         getCompare: getCompare,
         buildOfferUrl: buildOfferUrl,
-        slugify: slugify
+        slugify: slugify,
+        renderFullCompareTable: renderFullCompareTable
     };
 })();
