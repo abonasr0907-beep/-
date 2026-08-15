@@ -1,0 +1,11 @@
+{
+  "managers": [
+    {
+      "id": 123456,
+      "name": "Test Manager",
+      "date": "2026-08-15 15:11:03",
+      "active": true,
+      "added_by": "system"
+    }
+  ]
+}

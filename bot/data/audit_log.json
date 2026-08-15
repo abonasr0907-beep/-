@@ -59,6 +59,42 @@
       "performed_by": "phase-2.7",
       "detail": "تمت ترقية 1 مدير إلى full_admin (جديد: 1)",
       "timestamp": "2026-08-13 20:06:58"
+    },
+    {
+      "action": "add_user",
+      "performed_by": "999",
+      "detail": "أضاف مستخدم 12345 (اختبار مدير) بدور manager",
+      "timestamp": "2026-08-15 14:13:56"
+    },
+    {
+      "action": "add_permanent_manager",
+      "performed_by": "999",
+      "detail": "تعيين مدير دائم 12345 (اختبار مدير)",
+      "timestamp": "2026-08-15 14:13:56"
+    },
+    {
+      "action": "add_user",
+      "performed_by": "system",
+      "detail": "أضاف مستخدم 123456 (Test Manager) بدور manager",
+      "timestamp": "2026-08-15 15:09:28"
+    },
+    {
+      "action": "add_permanent_manager",
+      "performed_by": "system",
+      "detail": "تعيين مدير دائم 123456 (Test Manager)",
+      "timestamp": "2026-08-15 15:09:28"
+    },
+    {
+      "action": "add_user",
+      "performed_by": "system",
+      "detail": "أضاف مستخدم 123456 (Test Manager) بدور manager",
+      "timestamp": "2026-08-15 15:11:03"
+    },
+    {
+      "action": "add_permanent_manager",
+      "performed_by": "system",
+      "detail": "تعيين مدير دائم 123456 (Test Manager)",
+      "timestamp": "2026-08-15 15:11:03"
     }
   ]
 }

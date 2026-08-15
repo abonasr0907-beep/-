@@ -28,8 +28,10 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 USERS_FILE = DATA_DIR / "users.json"
 AUDIT_FILE = DATA_DIR / "audit_log.json"
+MANAGERS_FILE = BASE_DIR.parent / "data" / "managers.json"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+MANAGERS_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
 #  الثوابت — الأدوار الثلاثة المطلوبة
@@ -480,18 +482,157 @@ def is_full_admin(user_id) -> bool:
     return False
 
 
+# ============================================================
+#  إدارة المدراء الدائمين — data/managers.json
+# ============================================================
+def _load_managers_file() -> dict:
+    """قراءة data/managers.json مباشرة عند كل طلب لا جلسة مؤقتة"""
+    if not MANAGERS_FILE.exists():
+        return {"managers": []}
+    try:
+        with open(MANAGERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, dict):
+                return data
+            elif isinstance(data, list):
+                return {"managers": data}
+            return {"managers": []}
+    except Exception as e:
+        logger.error("خطأ في قراءة data/managers.json: " + str(e))
+        return {"managers": []}
+
+
+def _save_managers_file(data: dict):
+    """حفظ data/managers.json بشكل ذري"""
+    try:
+        MANAGERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write_json(MANAGERS_FILE, data)
+    except Exception as e:
+        logger.error("خطأ في حفظ data/managers.json: " + str(e))
+
+
+def is_permanent_manager(user_id) -> bool:
+    """التحقق المباشر من القرص عند كل طلب لمنع مشكلة الجلسات المؤقتة وحظر العروض"""
+    if not user_id:
+        return False
+    uid_str = str(user_id)
+    mdata = _load_managers_file()
+    mgrs = mdata.get("managers", [])
+    if isinstance(mgrs, dict):
+        mgr = mgrs.get(uid_str)
+        return bool(mgr and mgr.get("active") is True)
+    elif isinstance(mgrs, list):
+        for mgr in mgrs:
+            if str(mgr.get("id")) == uid_str and mgr.get("active") is True:
+                return True
+    return False
+
+
+def add_permanent_manager(user_id, name, added_by="system") -> bool:
+    """إضافة/تحديث مدير دائم في data/managers.json بلا تاريخ انتهاء وبلا حدود عروض"""
+    uid_str = str(user_id)
+    try:
+        uid_int = int(user_id)
+    except (ValueError, TypeError):
+        uid_int = user_id
+    mdata = _load_managers_file()
+    mgrs = mdata.get("managers", [])
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if isinstance(mgrs, dict):
+        mgrs[uid_str] = {
+            "id": uid_int,
+            "name": name,
+            "date": now_str,
+            "active": True,
+            "added_by": str(added_by)
+        }
+    else:
+        found = False
+        for mgr in mgrs:
+            if str(mgr.get("id")) == uid_str:
+                mgr["name"] = name
+                mgr["active"] = True
+                mgr["date"] = now_str
+                mgr["added_by"] = str(added_by)
+                found = True
+                break
+        if not found:
+            mgrs.append({
+                "id": uid_int,
+                "name": name,
+                "date": now_str,
+                "active": True,
+                "added_by": str(added_by)
+            })
+    mdata["managers"] = mgrs
+    _save_managers_file(mdata)
+    add_user(user_id, name, role=ROLE_MANAGER, added_by=added_by)
+    log_audit("add_permanent_manager", added_by, "تعيين مدير دائم " + uid_str + " (" + name + ")")
+    return True
+
+
+def remove_permanent_manager(user_id, removed_by="system") -> tuple:
+    """إزالة مدير دائم — للمالك فقط"""
+    if not is_owner(removed_by) and str(removed_by) != "system":
+        return False, "إزالة المدراء مقتصرة على المالك فقط."
+
+    uid_str = str(user_id)
+    mdata = _load_managers_file()
+    mgrs = mdata.get("managers", [])
+    removed = False
+
+    if isinstance(mgrs, dict):
+        if uid_str in mgrs:
+            mgrs[uid_str]["active"] = False
+            removed = True
+    else:
+        for mgr in mgrs:
+            if str(mgr.get("id")) == uid_str:
+                mgr["active"] = False
+                removed = True
+
+    if removed:
+        mdata["managers"] = mgrs
+        _save_managers_file(mdata)
+        change_role(user_id, ROLE_VISITOR, changed_by=removed_by)
+        log_audit("remove_permanent_manager", removed_by, "إزالة مدير " + uid_str)
+        return True, "تمت إزالة المدير بنجاح."
+    return False, "المستخدم غير موجود كمدير."
+
+
+def get_permanent_managers() -> list:
+    """جلب قائمة المدراء الدائمين النشطين من data/managers.json مباشرة"""
+    mdata = _load_managers_file()
+    mgrs = mdata.get("managers", [])
+    res = []
+    if isinstance(mgrs, dict):
+        for k, mgr in mgrs.items():
+            if mgr.get("active") is True:
+                res.append(mgr)
+    elif isinstance(mgrs, list):
+        for mgr in mgrs:
+            if mgr.get("active") is True:
+                res.append(mgr)
+    return res
+
+
 def is_manager(user_id) -> bool:
-    """التحقق إن كان المستخدم مديراً (manager)."""
+    """التحقق إن كان المستخدم مديراً (manager) أو دائمياً في data/managers.json."""
+    if is_permanent_manager(user_id):
+        return True
     return get_user_role(user_id) == ROLE_MANAGER
 
 
 def can_manage_managers(user_id) -> bool:
     """من يستطيع إضافة/إزالة المدراء: owner و admin فقط."""
-    return get_user_role(user_id) in MANAGER_MANAGE_ROLES
+    return get_user_role(user_id) in MANAGER_MANAGE_ROLES or is_owner(user_id)
 
 
 def is_editor(user_id) -> bool:
     """Check if user is editor/publisher/admin/owner/manager (active) -- backwards compat"""
+    if is_permanent_manager(user_id):
+        return True
     role = get_user_role(user_id)
     return role in (ROLE_EDITOR, ROLE_PUBLISHER, ROLE_ADMIN, ROLE_OWNER, ROLE_MANAGER)
 
@@ -499,6 +640,8 @@ def is_editor(user_id) -> bool:
 def is_authorized(user_id) -> bool:
     """General authorization check (any active staff role: owner, admin, manager, reviewer, publisher, editor).
     visitor is NOT authorized for bot admin commands."""
+    if is_permanent_manager(user_id):
+        return True
     role = get_user_role(user_id)
     return role in (ROLE_OWNER, ROLE_ADMIN, ROLE_MANAGER, ROLE_REVIEWER, ROLE_PUBLISHER, ROLE_EDITOR)
 
@@ -518,6 +661,20 @@ def has_permission(user_id, permission: str) -> bool:
     Protected permissions (delete_owner, change_token, change_webhook,
     change_git_settings, change_database_url) remain owner-only.
     """
+    if is_permanent_manager(user_id):
+        if permission in (
+            "review_requests", "publish_offers", "view_archive", "add_listing",
+            "edit_listing", "publish_listing", "reject_listing", "archive_listing",
+            "approve_visitor_offer", "approve_site_offer", "edit_text_before_publish",
+            "add_marketing_text", "view_listing_links", "receive_request_notifications"
+        ):
+            return True
+        if permission in (
+            "manage_users", "manage_managers", "delete_offers", "edit_settings",
+            "delete_owner", "change_token", "change_webhook", "change_git_settings", "change_database_url"
+        ):
+            return False
+
     role = get_user_role(user_id)
     if role is None:
         return False

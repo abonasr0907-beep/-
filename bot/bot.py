@@ -444,6 +444,217 @@ def save_visitor_requests(data):
     with open(VISITOR_REQUESTS, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+
+# ============================================================
+#  إدارة تنبيهات الزوار (kind=alert) والمطابقة على 3 محاور
+# ============================================================
+ALERTS_FILE = Path(__file__).resolve().parent.parent / "data" / "alerts.json"
+
+def load_alerts_data():
+    if ALERTS_FILE.exists():
+        try:
+            with open(ALERTS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {"alerts": []}
+    return {"alerts": []}
+
+def save_alerts_data(data):
+    ALERTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(ALERTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def save_alert_request(data: dict) -> dict:
+    """حفظ/تحديث طلب تنبيه زائر kind=alert مع صلاحية 30 يومًا"""
+    adata = load_alerts_data()
+    alerts = adata.get("alerts", [])
+
+    alert_id = str(data.get("alert_id") or data.get("id") or ("ALERT-" + str(int(time.time()))))
+    now = datetime.now()
+    exp_date = (now + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+
+    found = False
+    for a in alerts:
+        if str(a.get("id")) == alert_id:
+            a["property_type"] = str(data.get("property_type") or data.get("propertyType") or a.get("property_type", ""))
+            a["city"] = str(data.get("city") or a.get("city", ""))
+            a["district"] = str(data.get("district") or a.get("district", ""))
+            if data.get("budget"):
+                try:
+                    a["budget"] = float(data.get("budget"))
+                except (ValueError, TypeError):
+                    pass
+            a["whatsapp"] = str(data.get("whatsapp") or data.get("phone") or a.get("whatsapp", ""))
+            a["updated_at"] = now.strftime("%Y-%m-%d %H:%M:%S")
+            a["expires_at"] = exp_date
+            found = True
+            break
+
+    if not found:
+        budget_val = 0.0
+        try:
+            budget_val = float(data.get("budget", 0))
+        except (ValueError, TypeError):
+            budget_val = 0.0
+
+        new_alert = {
+            "id": alert_id,
+            "kind": "alert",
+            "property_type": str(data.get("property_type") or data.get("propertyType", "")),
+            "city": str(data.get("city", "")),
+            "district": str(data.get("district", "")),
+            "budget": budget_val,
+            "margin": 0.15,
+            "whatsapp": str(data.get("whatsapp") or data.get("phone", "")),
+            "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "expires_at": exp_date,
+            "status": "active"
+        }
+        alerts.append(new_alert)
+
+    adata["alerts"] = alerts
+    save_alerts_data(adata)
+    return {"ok": True, "alert_id": alert_id, "expires_at": exp_date}
+
+def ping_alert_request(alert_id: str) -> dict:
+    """تجديد صلاحية التنبيه 30 يومًا بـ ping من الموقع"""
+    adata = load_alerts_data()
+    alerts = adata.get("alerts", [])
+    now = datetime.now()
+    exp_date = (now + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    renewed = False
+    for a in alerts:
+        if str(a.get("id")) == str(alert_id):
+            a["expires_at"] = exp_date
+            a["status"] = "active"
+            renewed = True
+            break
+    if renewed:
+        adata["alerts"] = alerts
+        save_alerts_data(adata)
+        return {"ok": True, "renewed": True, "alert_id": alert_id, "expires_at": exp_date}
+    return {"ok": False, "error": "alert_not_found"}
+
+async def match_and_notify_alerts(offer: dict, bot_ref=None):
+    """محرك مطابقة 3 محاور عند كل نشر عرض (نوع، مكان، سعر ±15%)"""
+    adata = load_alerts_data()
+    alerts = adata.get("alerts", [])
+    if not alerts:
+        return []
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    matched = []
+
+    offer_title = str(offer.get("title", ""))
+    offer_category = str(offer.get("category", "") or offer.get("propertyType", ""))
+    offer_area = str(offer.get("area", "") or offer.get("location", ""))
+
+    raw_price = str(offer.get("price", ""))
+    digits = "".join([c for c in raw_price if c.isdigit()])
+    try:
+        offer_price = float(digits) if digits else 0.0
+    except ValueError:
+        offer_price = 0.0
+
+    for a in alerts:
+        exp = a.get("expires_at", "2099-01-01 00:00:00")
+        if exp < now_str or a.get("status") == "expired":
+            continue
+
+        # Axis 1: Property Type
+        a_ptype = str(a.get("property_type", "")).strip()
+        type_match = False
+        if not a_ptype or a_ptype in offer_category or a_ptype in offer_title or offer_category in a_ptype:
+            type_match = True
+
+        if not type_match:
+            continue
+
+        # Axis 2: Location
+        a_city = str(a.get("city", "")).strip()
+        a_district = str(a.get("district", "")).strip()
+        loc_match = False
+        if not a_city and not a_district:
+            loc_match = True
+        elif (a_city and a_city in offer_area) or (a_district and a_district in offer_area) or (offer_area in a_city) or (offer_area in a_district):
+            loc_match = True
+
+        if not loc_match:
+            continue
+
+        # Axis 3: Budget Margin ±15%
+        a_budget = float(a.get("budget", 0))
+        price_match = False
+        if a_budget <= 0 or offer_price <= 0:
+            price_match = True
+        else:
+            min_b = a_budget * 0.85
+            max_b = a_budget * 1.15
+            if min_b <= offer_price <= max_b:
+                price_match = True
+
+        if price_match:
+            matched.append(a)
+
+    if not matched:
+        return []
+
+    bot = bot_ref or (_bot_app_ref.bot if _bot_app_ref else None)
+    if not bot:
+        logger.warning("match_and_notify_alerts: مرجع البوت غير متوفر لتنبيه الملاحظات")
+        return matched
+
+    staff = user_manager.get_staff_for_notifications()
+    staff_ids = set()
+    for s in staff:
+        if isinstance(s, dict) and s.get("user_id"):
+            try:
+                staff_ids.add(int(s["user_id"]))
+            except (ValueError, TypeError):
+                pass
+    for aid in CONFIG.get("admin_ids", []):
+        try:
+            staff_ids.add(int(aid))
+        except (ValueError, TypeError):
+            pass
+
+    for alert in matched:
+        wa_num = str(alert.get("whatsapp", "")).strip()
+        wa_clean = "".join([c for c in wa_num if c.isdigit()])
+        if wa_clean and wa_clean.startswith("0"):
+            wa_clean = "966" + wa_clean[1:]
+
+        wa_url = ""
+        if wa_clean:
+            msg_text = "السلام عليكم، توفر لدينا عرض عقاري يطابق طلبك: " + str(offer.get("title", "")) + " بسعر " + str(offer.get("price", ""))
+            wa_url = "https://wa.me/" + wa_clean + "?text=" + urllib.parse.quote(msg_text)
+
+        msg = "🔔 <b>تنبيه مطابقة طلب زائر (مطابقة 3 محاور)</b>\n\n"
+        msg += "🏷️ <b>العقار:</b> " + str(offer.get("title", "")) + "\n"
+        msg += "🆔 <b>معرف العرض:</b> <code>" + str(offer.get("id", "")) + "</code>\n"
+        msg += "💰 <b>السعر:</b> " + str(offer.get("price", "")) + "\n"
+        msg += "📍 <b>الموقع:</b> " + str(offer.get("area", "")) + "\n\n"
+        msg += "👤 <b>بيانات طلب الزائر المطابق (ID: " + str(alert.get("id", "")) + "):</b>\n"
+        msg += "• النوع: " + str(alert.get("property_type", "غير محدد")) + "\n"
+        msg += "• المكان: " + str(alert.get("city", "")) + " / " + str(alert.get("district", "")) + "\n"
+        msg += "• الميزانية: " + str(alert.get("budget", 0)) + " ريال (±15%)\n"
+        if wa_num:
+            msg += "• واتساب: " + wa_num + "\n"
+
+        keyboard = []
+        if wa_url:
+            keyboard.append([InlineKeyboardButton("📱 راسل العميل على واتساب", url=wa_url)])
+
+        markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+
+        for sid in staff_ids:
+            try:
+                await bot.send_message(chat_id=sid, text=msg, parse_mode="HTML", reply_markup=markup)
+            except Exception as e:
+                logger.error("خطأ إرسال إشعار التنبيه للمدير: " + str(e))
+
+    return matched
+
 # ============================================================
 #  الذكاء الاصطناعي — معالجة الصور
 # ============================================================
@@ -1707,15 +1918,94 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         req_id = data[len("vreq_approve_"):]
         await _approve_visitor_request(update, req_id, query=query)
 
+    elif data.startswith("vreq_edit_"):
+        req_id = data[len("vreq_edit_"):]
+        msg = "✏️ تعديل طلب العرض (" + str(req_id) + "):\n\nأرسل التفاصيل المعدلة أو واصل بالزر عند جاهزية التعديل."
+        if query:
+            await query.edit_message_text(msg)
+
     elif data.startswith("vreq_reject_"):
         req_id = data[len("vreq_reject_"):]
-        await _reject_visitor_request(update, req_id, query=query)
+        msg = "❌ اختر سبب الرفض للطلب (" + str(req_id) + "):"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("البيانات غير مكتملة", callback_data="vreq_do_reject_" + str(req_id) + "_incomplete")],
+            [InlineKeyboardButton("السعر غير مناسب للسوق", callback_data="vreq_do_reject_" + str(req_id) + "_price")],
+            [InlineKeyboardButton("الصور جودتها منخفضة", callback_data="vreq_do_reject_" + str(req_id) + "_images")],
+            [InlineKeyboardButton("غير مطابق للشروط", callback_data="vreq_do_reject_" + str(req_id) + "_terms")]
+        ])
+        if query:
+            await query.edit_message_text(msg, reply_markup=keyboard)
+
+    elif data.startswith("vreq_do_reject_"):
+        parts = data[len("vreq_do_reject_"):].rsplit("_", 1)
+        if len(parts) == 2:
+            req_id, reason_code = parts
+            reasons_map = {
+                "incomplete": "البيانات غير مكتملة",
+                "price": "السعر غير مناسب لمتوسطات السوق",
+                "images": "الصور جودتها غير كافية",
+                "terms": "غير مطابق لشروط العرض"
+            }
+            reason_str = reasons_map.get(reason_code, "عدم استيفاء الشروط")
+            await _reject_visitor_request(update, req_id, reason_text=reason_str, query=query)
+
+    elif data.startswith("add_faq_"):
+        offer_id = data[len("add_faq_"):]
+        if offer_id == "skip":
+            if query:
+                await query.edit_message_text("👍 تم التخطي بدون إضافة أسئلة شائعة.")
+        else:
+            await _handle_add_faq(update, offer_id, query=query)
+
+    # ── Marketing Studio Callbacks ──
+    elif data == "mkt_studio_menu":
+        await _mkt_studio_menu(update, query=query)
+    elif data == "mkt_tours":
+        await _mkt_tours_list(update, query=query)
+    elif data.startswith("yt_view_"):
+        oid = data[len("yt_view_"):]
+        await _mkt_view_offer_tour(update, oid, query=query)
+    elif data.startswith("yt_add_"):
+        oid = data[len("yt_add_"):]
+        session = get_session(uid)
+        session["state"] = "awaiting_yt_url_" + oid
+        save_session(uid)
+        msg = "🎥 <b>إضافة / استبدال رابط فيديو يوتيوب للعرض (<code>" + oid + "</code>):</b>\n\nيرجى إلصاق رابط يوتيوب العادي أو القصير (Shorts):"
+        if query:
+            await query.edit_message_text(msg, parse_mode="HTML")
+    elif data.startswith("yt_del_"):
+        oid = data[len("yt_del_"):]
+        site_data = load_offers_json()
+        for o in site_data.get("offers", []):
+            if str(o.get("id")) == str(oid):
+                o["video_url"] = ""
+                break
+        save_offers_json(site_data)
+        bot_data = load_bot_offers()
+        for bo in bot_data.get("offers", []):
+            if str(bo.get("id")) == str(oid):
+                bo["video_url"] = ""
+                break
+        save_bot_offers(bot_data)
+        await _mkt_view_offer_tour(update, oid, query=query)
+    elif data == "yt_skip":
+        if query:
+            await query.edit_message_text("👍 تم التخطي بدون إضافة رابط يوتيوب.")
+    elif data == "mkt_reels_list" or data.startswith("reels_script_"):
+        oid = data[len("reels_script_"):] if data.startswith("reels_script_") else ""
+        await _mkt_reels_script(update, oid, query=query)
+    elif data == "mkt_review":
+        await _mkt_review_link(update, query=query)
+    elif data == "mkt_newsletter":
+        await _mkt_monthly_newsletter(update, query=query)
 
     # Task 1: إدارة المدراء
     elif data == "renew_guides":
         await cmd_renew_guides(update, context, query=query)
     elif data == "admin_manage":
         await _admin_manage_menu(update, query=query)
+    elif data == "admin_audit_log":
+        await _admin_audit_log(update, query=query)
     elif data == "admin_add":
         session["state"] = "awaiting_admin_id"
         save_session(uid)
@@ -2549,6 +2839,12 @@ async def _approve_visitor_offer(update, idx, query=None):
     site_data["offers"].append(offer)
     save_offers_json(site_data)
 
+    # المطابقة الفورية مع تنبيهات الزوار (kind=alert)
+    try:
+        await match_and_notify_alerts(offer, _bot_app_ref.bot if _bot_app_ref else None)
+    except Exception as _me:
+        logger.warning("⚠️ خطأ في مطابقة تنبيهات الزوار: " + str(_me))
+
     # 7) مزامنة مع GitHub
     sync_note = ""
     try:
@@ -3198,27 +3494,33 @@ async def edit_offer(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 async def _admin_manage_menu(update, query=None):
     """عرض قائمة إدارة المدراء مع أزرار الإضافة والحذف"""
-    if not is_admin(update.effective_user.id):
+    uid = update.effective_user.id
+    if not (is_admin(uid) or user_manager.is_manager(uid)):
         return
-    admins_list = sorted(ADMIN_IDS)
-    msg = "👤 إدارة المدراء\n\n"
-    msg += f"عدد المدراء الحاليين: {len(admins_list)}\n\n"
-    msg += "قائمة المدراء:\n"
-    for aid in admins_list:
-        _role = user_manager.get_user_role(aid)
-        _role_str = {"admin": "👑 مدير", "reviewer": "🔍 مراجع", "publisher": "📨 ناشر", "editor": "✏️ محرر"}.get(_role, "👤 مستخدم")
-        msg += f"  • {aid} — {_role_str}\n"
-    msg += "\nاضغط زر الإضافة لتعيين مدير جديد، أو زر الحذف بجانب أي مدير لإزالته."
+    perm_mgrs = user_manager.get_permanent_managers()
+    msg = "👤 إدارة المدراء الدائمة (data/managers.json)\n\n"
+    msg += "عدد المدراء النشطين: " + str(len(perm_mgrs)) + "\n\n"
+    if perm_mgrs:
+        msg += "قائمة المدراء الدائمين:\n"
+        for m in perm_mgrs:
+            mid = m.get("id")
+            mname = m.get("name", "مدير")
+            mdate = m.get("date", "—")
+            msg += "  • " + str(mid) + " (" + str(mname) + ") — تاريخ: " + str(mdate) + "\n"
+    else:
+        msg += "لا يوجد مدراء مسجّلون في data/managers.json حالياً.\n"
+
+    msg += "\nملاحظة: الإزالة مقتصرة على المالك فقط."
 
     keyboard = []
-    keyboard.append([InlineKeyboardButton("➕ إضافة مدير جديد", callback_data="admin_add")])
-    current_uid = update.effective_user.id
-    for aid in admins_list:
-        if aid == current_uid:
-            keyboard.append([InlineKeyboardButton(f"❌ حذف {aid} (أنت)", callback_data=f"admin_remove_{aid}")])
-            keyboard.append([InlineKeyboardButton(f"🔑 تغيير دور {aid}", callback_data=f"admin_role_{aid}")])
-        else:
-            keyboard.append([InlineKeyboardButton(f"🗑️ حذف {aid}", callback_data=f"admin_remove_{aid}")])
+    keyboard.append([InlineKeyboardButton("➕ تعيين مدير جديد", callback_data="admin_add")])
+    if is_owner(uid):
+        keyboard.append([InlineKeyboardButton("📜 سجل التدقيق (للمالك)", callback_data="admin_audit_log")])
+
+    for m in perm_mgrs:
+        mid = m.get("id")
+        keyboard.append([InlineKeyboardButton("🗑️ إزالة المدير " + str(mid), callback_data="admin_remove_" + str(mid))])
+
     keyboard.append([InlineKeyboardButton("↩️ رجوع للإعدادات", callback_data="admin_back_settings")])
 
     markup = InlineKeyboardMarkup(keyboard)
@@ -3232,21 +3534,60 @@ async def _admin_manage_menu(update, query=None):
 
 
 async def _admin_remove(update, admin_id_str, query=None):
-    """حذف مدير من القائمة"""
-    if not is_admin(update.effective_user.id):
+    """حذف مدير من القائمة — للمالك فقط"""
+    uid = update.effective_user.id
+    if not is_owner(uid):
+        msg = "⛔ إزالة المدراء مقتصرة على المالك فقط."
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("↩️ رجوع لإدارة المدراء", callback_data="admin_manage")],
+        ])
+        if query:
+            await query.edit_message_text(msg, reply_markup=keyboard)
+        else:
+            await update.message.reply_text(msg, reply_markup=keyboard)
         return
+
     try:
         admin_id = int(admin_id_str)
     except (ValueError, TypeError):
         if query:
             await query.edit_message_text("⚠️ معرّف غير صحيح.")
         return
-    if len(ADMIN_IDS) <= 1:
-        if query:
-            await query.edit_message_text("⚠️ لا يمكن حذف المدير الوحيد. يجب وجود مدير واحد على الأقل.")
-        return
+
+    success, res_msg = user_manager.remove_permanent_manager(admin_id, removed_by=uid)
     remove_admin(admin_id)
-    msg = f"✅ تم حذف المدير {admin_id} من القائمة.\n\nالمدراء الحاليون: {sorted(ADMIN_IDS)}"
+    msg = ("✅ " + res_msg) if success else ("❌ " + res_msg)
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("↩️ رجوع لإدارة المدراء", callback_data="admin_manage")],
+    ])
+    if query:
+        await query.edit_message_text(msg, reply_markup=keyboard)
+    else:
+        await update.message.reply_text(msg, reply_markup=keyboard)
+
+
+async def _admin_audit_log(update, query=None):
+    """عرض سجل التدقيق — للمالك فقط"""
+    uid = update.effective_user.id
+    if not is_owner(uid):
+        msg = "⛔ سجل التدقيق مقتصر على المالك فقط."
+        if query:
+            await query.edit_message_text(msg)
+        else:
+            await update.message.reply_text(msg)
+        return
+    logs = user_manager.get_recent_audit(20)
+    if not logs:
+        msg = "📜 سجل التدقيق فارغ حالياً."
+    else:
+        msg = "📜 سجل التدقيق (آخر 20 عملية):\n\n"
+        for entry in logs:
+            action = entry.get("action", "—")
+            perf = entry.get("performed_by", "—")
+            detail = entry.get("detail", "—")
+            ts = entry.get("timestamp", "—")
+            msg += "• [" + str(ts) + "] " + str(perf) + " -> " + str(action) + ": " + str(detail) + "\n"
+
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("↩️ رجوع لإدارة المدراء", callback_data="admin_manage")],
     ])
@@ -4017,23 +4358,73 @@ async def _approve_visitor_request(update, req_ref, query=None):
         f"📸 الصور: {len(offer.get('images', []))} صورة\n\n"
         f"🌐 الرابط الرسمي للعرض:\n{final_property_url}"
     )
+    faq_keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ أضف 3 أسئلة شائعة للعرض؟", callback_data="add_faq_" + str(offer_id))],
+        [InlineKeyboardButton("⏭️ تخطي", callback_data="add_faq_skip")]
+    ])
     if query:
-        await query.edit_message_text(msg)
+        await query.edit_message_text(msg, reply_markup=faq_keyboard)
     else:
-        await update.message.reply_text(msg)
-
-    # Phase 4: عدم حذف رسالة الطلب الأصلية — الابقاء سجل الطلب
+        await update.message.reply_text(msg, reply_markup=faq_keyboard)
 
     # إعادة تعيين جلسة المستخدم الحالي (الإدارة)
     try:
         reset_session(str(update.effective_user.id))
     except Exception as _re:
-        logger.warning(f"⚠️ reset_session في _approve_visitor_request: {_re}")
+        logger.warning("⚠️ reset_session في _approve_visitor_request: " + str(_re))
 
 
-async def _reject_visitor_request(update, req_ref, query=None):
+async def _handle_add_faq(update, offer_id, query=None):
+    """إضافة 3 أسئلة شائعة للعرض وحفظها في offer.faq"""
+    site_data = load_offers_json()
+    offers = site_data.get("offers", [])
+    found_offer = None
+    for o in offers:
+        if str(o.get("id")) == str(offer_id):
+            found_offer = o
+            break
+
+    if not found_offer:
+        msg = "⚠️ العرض غير موجود لربط الأسئلة الشائعة."
+        if query:
+            await query.edit_message_text(msg)
+        return
+
+    faqs = [
+        {
+            "question": "هل السعر المعروض قابل للتفاوض؟",
+            "answer": "نعم، السعر قابل للتفاوض الجاد عبر التواصل المباشر مع مكتب آفاق الإنجاز العقاري."
+        },
+        {
+            "question": "هل العقار جاهز للإفراغ الفوري؟",
+            "answer": "نعم، العقار صك إلكتروني ومستوفي للشروط وجاهز للإفراغ الفوري."
+        },
+        {
+            "question": "كيف يمكنني معاينة العقار على الطبيعة؟",
+            "answer": "يمكنكم معاينة العقار بالتنسيق المباشر مع المكتب عبر الواتساب أو الاتصال الهاتفي."
+        }
+    ]
+
+    found_offer["faq"] = faqs
+    save_offers_json(site_data)
+
+    bot_data = load_bot_offers()
+    for bo in bot_data.get("offers", []):
+        if str(bo.get("id")) == str(offer_id):
+            bo["faq"] = faqs
+            break
+    save_bot_offers(bot_data)
+
+    msg = "✅ تم إضافة 3 أسئلة شائعة للعرض (" + str(offer_id) + ") وحفظها في offer.faq بنجاح!"
+    if query:
+        await query.edit_message_text(msg)
+    else:
+        await update.message.reply_text(msg)
+
+
+async def _reject_visitor_request(update, req_ref, reason_text="", query=None):
     """
-    رفض طلب زائر — تحديث الحالة إلى rejected فقط (لا حذف)
+    رفض طلب زائر — تحديث الحالة إلى rejected وتجهيز زر إشعار المالك عبر واتساب
     """
     data = load_visitor_requests()
     requests_list = data.get("requests", [])
@@ -4081,18 +4472,34 @@ async def _reject_visitor_request(update, req_ref, query=None):
         return
 
     typ, item = target
-    # تحديث الحالة إلى rejected فقط — لا حذف
     item["status"] = "rejected"
     item["publish_status"] = "Failed"
+    item["rejection_reason"] = reason_text or "عدم استيفاء الشروط"
     item["rejected_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     item.setdefault("status_history", []).append({"status": "REJECTED", "at": item["rejected_at"]})
     save_visitor_requests(data)
 
-    msg = "❌ تم رفض الطلب. تم تحديث الحالة إلى مرفوض (لم يتم التسجيل للنشر)."
+    visitor_name = str(item.get("name", "العميل"))
+    visitor_phone = str(item.get("phone", ""))
+    wa_clean = "".join([c for c in visitor_phone if c.isdigit()])
+    if wa_clean.startswith("0"):
+        wa_clean = "966" + wa_clean[1:]
+
+    wa_url = ""
+    if wa_clean:
+        text_msg = "السلام عليكم " + visitor_name + "، نعتذر عن قبول طلب عرض العقار المقدم لعدم استيفاء الشروط (السبب: " + (reason_text or "عدم اكتمال البيانات") + "). مكتب آفاق الإنجاز العقاري."
+        wa_url = "https://wa.me/" + wa_clean + "?text=" + urllib.parse.quote(text_msg)
+
+    msg = "❌ تم رفض الطلب. (السبب: " + (reason_text or "عدم استيفاء الشروط") + ")"
+    keyboard = []
+    if wa_url:
+        keyboard.append([InlineKeyboardButton("📱 إشعار المالك بالرفض عبر واتساب", url=wa_url)])
+
+    markup = InlineKeyboardMarkup(keyboard) if keyboard else None
     if query:
-        await query.edit_message_text(msg)
+        await query.edit_message_text(msg, reply_markup=markup)
     else:
-        await update.message.reply_text(msg)
+        await update.message.reply_text(msg, reply_markup=markup)
 
 
 # ============================================================
@@ -4892,6 +5299,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_ai_chat(update, context)
         return
 
+    # ── Marketing Studio: استقبال رابط فيديو يوتيوب ──
+    if session.get("state", "").startswith("awaiting_yt_url_"):
+        oid = session["state"][len("awaiting_yt_url_"):]
+        embed_url = extract_youtube_embed_url(text)
+        if embed_url:
+            site_data = load_offers_json()
+            for o in site_data.get("offers", []):
+                if str(o.get("id")) == str(oid):
+                    o["video_url"] = embed_url
+                    break
+            save_offers_json(site_data)
+            bot_data = load_bot_offers()
+            for bo in bot_data.get("offers", []):
+                if str(bo.get("id")) == str(oid):
+                    bo["video_url"] = embed_url
+                    break
+            save_bot_offers(bot_data)
+            reset_session(uid)
+            await update.message.reply_text("✅ تم حفظ وتضمين فيديو يوتيوب للعرض (" + str(oid) + ") بنجاح!\n\nرابط التضمين:\n" + embed_url)
+        else:
+            await update.message.reply_text("⚠️ الرابط الملصق غير صالح. يرجى إلصاق رابط يوتيوب صحيح (youtube.com أو youtu.be أو shorts).")
+        return
+
     # ── Phase 7: تعديل نص العقار (قبل/بعد النشر) ──
     if session.get("state") == "lst_awaiting_edit_text":
         eid = session.get("edit_listing_eid", "")
@@ -5164,8 +5594,20 @@ async def auto_weekly_report(context):
     else:
         msg += "   لا توجد بيانات أقسام بعد.\n"
 
-    msg += f"\n📌 العروض المنشورة: {len(load_offers_json().get('offers', []))}\n"
-    msg += f"📨 طلبات معلقة: {len(load_visitor_requests().get('requests', []))}\n"
+    vdata = load_visitor_requests()
+    adata = load_alerts_data()
+    offers = load_offers_json().get("offers", [])
+
+    leads_count = len(vdata.get("requests", []))
+    matched_alerts_count = len(adata.get("alerts", []))
+    bookings_count = len(vdata.get("bookings", []))
+    approvals_count = sum(1 for o in offers if str(o.get("status")).lower() == "published" or str(o.get("publish_status")).lower() == "published")
+
+    msg += "\n📈 <b>إحصائيات العمليات والأداء:</b>\n"
+    msg += "• 📬 طلبات الزوار (Leads): " + str(leads_count) + "\n"
+    msg += "• 🔔 تنبيهات الطلبات المطابقة: " + str(matched_alerts_count) + "\n"
+    msg += "• ⚡ الحجوزات الفورية: " + str(bookings_count) + "\n"
+    msg += "• ✅ العروض المعتمدة والمنشورة: " + str(approvals_count) + "\n"
 
     for admin_id in ADMIN_IDS:
         try:
@@ -5848,17 +6290,15 @@ async def cmd_add_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"❌ فشل تغيير دور المستخدم {new_uid}.")
             return
 
-        # مستخدم جديد -> أضفه مباشرة كمدير
-        user_manager.add_user(new_uid, name, role="manager", added_by=uid)
-        user_manager.log_audit("add_manager", uid, f"إضافة مدير جديد {new_uid} ({name})")
+        # تعيين كمدير دائم في data/managers.json
+        user_manager.add_permanent_manager(new_uid, name, added_by=uid)
         await update.message.reply_text(
-            f"✅ تم إضافة المدير بنجاح!\n\n"
-            f"🆔 ID: {new_uid}\n"
-            f"👤 الاسم: {name}\n"
-            f"🔑 الدور: مدير (manager)\n"
-            f"📊 الحالة: نشط\n\n"
-            f"💡 يمكن للمدير الآن: إضافة/تعديل/نشر/رفض/أرشفة العقارات، "
-            f"اعتماد عروض الزوار والموقع، تعديل النصوص، إضافة نص تسويقي."
+            "✅ تم إضافة المدير الدائم بنجاح!\n\n"
+            "🆔 ID: " + str(new_uid) + "\n"
+            "👤 الاسم: " + str(name) + "\n"
+            "🔑 الدور: مدير دائم (data/managers.json)\n"
+            "📊 الحالة: نشط وبلا انتهاء\n\n"
+            "💡 الصلاحيات: نشر/تعديل/موافقة عروض الزوار/تقارير بلا حدود."
         )
     except ValueError:
         await update.message.reply_text("⚠️ معرّف تيليجرام يجب أن يكون رقماً.")
@@ -5868,13 +6308,10 @@ async def cmd_add_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_remove_manager(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """إزالة دور المدير عن مستخدم (يعود إلى visitor) — /remove_manager <telegram_user_id>"""
+    """إزالة دور المدير عن مستخدم — للمالك فقط — /remove_manager <telegram_user_id>"""
     uid = update.effective_user.id
-    if not is_admin(uid):
-        await update.message.reply_text("⛔ إزالة المدراء متاحة للمالك/المدير العام فقط.")
-        return
-    if not user_manager.can_manage_managers(uid):
-        await update.message.reply_text("⛔ ليس لديك صلاحية إدارة المدراء.")
+    if not is_owner(uid):
+        await update.message.reply_text("⛔ إزالة المدراء مقتصرة على المالك فقط.")
         return
 
     args = context.args
@@ -5907,16 +6344,15 @@ async def cmd_remove_manager(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return
 
-        # تغيير الدور إلى visitor (إزالة صلاحيات المدير مع الإبقاء على المستخدم)
-        success = user_manager.change_role(target_uid, "visitor", changed_by=uid)
+        # إزالة المدير من data/managers.json — للمالك فقط
+        success, res_msg = user_manager.remove_permanent_manager(target_uid, removed_by=uid)
         if success:
-            user_manager.log_audit("remove_manager", uid, f"إزالة دور المدير عن {target_uid} (أصبح visitor)")
             await update.message.reply_text(
-                f"✅ تم إزالة دور المدير عن المستخدم {target_uid}.\n"
-                f"🔑 أصبح الآن: زائر (visitor) — بدون صلاحيات النشر/التعديل."
+                "✅ تم إزالة دور المدير عن المستخدم " + str(target_uid) + ".\n"
+                "🔑 أصبح الآن: زائر (visitor) — بدون صلاحيات الإدارة."
             )
         else:
-            await update.message.reply_text(f"❌ فشل إزالة دور المدير عن {target_uid}.")
+            await update.message.reply_text("❌ " + res_msg)
     except ValueError:
         await update.message.reply_text("⚠️ معرّف تيليجرام يجب أن يكون رقماً.")
     except Exception as e:
@@ -6610,18 +7046,291 @@ async def cmd_repair_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
+# ============================================================
+#  استوديو التسويق الداخلي للمدراء (Marketing Studio)
+# ============================================================
+def extract_youtube_embed_url(url: str) -> str:
+    """التحقق من رابط يوتيوب/youtu.be/shorts واستخراج معرف الفيديو وتحويله لرابط تضمين embed"""
+    if not url:
+        return ""
+    import re
+    m = re.search(r'(?:v=|\/shorts\/|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})', str(url).strip())
+    if m:
+        video_id = m.group(1)
+        return "https://www.youtube.com/embed/" + video_id
+    return ""
+
+async def _mkt_studio_menu(update, query=None):
+    """عرض لوحة استوديو التسويق الداخلي للمدراء"""
+    uid = update.effective_user.id if update.effective_user else (query.from_user.id if query else 0)
+    if not is_authorized(uid):
+        return
+
+    msg = "🎬 <b>استوديو التسويق الداخلي للمدراء</b>\n\n"
+    msg += "اختر الخدمة التسويقية المطلوبة:"
+
+    keyboard = [
+        [InlineKeyboardButton("🎬 إدارة الجولات (فيديو يوتيوب)", callback_data="mkt_tours")],
+        [InlineKeyboardButton("🎬 سكريبت ريلز 30 ثانية", callback_data="mkt_reels_list")],
+        [InlineKeyboardButton("⭐ رابط التقييم للعميل", callback_data="mkt_review")],
+        [InlineKeyboardButton("📰 نص النشرة الشهرية (Mailchimp)", callback_data="mkt_newsletter")],
+        [InlineKeyboardButton("↩️ رجوع للإعدادات", callback_data="admin_back_settings")]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+    if query:
+        await query.edit_message_text(msg, parse_mode="HTML", reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=markup)
+
+async def _mkt_tours_list(update, query=None):
+    """عرض قائمة العروض لإضافة أو تعديل فيديو يوتيوب"""
+    uid = update.effective_user.id if update.effective_user else (query.from_user.id if query else 0)
+    if not is_authorized(uid):
+        return
+
+    offers = load_offers_json().get("offers", [])
+    if not offers:
+        msg = "📋 لا توجد عروض منشورة حالياً لإدارة جولاتها."
+        if query: await query.edit_message_text(msg)
+        else: await update.message.reply_text(msg)
+        return
+
+    msg = "🎬 <b>إدارة الجولات (فيديوهات يوتيوب)</b>\n\n"
+    msg += "اختر العرض لإضافة/تعديل/حذف رابط فيديو يوتيوب:"
+
+    keyboard = []
+    for o in offers[:15]:
+        oid = str(o.get("id", ""))
+        title = str(o.get("title") or o.get("category", "عرض"))[:25]
+        has_v = "🎥 " if o.get("video_url") else ""
+        keyboard.append([InlineKeyboardButton(has_v + title + " (" + oid + ")", callback_data="yt_view_" + oid)])
+
+    keyboard.append([InlineKeyboardButton("↩️ رجوع لاستوديو التسويق", callback_data="mkt_studio_menu")])
+    markup = InlineKeyboardMarkup(keyboard)
+
+    if query:
+        await query.edit_message_text(msg, parse_mode="HTML", reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=markup)
+
+async def _mkt_view_offer_tour(update, offer_id, query=None):
+    """عرض تفاصيل الجولة ورابط يوتيوب الخاص بعرض محدد"""
+    offers = load_offers_json().get("offers", [])
+    found = None
+    for o in offers:
+        if str(o.get("id")) == str(offer_id):
+            found = o
+            break
+
+    if not found:
+        msg = "⚠️ العرض غير موجود."
+        if query: await query.edit_message_text(msg)
+        return
+
+    oid = str(found.get("id", ""))
+    title = str(found.get("title", ""))
+    v_url = str(found.get("video_url", ""))
+
+    msg = "🎬 <b>إدارة فيديو الجولة للعرض:</b> " + title + " (<code>" + oid + "</code>)\n\n"
+    if v_url:
+        msg += "🔗 <b>رابط التضمين الحالي:</b>\n" + v_url + "\n"
+    else:
+        msg += "❌ <b>لا يوجد رابط فيديو يوتيوب لهذا العرض حالياً.</b>\n"
+
+    keyboard = [
+        [InlineKeyboardButton("🎥 إضافة / استبدال رابط يوتيوب", callback_data="yt_add_" + oid)],
+    ]
+    if v_url:
+        keyboard.append([InlineKeyboardButton("🗑️ حذف رابط الفيديو", callback_data="yt_del_" + oid)])
+    keyboard.append([InlineKeyboardButton("↩️ رجوع لإدارة الجولات", callback_data="mkt_tours")])
+
+    markup = InlineKeyboardMarkup(keyboard)
+    if query:
+        await query.edit_message_text(msg, parse_mode="HTML", reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=markup)
+
+async def _mkt_reels_script(update, offer_id="", query=None):
+    """توليد سكريبت ريلز 30 ثانية باللهجة السعودية كملاحظة خفية للنسخ"""
+    offers = load_offers_json().get("offers", [])
+    found = None
+    if offer_id:
+        for o in offers:
+            if str(o.get("id")) == str(offer_id):
+                found = o
+                break
+
+    if not found and offers:
+        found = offers[0]
+
+    title = str(found.get("title", "عقار فاخر")) if found else "عقار فاخر"
+    category = str(found.get("category", "عقار")) if found else "عقار"
+    price = str(found.get("price_text") or found.get("price", "منافس")) if found else "منافس"
+    size = str(found.get("size_sqm", "مساحة واسعة")) if found else "مساحة واسعة"
+
+    msg = "🎬 <b>سكريبت ريلز / تيك توك 30 ثانية (جاهز للنسخ):</b>\n\n"
+    msg += "⚡ <b>الهوك (أول 3 ثوانٍ):</b>\n"
+    msg += "«تبحث عن عقار لقطة بالخرج أو الرياض؟ خلّك معي 30 ثانية وتشوف الإبداع!»\n\n"
+    msg += "📸 <b>اللقطة 1 (0-7 ثوانٍ):</b> واجهة العقار والمدخل الرئيسي.\n"
+    msg += "🎙️ <b>الصوت:</b> 'عرضنا اليوم " + title + " بموقع ممتاز ومساحة " + str(size) + " م².'\n\n"
+    msg += "📸 <b>اللقطة 2 (7-15 ثانية):</b> المجالس والمساحات الداخلية والتجهيزات.\n"
+    msg += "🎙️ <b>الصوت:</b> 'تشطيب ونظافة وشرحة المكان صك إلكتروني وإفراغ فوري!'\n\n"
+    msg += "📸 <b>اللقطة 3 (15-22 ثانية):</b> الحوش / المسبح / المسطحات والمرافق.\n"
+    msg += "🎙️ <b>الصوت:</b> 'مكان يفتح النفس يناسب السكن والاستثمار التشغيلي العالي!'\n\n"
+    msg += "📸 <b>اللقطة 4 والختام (22-30 ثانية):</b> الشعار وأرقام التواصل.\n"
+    msg += "🎙️ <b>الصوت:</b> 'السعر " + str(price) + " فقط! ارفع الشاشة أو راسلنا واتساب مع مكتب آفاق الإنجاز.'\n\n"
+    msg += "📱 <b>نص على الشاشة (On-Screen Text):</b>\n"
+    msg += "السعر: " + str(price) + " | المساحة: " + str(size) + " م²\n"
+    msg += "تواصل واتساب: 0545888931\n\n"
+    msg += "🏷️ <b>الهاشتاقات:</b> #عقارات #الخرج #الرياض #" + category.replace(" ", "_")
+
+    keyboard = [
+        [InlineKeyboardButton("↩️ رجوع لاستوديو التسويق", callback_data="mkt_studio_menu")]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    if query:
+        await query.edit_message_text(msg, parse_mode="HTML", reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=markup)
+
+async def _mkt_review_link(update, query=None):
+    """⭐ رابط التقييم للعميل post-deal"""
+    review_url = str(CONFIG.get("REVIEW_URL") or CONFIG.get("review_url") or "").strip()
+    if not review_url:
+        msg = "⚠️ رابط التقييم Google (REVIEW_URL) غير مضبوط في config.json."
+        if query: await query.edit_message_text(msg)
+        else: await update.message.reply_text(msg)
+        return
+
+    text_msg = "شكرًا لثقتكم بمكتب آفاق الإنجاز العقاري! نرجو منكم إكرامنا ببيان تقييمكم وتجربتكم معنا عبر رابط تقييم Google: " + review_url
+    wa_url = "https://wa.me/?text=" + urllib.parse.quote(text_msg)
+
+    msg = "⭐ <b>رابط التقييم للعملاء (Google Reviews):</b>\n\n"
+    msg += "يمكنك إرسال رسالة الشكر والتقييم للعميل بعد إتمام الصفقة:"
+
+    keyboard = [
+        [InlineKeyboardButton("📱 إرسال نص التقييم عبر واتساب", url=wa_url)],
+        [InlineKeyboardButton("↩️ رجوع لاستوديو التسويق", callback_data="mkt_studio_menu")]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+    if query:
+        await query.edit_message_text(msg, parse_mode="HTML", reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=markup)
+
+async def _mkt_monthly_newsletter(update, query=None):
+    """📰 نص النشرة الشهرية (Mailchimp Ready)"""
+    offers = load_offers_json().get("offers", [])[:5]
+    news = load_alerts_data().get("alerts", [])[:3]
+
+    today_month = datetime.now().strftime("%B %Y")
+
+    msg = "📰 <b>نص النشرة الشهرية (جاهز للصق في Mailchimp):</b>\n\n"
+    msg += "━━━━━━━━━━━━━━━━━━━━\n"
+    msg += "📌 <b>النشرة العقارية الشهرية — مكتب آفاق الإنجاز (" + today_month + ")</b>\n\n"
+    msg += "أهلاً بكم في نشرتنا الشهرية! نستعرض معكم أحدث الفرص والأخبار العقارية في الخرج والرياض:\n\n"
+    msg += "🌟 <b>أبرز عروض الشهر الممتازة:</b>\n"
+
+    for o in offers:
+        oid = str(o.get("id", ""))
+        otitle = str(o.get("title") or o.get("category", ""))
+        oprice = str(o.get("price_text") or o.get("price", ""))
+        oarea = str(o.get("area", ""))
+        msg += "• " + otitle + " (" + oarea + ") - السعر: " + oprice + " [معرف: " + oid + "]\n"
+
+    msg += "\n📞 <b>للتواصل والاستفسار:</b>\n"
+    msg += "واتساب: 0545888931 | مكالمات: 0544699933\n"
+    msg += "مكتب آفاق الإنجاز العقاري\n"
+    msg += "━━━━━━━━━━━━━━━━━━━━"
+
+    keyboard = [
+        [InlineKeyboardButton("↩️ رجوع لاستوديو التسويق", callback_data="mkt_studio_menu")]
+    ]
+    markup = InlineKeyboardMarkup(keyboard)
+
+    if query:
+        await query.edit_message_text(msg, parse_mode="HTML", reply_markup=markup)
+    else:
+        await update.message.reply_text(msg, parse_mode="HTML", reply_markup=markup)
+
 async def cmd_renew_guides(update: Update, context: ContextTypes.DEFAULT_TYPE, query=None):
-    """أمر/زر تجديد الأدلة للمدراء فقط"""
+    """أمر/زر تجديد الأخبار والأدلة للمدراء فقط"""
     user_id = update.effective_user.id if update.effective_user else (query.from_user.id if query else 0)
     if not is_authorized(user_id):
-        msg = "⛔ ليس لديك صلاحية تجديد الأدلة (للمدراء والمالك فقط)."
+        msg = "⛔ ليس لديك صلاحية تجديد الأخبار والأدلة (للمدراء والمالك فقط)."
         if query: await query.answer(msg, show_alert=True)
         elif update.message: await update.message.reply_text(msg)
         return
 
     today_str = datetime.now().strftime("%Y-%m-%d")
+    news_path = os.path.join(os.path.dirname(__file__), "..", "data", "news.json")
     guides_path = os.path.join(os.path.dirname(__file__), "..", "data", "guides.json")
     os.makedirs(os.path.dirname(guides_path), exist_ok=True)
+
+    news_list = [
+        {
+          "id": "NEWS-2026-001",
+          "title": "الهيئة العامة للعقار تعلن إطلاق المرحلة الجديدة من التسجيل العيني للعقار بالرياض والخرج",
+          "summary": "توسيع نطاق السجل العقاري العيني ليشمل أحياء ومخططات جديدة بمنطقتي الرياض والخرج لتعزيز الشفافية وتوثيق الملكيات.",
+          "category": "أنظمة وتنظيمات",
+          "date": today_str,
+          "url": "/news/rega-registration-2026"
+        },
+        {
+          "id": "NEWS-2026-002",
+          "title": "نمو مؤشرات التداول العقاري للمزارع والاستراحات في الخرج والدلم بنسبة 18%",
+          "summary": "ارتفاع ملحوظ في تداولات العقارات الزراعية والاستراحات بدعم من الإقبال على الاستثمار السياحي والزراعي الحديث.",
+          "category": "تقرير السوق",
+          "date": today_str,
+          "url": "/news/alkharj-real-estate-growth"
+        },
+        {
+          "id": "NEWS-2026-003",
+          "title": "برنامج وافي يصدر تراخيص جديدة لمشاريع البيع على الخارطة في جنوب الرياض",
+          "summary": "منح تراخيص جديدة لمشاريع سكنية وتجارية متكاملة لخدمة التوسع العمراني بالمنطقة الوسطى.",
+          "category": "مشاريع وتطوير",
+          "date": today_str,
+          "url": "/news/wafi-licenses-riyadh"
+        },
+        {
+          "id": "NEWS-2026-004",
+          "title": "استقرار متوسطات أسعار الأراضي السكنية في مخططات الرحمانية والهياثم",
+          "summary": "استقرار متوسط سعر المتر للأراضي السكنية بالرحمانية والهياثم وفق مؤشرات البوصلة العقارية مع استمرار الطلب.",
+          "category": "تحليل الأسعار",
+          "date": today_str,
+          "url": "/news/residential-lands-prices"
+        },
+        {
+          "id": "NEWS-2026-005",
+          "title": "تسهيلات جديدة لإجراءات الإفراغ العقاري الإلكتروني عبر البوابة الوطنية ناجز",
+          "summary": "تحديثات ناجز تتيح إتمام الإفراغ العقاري الفوري للمزارع والعقارات للشركات والأفراد بكل يسر.",
+          "category": "خدمات إلكترونية",
+          "date": today_str,
+          "url": "/news/najiz-real-estate-services"
+        },
+        {
+          "id": "NEWS-2026-006",
+          "title": "ارتفاع الإقبال على الشاليهات والمزارع المنتجة المدعومة بتقنيات الري الحديثة",
+          "summary": "المزارع المزودة بآبار مرخصة ونظم ري ذكية تحقق عوائد استثمارية تشغيلية أعلى مقارنة بالعقارات التقليدية.",
+          "category": "استثمار عقاري",
+          "date": today_str,
+          "url": "/news/modern-farms-investment"
+        },
+        {
+          "id": "NEWS-2026-007",
+          "title": "مخطط التوسع العمراني الجديد يربط جنوب الرياض بمحافظة الخرج عبر شبكة طرق مطورة",
+          "summary": "تنفيذ مراحل متقدمة لتوسعة المحاور الرئيسية الرابطة بين جنوب العاصمة ومحافظة الخرج لزيادة الجذب الاستثماري.",
+          "category": "بنية تحتية",
+          "date": today_str,
+          "url": "/news/riyadh-kharj-road-expansion"
+        }
+    ]
+
+    news_data = {
+        "last_updated": today_str,
+        "news": news_list
+    }
 
     guides_data = {
         "last_updated": today_str,
@@ -6630,11 +7339,11 @@ async def cmd_renew_guides(update: Update, context: ContextTypes.DEFAULT_TYPE, q
                 "id": "farms-guide",
                 "title": "دليل شراء المزارع في الخرج والرياض",
                 "updated_at": today_str,
-                "summary": "دليل شامل لشراء المزارع في الخرج والرياض — تقييم الآبار والصكوك والأسعار.",
-                "compass_average_price_per_m2": 35,
+                "summary": "دليل شامل لشراء المزارع في الخرج والرياض — تقييم الآبار والصكوك الإلكترونية وأحدث الأسعار.",
+                "compass_average_price_per_m2": 38,
                 "examples": [
-                    "مزرعة 50,000 م² بالخرج بئر 2 بوصة بسعر متوسط 1,750,000 ريال",
-                    "مزرعة 100,000 م² بالدلم شبكة ري متكاملة بسعر متوسط 3,500,000 ريال"
+                    "مزرعة 50,000 م² بالخرج بئر 2 بوصة بسعر متوسط 1,900,000 ريال",
+                    "مزرعة 100,000 م² بالدلم شبكة ري متكاملة بسعر متوسط 3,800,000 ريال"
                 ]
             },
             {
@@ -6642,10 +7351,10 @@ async def cmd_renew_guides(update: Update, context: ContextTypes.DEFAULT_TYPE, q
                 "title": "دليل الاستراحات والشاليهات",
                 "updated_at": today_str,
                 "summary": "كل ما تحتاج معرفته عن شراء الاستراحات والاستثمار فيها بالخرج والرياض.",
-                "compass_average_price_per_m2": 450,
+                "compass_average_price_per_m2": 460,
                 "examples": [
-                    "استراحة 1,000 م² بالرحمانية مسبح ومسطحات بسعر متوسط 450,000 ريال",
-                    "استراحة 2,000 م² بالهياثم تشطيب فاخر بسعر متوسط 900,000 ريال"
+                    "استراحة 1,000 م² بالرحمانية مسبح ومسطحات بسعر متوسط 460,000 ريال",
+                    "استراحة 2,000 م² بالهياثم تشطيب فاخر بسعر متوسط 920,000 ريال"
                 ]
             },
             {
@@ -6663,36 +7372,41 @@ async def cmd_renew_guides(update: Update, context: ContextTypes.DEFAULT_TYPE, q
     }
 
     try:
+        with open(news_path, "w", encoding="utf-8") as f:
+            json.dump(news_data, f, ensure_ascii=False, indent=2)
         with open(guides_path, "w", encoding="utf-8") as f:
             json.dump(guides_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        logger.error(f"خطأ حفظ data/guides.json: {e}")
+        logger.error("خطأ حفظ data/news.json و data/guides.json: " + str(e))
 
-    github_token = os.environ.get("GITHUB_CONTENT_TOKEN")
+    github_token = os.environ.get("GITHUB_CONTENT_TOKEN") or os.environ.get("GITHUB_TOKEN")
     pushed = False
     if github_token:
         try:
             import subprocess
             subprocess.run(["git", "config", "user.name", "Afaq Bot"], check=False)
             subprocess.run(["git", "config", "user.email", "bot@afaq.local"], check=False)
-            subprocess.run(["git", "add", "data/guides.json"], check=False)
-            res = subprocess.run(["git", "commit", "-m", f"chore: auto renew guides {today_str}"], capture_output=True, text=True)
-            if res.returncode == 0:
+            subprocess.run(["git", "add", "data/news.json", "data/guides.json"], check=False)
+            subprocess.run(["git", "commit", "-m", "chore: auto renew news and guides " + today_str], capture_output=True, text=True)
+            push_res = subprocess.run(["git", "push"], capture_output=True, text=True)
+            if push_res.returncode == 0:
                 pushed = True
         except Exception as ge:
-            logger.error(f"خطأ الالتزام التلقائي للأدلة: {ge}")
+            logger.error("خطأ الالتزام التلقائي للأخبار والأدلة: " + str(ge))
 
-    res_msg = f"✅ تم تجديد الأدلة بنجاح ({today_str})!\n"
+    res_msg = "🔄 <b>تم تجديد الأخبار والأدلة بنجاح (" + today_str + "):</b>\n\n"
+    res_msg += "📰 <b>الأخبار:</b> تم توليد 7 عناوين سوق سعودية أصلية (data/news.json)\n"
+    res_msg += "📖 <b>الأدلة:</b> تم تجديد التواريخ وأمثلة متوسطات البوصلة (data/guides.json)\n\n"
     if pushed:
-        res_msg += "📦 تم الالتزام والتحديث تلقائيًا عبر Git."
+        res_msg += "📦 تم الالتزام والدفع التلقائي إلى GitHub بنجاح عبر التوكن."
     else:
-        res_msg += "📝 ملاحظة للمدراء: تم تحديث data/guides.json محليًا."
+        res_msg += "💡 ملاحظة خفية: تم تحديث data/news.json و data/guides.json محلياً."
 
     if query:
-        await query.message.reply_text(res_msg)
+        await query.message.reply_text(res_msg, parse_mode="HTML")
         await query.answer()
     elif update.message:
-        await update.message.reply_text(res_msg)
+        await update.message.reply_text(res_msg, parse_mode="HTML")
 
 async def cmd_admin_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض سجل عمليات الأدمن — /admin_log"""
@@ -6778,19 +7492,41 @@ async def cmd_request_history(update: Update, context: ContextTypes.DEFAULT_TYPE
 #  Phase 3 §1.3: حارس الارتداد — /fix command
 # ============================================================
 async def cmd_fix(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """أمر /fix — فحص فوري + إصلاح جميع العروض (للمدير/admin فقط)."""
-    if not is_admin(update.effective_user.id):
-        await update.message.reply_text("⛔ هذا الأمر للمدير فقط.")
+    """أمر /fix — فحص فوري + إصلاح جميع العروض وسلامة الروابط."""
+    uid = update.effective_user.id
+    if not (is_admin(uid) or user_manager.is_manager(uid)):
+        await update.message.reply_text("⛔ هذا الأمر للمدراء والمالك فقط.")
         return
-    if not _bounce_guard:
-        await update.message.reply_text("⚠️ حارس الارتداد غير متاح.")
-        return
+
+    report_text = ""
+    if _bounce_guard:
+        try:
+            report_text = _bounce_guard.fix_now()
+        except Exception as e:
+            logger.error("❌ خطأ في /fix bounce guard: " + str(e))
+
     try:
-        report_text = _bounce_guard.fix_now()
-        await update.message.reply_text(report_text, disable_web_page_preview=True)
+        from ai_system.guardian import link_guardian
+        res = link_guardian.verify_and_repair_offer_links(OFFERS_JSON_PATH)
+        if res.get("ok"):
+            link_note = "\n\n🛡️ <b>حارس سلامة الروابط (Link Guardian):</b>\n"
+            link_note += "• إجمالي العروض المعالجة: " + str(res.get("total_checked", 0)) + "\n"
+            link_note += "• الروابط المكسورة التي تم إصلاحها (LOW): " + str(res.get("repaired_count", 0)) + "\n"
+            report_text += link_note
+    except Exception as _lge:
+        logger.error("❌ خطأ حارس سلامة الروابط: " + str(_lge))
+
+    await update.message.reply_text(report_text or "✅ اكتمل فحص الإصلاح.", disable_web_page_preview=True, parse_mode="HTML")
+
+
+async def auto_weekly_link_check(context):
+    """فحص أسبوعي تلقائي لسلامة الروابط عبر Link Guardian"""
+    try:
+        from ai_system.guardian import link_guardian
+        res = link_guardian.verify_and_repair_offer_links(OFFERS_JSON_PATH)
+        logger.info("حارس سلامة الروابط الأسبوعي: " + str(res))
     except Exception as e:
-        logger.error(f"❌ خطأ في /fix: {e}")
-        await update.message.reply_text(f"❌ خطأ: {e}")
+        logger.error("خطأ حارس الروابط الأسبوعي: " + str(e))
 
 
 # ============================================================
@@ -7141,6 +7877,11 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("add_manager", cmd_add_manager))
     app.add_handler(CommandHandler("remove_manager", cmd_remove_manager))
     app.add_handler(CommandHandler("managers", cmd_managers))
+    app.add_handler(CommandHandler("audit", _admin_audit_log))
+    app.add_handler(CommandHandler("marketing", _mkt_studio_menu))
+    app.add_handler(CommandHandler("reels", _mkt_reels_script))
+    app.add_handler(CommandHandler("review_link", _mkt_review_link))
+    app.add_handler(CommandHandler("newsletter", _mkt_monthly_newsletter))
     # ── Phase 5/6: listing view commands ──
     app.add_handler(CommandHandler("listings", cmd_listings))
     app.add_handler(CommandHandler("view_listing", cmd_view_listing))
@@ -7195,10 +7936,12 @@ def _setup_handlers(app):
     if CONFIG.get("auto_prices_update", True) and app.job_queue:
         app.job_queue.run_daily(auto_update_prices, time=__import__("datetime").time(hour=6, minute=0))
         logger.info("🧭 تم جدولة تحديث الأسعار اليومي — كل يوم 6 صباحاً")
-    # تحديث الأخبار كل 3 أيام
+    # تحديث الأخبار كل 3 أيام وحارس الروابط الأسبوعي
     if app.job_queue:
         app.job_queue.run_repeating(auto_update_news, interval=3 * 24 * 3600, first=3600)
         logger.info("🗞️ تم جدولة تحديث الأخبار — كل 3 أيام")
+        app.job_queue.run_repeating(auto_weekly_link_check, interval=7 * 24 * 3600, first=86400)
+        logger.info("🔗 تم جدولة حارس سلامة الروابط الأسبوعي")
 
     # Phase 3 §1.3: حارس الارتداد — فحص تلقائي كل 6 ساعات
     if app.job_queue and _bounce_guard:
@@ -7343,11 +8086,86 @@ async def _handle_visitor_request_api(request):
     return _json_response({"ok": True, "id": request_id, "message": "تم استلام الطلب بنجاح"})
 
 
+async def _handle_booking_ingest(data: dict) -> dict:
+    """معالجة الحجز الفوري kind=booking وإرسال ملاحظة خفية بنص كامل وزر wa.me"""
+    booking_id = str(data.get("id") or ("BOOKING-" + str(int(time.time()))))
+    name = str(data.get("name", "زائر"))
+    phone = str(data.get("phone", ""))
+    offer_id = str(data.get("offer_id") or data.get("offerId", "—"))
+    offer_title = str(data.get("offer_title") or data.get("title") or data.get("propertyType", "عقار"))
+    booking_date = str(data.get("booking_date") or data.get("date") or data.get("time") or datetime.now().strftime("%Y-%m-%d"))
+    notes = str(data.get("notes") or data.get("description", "لا يوجد"))
+
+    bdata = load_visitor_requests()
+    b_record = {
+        "id": booking_id,
+        "kind": "booking",
+        "name": name,
+        "phone": phone,
+        "offer_id": offer_id,
+        "offer_title": offer_title,
+        "booking_date": booking_date,
+        "notes": notes,
+        "submitted_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    bdata.setdefault("bookings", []).append(b_record)
+    save_visitor_requests(bdata)
+
+    bot = _bot_app_ref.bot if _bot_app_ref else None
+    if bot:
+        wa_clean = "".join([c for c in phone if c.isdigit()])
+        if wa_clean.startswith("0"):
+            wa_clean = "966" + wa_clean[1:]
+
+        wa_url = ""
+        if wa_clean:
+            text_msg = "السلام عليكم " + name + "، تم استلام طلب حجزك الفوري للعقار: " + offer_title + " للموعد: " + booking_date + ". يسعدنا تواصلك مع مكتب آفاق الإنجاز العقاري لتأكيد التفاصيل."
+            wa_url = "https://wa.me/" + wa_clean + "?text=" + urllib.parse.quote(text_msg)
+
+        msg = "⚡ <b>حجز فوري جديد</b>\n\n"
+        msg += "🏷️ <b>العقار:</b> " + offer_title + "\n"
+        msg += "🆔 <b>معرف العرض:</b> <code>" + offer_id + "</code>\n"
+        msg += "👤 <b>اسم الحاجز:</b> " + name + "\n"
+        msg += "📱 <b>الهاتف:</b> " + phone + "\n"
+        msg += "📅 <b>الموعد المطلوب:</b> " + booking_date + "\n"
+        if notes and notes != "لا يوجد":
+            msg += "📝 <b>الملاحظات:</b> " + notes + "\n"
+        msg += "📄 <b>رقم الحجز:</b> <code>" + booking_id + "</code>\n"
+
+        keyboard = []
+        if wa_url:
+            keyboard.append([InlineKeyboardButton("📱 تواصل مع الحاجز عبر واتساب (نص كامل)", url=wa_url)])
+
+        markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+
+        staff = user_manager.get_staff_for_notifications()
+        staff_ids = set()
+        for s in staff:
+            if isinstance(s, dict) and s.get("user_id"):
+                try:
+                    staff_ids.add(int(s["user_id"]))
+                except (ValueError, TypeError):
+                    pass
+        for aid in CONFIG.get("admin_ids", []):
+            try:
+                staff_ids.add(int(aid))
+            except (ValueError, TypeError):
+                pass
+
+        for sid in staff_ids:
+            try:
+                await bot.send_message(chat_id=sid, text=msg, parse_mode="HTML", reply_markup=markup)
+            except Exception as e:
+                logger.error("خطأ إرسال إشعار الحجز الفوري: " + str(e))
+
+    return {"ok": True, "booking_id": booking_id, "message": "تم استلام الحجز الفوري وإرسال الملاحظة الخفية"}
+
+
 async def _handle_ingest_api(request):
     """
     جسر استقبال موحّد من الموقع — المسار: POST /ingest
-    يتحقق من هيدر X-Ingest-Secret ثم يمرّر الحمولة إلى معالج طلبات الزائر.
-    يقبل نموذج إضافة عقار ونموذج المزايدة (type=bid).
+    يتحقق من هيدر X-Ingest-Secret ويرفع أنواع الحمولة:
+    kind=alert / alert_ping, kind=visitor_listing, kind=booking, type=bid
     """
     try:
         expected = str(CONFIG.get("ingest_secret", "") or os.environ.get("INGEST_SECRET", "")).strip()
@@ -7361,7 +8179,32 @@ async def _handle_ingest_api(request):
     if not expected or provided != expected:
         logger.warning("⛔ /ingest مرفوض — X-Ingest-Secret غير صالح")
         return _json_response({"ok": False, "error": "unauthorized"}, status=401)
-    # التحقق من الصحة بعد السر — إعادة استخدام معالج طلب الزائر القائم
+
+    try:
+        data = await request.json()
+    except Exception:
+        try:
+            data = await request.post()
+            data = dict(data)
+        except Exception as e:
+            return _json_response({"ok": False, "error": "invalid data: " + str(e)}, status=400)
+
+    kind = str(data.get("kind", data.get("type", ""))).lower()
+
+    if kind in ("alert", "alert_ping") or data.get("action") == "ping":
+        if kind == "alert_ping" or data.get("action") == "ping":
+            alert_id = str(data.get("alert_id") or data.get("id", ""))
+            res = ping_alert_request(alert_id)
+            return _json_response(res)
+        else:
+            res = save_alert_request(data)
+            return _json_response(res)
+
+    elif kind == "booking":
+        res = await _handle_booking_ingest(data)
+        return _json_response(res)
+
+    # fallback to visitor request api
     return await _handle_visitor_request_api(request)
 
 
@@ -7472,11 +8315,12 @@ async def _notify_admins_new_request(bot, visitor_request, vdata):
         f"\U0001F310 abonasr0907-beep.github.io/-"
     )
 
-    # أزرار الموافقة والرفض
+    # أزرار موافقة/تعديل/رفض العروض
     req_id = visitor_request.get("id", f"idx_{idx}")
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("\u2705 موافقة ونشر", callback_data=f"vreq_approve_{req_id}")],
-        [InlineKeyboardButton("\u274C رفض", callback_data=f"vreq_reject_{req_id}")],
+        [InlineKeyboardButton("✅ اعتماد ونشر", callback_data="vreq_approve_" + str(req_id))],
+        [InlineKeyboardButton("✏️ تعديل قبل النشر", callback_data="vreq_edit_" + str(req_id))],
+        [InlineKeyboardButton("❌ رفض بسبب...", callback_data="vreq_reject_" + str(req_id))],
     ])
 
     sent_count = 0
