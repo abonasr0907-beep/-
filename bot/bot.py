@@ -1656,7 +1656,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     uid = update.effective_user.id
     session = get_session(uid)
-    data = query.data
+    data = query.data or ""
 
     if data in ("reinit_system", "reinit"):
         await cmd_reinit_system(update, context)
@@ -4971,9 +4971,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # حالة إضافة رابط يوتيوب من استوديو التسويق
-    if session["state"].startswith("studio_yt_await_"):
-        offer_id_val = session["state"].replace("studio_yt_await_", "")
-        yt_url = text.strip()
+    state_str = str(session.get("state") or "")
+    if state_str.startswith("studio_yt_await_"):
+        offer_id_val = state_str.replace("studio_yt_await_", "")
+        yt_url = (text or "").strip()
         site_data = load_offers_json()
         for o in site_data.get("offers", []):
             if str(o.get("id")) == str(offer_id_val):
@@ -6553,20 +6554,22 @@ async def marketing_studio_menu(update: Update, context: ContextTypes.DEFAULT_TY
 async def studio_tours_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """قائمة الجولات العقارية مع روابط يوتيوب والأزرار للتعديل/الحذف"""
     query = update.callback_query
-    site_data = load_offers_json()
-    offers = site_data.get("offers", [])
+    site_data = load_offers_json() or {}
+    offers = site_data.get("offers") or []
     if not offers:
         msg = "⚠️ لا توجد عروض حالياً لإدارة جولاتها."
-        if query:
+        if query and query.message:
             await query.message.edit_text(msg)
         return
 
     text = "🎥 *إدارة الجولات العقارية (روابط فيديو يوتيوب)*\n\n"
     buttons = []
     for o in offers[:10]:
-        oid = str(o.get("id", "N/A"))
-        title = o.get("title") or o.get("category") or "عقار"
-        v_url = o.get("video_url") or o.get("youtube_url") or "لا يوجد"
+        if not isinstance(o, dict):
+            continue
+        oid = str(o.get("id") or "N/A")
+        title = str(o.get("title") or o.get("category") or "عقار")
+        v_url = str(o.get("video_url") or o.get("youtube_url") or "لا يوجد")
         imgs_cnt = len(o.get("images") or [])
         text += f"🔹 *[{oid}]* {title}\n"
         text += f"   📸 الصور: {imgs_cnt} | 🎬 الفيديو: {v_url}\n\n"
@@ -6580,25 +6583,25 @@ async def studio_tours_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     buttons.append([InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")])
     kb = InlineKeyboardMarkup(buttons)
-    if query:
+    if query and query.message:
         await query.message.edit_text(text, parse_mode="Markdown", reply_markup=kb)
 
 
 async def studio_yt_delete(update: Update, context: ContextTypes.DEFAULT_TYPE, offer_id_val: str):
     query = update.callback_query
-    site_data = load_offers_json()
+    site_data = load_offers_json() or {}
     updated = False
-    for o in site_data.get("offers", []):
-        if str(o.get("id")) == str(offer_id_val):
+    for o in (site_data.get("offers") or []):
+        if isinstance(o, dict) and str(o.get("id") or "") == str(offer_id_val or ""):
             o.pop("video_url", None)
             o.pop("youtube_url", None)
             updated = True
             break
     if updated:
         save_offers_json(site_data)
-        bot_data = load_bot_offers()
-        for o in bot_data.get("offers", []):
-            if str(o.get("id")) == str(offer_id_val):
+        bot_data = load_bot_offers() or {}
+        for o in (bot_data.get("offers") or []):
+            if isinstance(o, dict) and str(o.get("id") or "") == str(offer_id_val or ""):
                 o.pop("video_url", None)
                 o.pop("youtube_url", None)
                 break
@@ -6613,12 +6616,12 @@ async def studio_yt_delete(update: Update, context: ContextTypes.DEFAULT_TYPE, o
 
 async def studio_generate_reels(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    site_data = load_offers_json()
-    offers = site_data.get("offers", [])
-    feat_offer = offers[0] if offers else {}
-    title = feat_offer.get("title", "مزرعة فاخرة بالخرج")
-    price = feat_offer.get("price") or feat_offer.get("price_text") or "على السوم"
-    area = feat_offer.get("area", "الخرج")
+    site_data = load_offers_json() or {}
+    offers = site_data.get("offers") or []
+    feat_offer = offers[0] if offers and isinstance(offers[0], dict) else {}
+    title = str(feat_offer.get("title") or "مزرعة فاخرة بالخرج")
+    price = str(feat_offer.get("price") or feat_offer.get("price_text") or "على السوم")
+    area = str(feat_offer.get("area") or "الخرج")
 
     script = (
         "📜 *سكريبت ريلز تسويقي جاهز (30 ثانية)*\n\n"
@@ -6631,7 +6634,7 @@ async def studio_generate_reels(update: Update, context: ContextTypes.DEFAULT_TY
         "📱 0545888931 | مكتب آفاق الإنجاز العقاري»"
     )
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")]])
-    if query:
+    if query and query.message:
         await query.message.edit_text(script, parse_mode="Markdown", reply_markup=kb)
 
 
@@ -6644,23 +6647,24 @@ async def studio_renew_news(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def studio_rating_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    review_url = str(CONFIG.get("REVIEW_URL") or os.environ.get("REVIEW_URL") or "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8").strip()
     rating_msg = (
         "⭐ *رابط تقييم مكتب آفاق الإنجاز العقاري*\n\n"
         "يسعدنا تقييمكم لخدماتنا العقارية على خرائط جوجل:\n"
-        "🔗 https://maps.app.goo.gl/SQhqCtgpeLNLb56w8\n\n"
+        f"🔗 {review_url}\n\n"
         "📋 *نص الدعوة للعملاء (جاهز للنسخ):*\n"
         "«عميلنا العزيز، نسعد برأيك وتقييمك لخدمة مكتب آفاق الإنجاز العقاري عبر الرابط التالي ⭐:\n"
-        "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8 »"
+        f"{review_url} »"
     )
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")]])
-    if query:
+    if query and query.message:
         await query.message.edit_text(rating_msg, parse_mode="Markdown", reply_markup=kb)
 
 
 async def studio_newsletter_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    site_data = load_offers_json()
-    offers = site_data.get("offers", [])
+    site_data = load_offers_json() or {}
+    offers = site_data.get("offers") or []
     bulletin = (
         "📣 *النشرة التسويقية العقارية — مكتب آفاق الإنجاز*\n"
         f"📅 *التاريخ:* {datetime.now().strftime('%Y-%m-%d')}\n\n"
@@ -6668,9 +6672,11 @@ async def studio_newsletter_text(update: Update, context: ContextTypes.DEFAULT_T
         "━━━━━━━━━━━━━━━━━━━\n"
     )
     for o in offers[:5]:
-        oid = o.get("id", "")
-        title = o.get("title") or o.get("category") or "عقار"
-        price = o.get("price") or o.get("price_text") or "على السوم"
+        if not isinstance(o, dict):
+            continue
+        oid = str(o.get("id") or "")
+        title = str(o.get("title") or o.get("category") or "عقار")
+        price = str(o.get("price") or o.get("price_text") or "على السوم")
         bulletin += f"🔹 *{title}* (كود: {oid})\n   💵 السعر: {price}\n"
     bulletin += (
         "━━━━━━━━━━━━━━━━━━━\n"
@@ -6680,7 +6686,7 @@ async def studio_newsletter_text(update: Update, context: ContextTypes.DEFAULT_T
         "🌐 موقعنا: https://abonasr0907-beep.github.io/-/"
     )
     kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")]])
-    if query:
+    if query and query.message:
         await query.message.edit_text(bulletin, parse_mode="Markdown", reply_markup=kb)
 
 
