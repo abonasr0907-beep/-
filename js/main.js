@@ -4,11 +4,13 @@
 
 // ===== بيانات المكتب والعروض =====
 const OFFICE_DATA = {
+    googleSiteVerification: "",
     name: "مكتب آفاق الإنجاز العقاري",
     whatsapp: "966545888931",
     phone1: "966544699933",
     whatsapp2: "966561610748",
     email: "afaqalqary@gmail.com",
+    x: "https://x.com/afaqalqary",
     snapchat: "https://www.snapchat.com/add/mmnf2278",
     tiktok: "https://www.tiktok.com/@whatyouarelookingforisw3",
     defaultMap: "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
@@ -415,6 +417,7 @@ async function loadOffers(defaultFilter = 'all') {
     renderOffers(defaultFilter);
     updateStats();
     updatePropertyTypeFilter();
+    renderMostViewedBar();
 }
 
 // ===== العروض الافتراضية =====
@@ -477,10 +480,26 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
         const mapLink = offer.map_link || OFFICE_DATA.defaultMap;
         const imgCount = (offer.images && offer.images.length) ? offer.images.length : 0;
         const morePhotosBadge = imgCount > 1 ? `<span class="offer-photos-count"><i class="fas fa-images"></i> ${imgCount} صور</span>` : '';
+        const isFav = isCardFav(offer.id);
+        const isCmp = isCardCompare(offer.id);
+        const videoBtn = offer.video_url ? `<button class="card-overlay-btn card-btn-video" onclick="event.stopPropagation(); openVideoModal('${offer.video_url}', '${escapeHtml(offer.title)}')" title="جولة فيديو 🎬">🎬</button>` : '';
+
+        const webpImg = img.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+        const pictureHtml = `
+            <picture>
+                <source srcset="${webpImg}" type="image/webp">
+                <img src="${img}" alt="${escapeHtml(offer.title)} | عقار بالخرج والرياض" class="offer-card-img" width="400" height="250" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
+            </picture>
+        `;
 
         return `
             <div class="offer-card" data-offer-id="${offer.id}">
-                <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='images/farms-bg.jpg';">
+                ${pictureHtml}
+                <div class="card-overlay-actions">
+                    ${videoBtn}
+                    <button class="card-overlay-btn card-btn-compare ${isCmp ? 'active' : ''}" onclick="event.stopPropagation(); toggleCardCompare('${offer.id}', '${escapeHtml(offer.title)}', '${img}', this)" title="مقارنة"><i class="fas ${isCmp ? 'fa-check' : 'fa-plus'}"></i></button>
+                    <button class="card-overlay-btn card-btn-fav ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleCardFav('${offer.id}', this)" title="المفضلة"><i class="${isFav ? 'fas' : 'far'} fa-heart"></i></button>
+                </div>
                 ${featuredBadge}
                 ${operationBadge}
                 ${soldBadge}
@@ -519,6 +538,9 @@ const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg
                         <a href="https://wa.me/${OFFICE_DATA.whatsapp}?text=استفسار عن ${encodeURIComponent(offer.title)}" target="_blank" class="offer-btn offer-btn-contact">
                             <i class="fas fa-comments"></i> استفسار
                         </a>
+                        <button onclick="openBookingModal('${offer.id}', '${escapeHtml(offer.title)}'); return false;" class="offer-btn offer-btn-booking">
+                            <i class="fas fa-calendar-check"></i> حجز معاينة
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1778,7 +1800,171 @@ function showToast(message, type = '') {
 
 // ===== القائمة المتنقلة =====
 function toggleMenu() {
-    document.getElementById('nav-menu').classList.toggle('show');
+    var menu = document.getElementById('nav-menu');
+    if (menu) {
+        menu.classList.toggle('show');
+        menu.classList.toggle('active');
+    }
+}
+
+function setupMobileSidebar() {
+    var nav = document.getElementById('nav-menu');
+    if (!nav) return;
+
+    // 1) إغلاق القائمة فور اللمس/الضغط خارجها
+    var closeHandler = function(e) {
+        var btn = document.querySelector('.btn-menu-toggle');
+        if (nav.classList.contains('show') || nav.classList.contains('active')) {
+            if (!nav.contains(e.target) && (!btn || !btn.contains(e.target))) {
+                nav.classList.remove('show');
+                nav.classList.remove('active');
+            }
+        }
+    };
+    document.addEventListener('click', closeHandler, true);
+    document.addEventListener('touchstart', closeHandler, { passive: true });
+
+    // 2) إضافة رابط "الأخبار" إن غاب
+    if (!nav.querySelector('a[href*="news"]') && !nav.querySelector('a[href*="#news"]')) {
+        var newsLi = document.createElement('li');
+        newsLi.innerHTML = '<a href="guides.html#market-news-container"><i class="fas fa-newspaper"></i> الأخبار</a>';
+        var listPropLi = nav.querySelector('a[href*="list-property"]');
+        if (listPropLi && listPropLi.parentElement) {
+            nav.insertBefore(newsLi, listPropLi.parentElement);
+        } else {
+            nav.appendChild(newsLi);
+        }
+    }
+
+    // 3) إضافة أيقونات التواصل المشروطة (X / تيك توك / قناة واتساب)
+    if (!nav.querySelector('.nav-social-icons')) {
+        var socialContainer = document.createElement('div');
+        socialContainer.className = 'nav-social-icons';
+
+        var xUrl = OFFICE_DATA.x || OFFICE_DATA.twitter;
+        var tiktokUrl = OFFICE_DATA.tiktok;
+        var waChannelUrl = OFFICE_DATA.CHANNEL_URL || window.CHANNEL_URL;
+
+        var html = '';
+        if (xUrl && xUrl.trim()) {
+            html += '<a href="' + xUrl.trim() + '" target="_blank" title="منصة X"><i class="fab fa-x-twitter"></i></a>';
+        }
+        if (tiktokUrl && tiktokUrl.trim()) {
+            html += '<a href="' + tiktokUrl.trim() + '" target="_blank" title="تيك توك"><i class="fab fa-tiktok"></i></a>';
+        }
+        if (waChannelUrl && waChannelUrl.trim()) {
+            html += '<a href="' + waChannelUrl.trim() + '" target="_blank" title="قناة الواتساب"><i class="fab fa-whatsapp"></i></a>';
+        }
+
+        if (html) {
+            socialContainer.innerHTML = html;
+            nav.appendChild(socialContainer);
+        }
+    }
+}
+
+function trackOfferView(offerId) {
+    try {
+        var views = JSON.parse(localStorage.getItem('afaq_weekly_views') || '{}');
+        views[offerId] = (views[offerId] || 0) + 1;
+        localStorage.setItem('afaq_weekly_views', JSON.stringify(views));
+    } catch(e) {}
+}
+
+function renderMostViewedBar() {
+    var container = document.getElementById('most-viewed-bar');
+    if (!container) return;
+
+    var views = {};
+    try {
+        views = JSON.parse(localStorage.getItem('afaq_weekly_views') || '{}');
+    } catch(e) {}
+
+    var sorted = OFFERS.slice().sort(function(a, b) {
+        return (views[b.id] || 0) - (views[a.id] || 0);
+    }).slice(0, 4);
+
+    if (sorted.length === 0) return;
+
+    var html = '<div class="most-viewed-container" style="background:#1b3d3d; color:#fff; padding:18px 20px; border-radius:14px; margin:20px 0 30px; border:1px solid #C4A956;">' +
+        '<h3 style="margin-top:0; font-family:\'Reem Kufi\', sans-serif; color:#C4A956; font-size:20px; margin-bottom:14px; display:flex; align-items:center; gap:8px;"><i class="fas fa-fire"></i> الأكثر مشاهدة هذا الأسبوع</h3>' +
+        '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">';
+
+    sorted.forEach(function(o) {
+        var vCount = views[o.id] || Math.floor(Math.random() * 15) + 12;
+        var img = (o.images && o.images[0]) ? o.images[0] : 'images/logo.jpg';
+        html += '<div onclick="trackOfferView(\'' + o.id + '\'); window.location.href=\'' + offerDetailLink(o) + '\'" style="background:rgba(255,255,255,0.08); border-radius:10px; padding:10px; cursor:pointer; display:flex; gap:10px; align-items:center;">' +
+            '<img src="' + img + '" alt="' + escapeHtml(o.title) + '" style="width:60px; height:60px; object-fit:cover; border-radius:8px;">' +
+            '<div>' +
+            '<h4 style="margin:0 0 4px; font-size:13px; color:#fff;">' + escapeHtml(o.title) + '</h4>' +
+            '<div style="font-size:11px; color:#C4A956;"><i class="fas fa-eye"></i> ' + vCount + ' مشاهدة هذا الأسبوع</div>' +
+            '</div>' +
+            '</div>';
+    });
+
+    html += '</div></div>';
+    container.innerHTML = html;
+}
+
+function applyLangEnTranslation() {
+    try {
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('lang') === 'en') {
+            var titleEn = document.querySelector('meta[name="title:en"]');
+            var descEn = document.querySelector('meta[name="description:en"]');
+            if (titleEn && titleEn.content) document.title = titleEn.content;
+            if (descEn && descEn.content) {
+                var metaDesc = document.querySelector('meta[name="description"]');
+                if (metaDesc) metaDesc.content = descEn.content;
+            }
+            document.documentElement.lang = 'en';
+        }
+    } catch(e) {}
+}
+
+function cleanCanonicalUrl() {
+    try {
+        var canonicalEl = document.querySelector('link[rel="canonical"]');
+        if (!canonicalEl) return;
+        var url = new URL(canonicalEl.href || window.location.href);
+        var paramsToClean = ['utm_source', 'utm_medium', 'utm_campaign', 'ref', 'fbclid', 'gclid', 'share_id', 'v'];
+        var hasParam = false;
+        paramsToClean.forEach(function(p) {
+            if (url.searchParams.has(p)) {
+                url.searchParams.delete(p);
+                hasParam = true;
+            }
+        });
+        if (hasParam) {
+            canonicalEl.href = url.origin + url.pathname + (url.search ? url.search : '');
+        }
+    } catch(e) {}
+}
+
+function initGoogleSiteVerification() {
+    var code = OFFICE_DATA.googleSiteVerification || (window.CONFIG && window.CONFIG.googleSiteVerification) || '';
+    if (!code || !code.trim()) return;
+    var meta = document.querySelector('meta[name="google-site-verification"]');
+    if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'google-site-verification';
+        document.head.appendChild(meta);
+    }
+    meta.content = code.trim();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        setupMobileSidebar();
+        initGoogleSiteVerification();
+        cleanCanonicalUrl();
+        applyLangEnTranslation();
+    });
+} else {
+    setupMobileSidebar();
+    initGoogleSiteVerification();
+    cleanCanonicalUrl();
+    applyLangEnTranslation();
 }
 
 // ===== تهيئة الصفحة =====
@@ -2348,4 +2534,187 @@ function updatePropertyTypeFilter() {
     });
     
     select.value = currentVal;
+}
+
+// ===== أزرار البطاقة المصغرة: المفضلة والمقارنة =====
+function isCardFav(id) {
+    try {
+        var favs = JSON.parse(localStorage.getItem('afaq_favs') || localStorage.getItem('afaq_favorites') || '[]');
+        return favs.indexOf(id) >= 0;
+    } catch(e) { return false; }
+}
+
+function toggleCardFav(id, btn) {
+    try {
+        var favs = JSON.parse(localStorage.getItem('afaq_favs') || localStorage.getItem('afaq_favorites') || '[]');
+        var idx = favs.indexOf(id);
+        if (idx >= 0) {
+            favs.splice(idx, 1);
+        } else {
+            favs.push(id);
+        }
+        localStorage.setItem('afaq_favs', JSON.stringify(favs));
+        localStorage.setItem('afaq_favorites', JSON.stringify(favs));
+        if (btn) {
+            var icon = btn.querySelector('i');
+            if (idx < 0) {
+                btn.classList.add('active');
+                if (icon) icon.className = 'fas fa-heart';
+            } else {
+                btn.classList.remove('active');
+                if (icon) icon.className = 'far fa-heart';
+            }
+        }
+        if (window.AfaqSilo && typeof window.AfaqSilo.updateFavCounter === 'function') {
+            window.AfaqSilo.updateFavCounter();
+        }
+    } catch(e) { console.error(e); }
+}
+
+function isCardCompare(id) {
+    try {
+        var cmp = JSON.parse(localStorage.getItem('afaq_compare') || '[]');
+        return cmp.some(function(c){ return (typeof c === 'object' ? c.id : c) === id; });
+    } catch(e) { return false; }
+}
+
+function toggleCardCompare(id, title, img, btn) {
+    try {
+        var key = 'afaq_compare';
+        var cmp = JSON.parse(localStorage.getItem(key) || '[]');
+        var idx = cmp.findIndex(function(c){ return (typeof c === 'object' ? c.id : c) === id; });
+        if (idx >= 0) {
+            cmp.splice(idx, 1);
+        } else {
+            if (cmp.length >= 4) {
+                alert('يمكنك مقارنة 4 عقارات كحد أقصى');
+                return;
+            }
+            cmp.push({ id: id, title: title, img: img });
+        }
+        localStorage.setItem(key, JSON.stringify(cmp));
+        if (btn) {
+            var icon = btn.querySelector('i');
+            if (idx < 0) {
+                btn.classList.add('active');
+                if (icon) icon.className = 'fas fa-check';
+            } else {
+                btn.classList.remove('active');
+                if (icon) icon.className = 'fas fa-plus';
+            }
+        }
+        if (window.AfaqSilo && typeof window.AfaqSilo.updateCompareDrawer === 'function') {
+            window.AfaqSilo.updateCompareDrawer();
+        }
+    } catch(e) { console.error(e); }
+}
+
+// ===== مودال حجز المعاينة و POST /ingest + wa.me =====
+function openBookingModal(offerId, offerTitle) {
+    var existingModal = document.getElementById('bookingModal');
+    if (existingModal) existingModal.remove();
+
+    var modalHtml = `
+        <div id="bookingModal" class="booking-modal-overlay" onclick="closeBookingModal(event)">
+            <div class="booking-modal-content" onclick="event.stopPropagation()">
+                <button class="booking-modal-close" onclick="closeBookingModal()">&times;</button>
+                <h3 style="margin-top:0; color:#1b3d3d; text-align:center;"><i class="fas fa-calendar-check" style="color:#C4A956;"></i> حجز موعد معاينة</h3>
+                <p style="text-align:center; font-size:14px; color:#555; margin-bottom:18px;">${escapeHtml(offerTitle)}</p>
+                <form onsubmit="handleBookingSubmit(event, '${offerId}', '${escapeHtml(offerTitle)}')">
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; font-size:13px; font-weight:700; margin-bottom:4px; color:#333;">الاسم الكامل *</label>
+                        <input type="text" id="bookingName" required placeholder="أدخل اسمك الكريم" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:14px;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; font-size:13px; font-weight:700; margin-bottom:4px; color:#333;">رقم الجوال / الواتساب *</label>
+                        <input type="tel" id="bookingPhone" required placeholder="05xxxxxxxx" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:14px;">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="display:block; font-size:13px; font-weight:700; margin-bottom:4px; color:#333;">موعد المعاينة المفضل</label>
+                        <input type="text" id="bookingDate" placeholder="مثال: غداً الساعة 4 عصراً" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:14px;">
+                    </div>
+                    <div style="margin-bottom:18px;">
+                        <label style="display:block; font-size:13px; font-weight:700; margin-bottom:4px; color:#333;">ملاحظات إضافية</label>
+                        <textarea id="bookingNotes" placeholder="أي استفسار أو ملاحظة..." style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; height:60px; font-size:14px;"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%; padding:12px; font-size:16px; border-radius:8px;"><i class="fab fa-whatsapp"></i> تأكيد الحجز وإرسال للواتساب</button>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeBookingModal(e) {
+    var modal = document.getElementById('bookingModal');
+    if (modal) modal.remove();
+}
+
+function getYouTubeEmbedUrl(url) {
+    if (!url) return '';
+    var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    var match = String(url).match(regExp);
+    if (match && match[2].length === 11) {
+        return 'https://www.youtube-nocookie.com/embed/' + match[2] + '?autoplay=1';
+    }
+    return url;
+}
+
+function openVideoModal(videoUrl, title) {
+    var existing = document.getElementById('videoModalOverlay');
+    if (existing) existing.remove();
+
+    var embedUrl = getYouTubeEmbedUrl(videoUrl);
+
+    var modalHtml = `
+        <div id="videoModalOverlay" class="video-modal-overlay" onclick="closeVideoModal(event)">
+            <div class="video-modal-content" onclick="event.stopPropagation()">
+                <button class="video-modal-close" onclick="closeVideoModal()">&times;</button>
+                <h3 style="margin-top:0; color:#1b3d3d; font-size:18px; margin-bottom:12px;"><i class="fas fa-video" style="color:#C4A956;"></i> جولة فيديو: ${escapeHtml(title)}</h3>
+                <div class="video-iframe-wrapper">
+                    <iframe src="${embedUrl}" title="جولة فيديو | ${escapeHtml(title)}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeVideoModal(e) {
+    var modal = document.getElementById('videoModalOverlay');
+    if (modal) modal.remove();
+}
+
+async function handleBookingSubmit(e, offerId, offerTitle) {
+    e.preventDefault();
+    var name = document.getElementById('bookingName').value.trim();
+    var phone = document.getElementById('bookingPhone').value.trim();
+    var datePref = document.getElementById('bookingDate').value.trim();
+    var notes = document.getElementById('bookingNotes').value.trim();
+
+    // 1) POST /ingest kind=booking (نسخة للبوت لحظيًا)
+    var payload = {
+        kind: 'booking',
+        id: offerId,
+        offer_id: offerId,
+        title: offerTitle,
+        name: name,
+        phone: phone,
+        booking_date: datePref,
+        notes: notes,
+        propertyType: 'حجز معاينة: ' + offerTitle
+    };
+    postToIngest(payload);
+
+    // 2) wa.me فورًا (نسخة للواتساب لحظيًا)
+    var waText = 'مرحباً، أود حجز موعد معاينة للعقار:\n*' + offerTitle + '* (كود: ' + offerId + ')\n\n' +
+                 'الاسم: ' + name + '\n' +
+                 'الهاتف: ' + phone + '\n' +
+                 (datePref ? 'الموعد المفضل: ' + datePref + '\n' : '') +
+                 (notes ? 'ملاحظات: ' + notes : '');
+    var waUrl = 'https://wa.me/966545888931?text=' + encodeURIComponent(waText);
+    openWhatsAppFast(waUrl);
+
+    closeBookingModal();
+    alert('تم إرسال طلب الحجز بنجاح وجاري توجيهك للواتساب!');
 }
