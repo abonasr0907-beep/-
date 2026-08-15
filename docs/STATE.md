@@ -54,3 +54,12 @@
   - [x] زر البوت "🐦 نص تغريدة جاهز"
   - [x] زر قناة واتساب المشروط في الفوتر والعقار
   - [x] زر "📅 أضف للتقويم" لتوليد ملف `.ics`
+
+---
+
+## 5. مسار النشر (Deployment Path)
+- **آلية النشر التلقائي:** يصل الكود مباشرة من فرع `main` إلى الموقع الحي عبر GitHub Actions من خلال سير العمل `.github/workflows/static.yml`.
+- **الفرع والمحفّز:** عند كل دفع (`push`) على الفرع `main` (باستثناء تحديثات `offers-data/news*.json` لتجنب إلغاء البناء المتكرر للبوت).
+- **موقع الاستضافة الحي (Live Site):** يُنشر الموقع الثابت مجانًا على GitHub Pages بالرابط: `https://abonasr0907-beep.github.io/-/`.
+- **تحليل رابط Huawei (`SITE_BASE_URL`):** رابط `https://urldra.cloud.huawei.com/BExUoXngu4` يعيد استجابة `HTTP 302` تحويل إلى خريطة موقع المؤسسة على Petal Maps (`www.petalmaps.com`) وليس استضافة مستقلة أو تحويلة لـ GitHub Pages.
+- **إعادة النشر اليدوي (زر واحد):** في حال الرغبة بإعادة النشر يدويًا: يذهب المالك إلى تبويب **Actions** في المستودع ← يختار **Deploy static content to Pages** ← يضغط **Run workflow** من فرع `main`.
