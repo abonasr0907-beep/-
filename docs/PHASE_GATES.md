@@ -249,4 +249,4 @@
   - [x] `node --check js/main.js` و `node --check js/silo.js` ✅
   - [x] عدد العروض في `offers.json` = 27 ✅
   - [x] إنشاء `docs/STATE.md` كمصدر ثابت وتحديث حالة M1 ✅
-- **الوسم المثبّت:** `ui-compass-fix` على رأس `main` بعد الدمج.
+- **الوسم المثبّت:** `m1-foundation` و `ui-compass-fix` على رأس `main` بعد الدمج.
