@@ -10,6 +10,7 @@
 - `phase-2.7-admins`
 - `phase-2.8-hotfix`
 - `hotfix-bot-flows`
+- `phase-3-final`
 
 ---
 

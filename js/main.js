@@ -2141,7 +2141,36 @@ async function toggleHomeMapProperties() {
 }
 
 
+// Dark Mode Toggle Logic
+function initDarkMode() {
+    const headerBtns = document.querySelector('.header-buttons');
+    if (!headerBtns || document.getElementById('theme-toggle-btn')) return;
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'theme-toggle-btn';
+    toggleBtn.className = 'theme-toggle-btn';
+    toggleBtn.setAttribute('aria-label', 'تبديل الوضع الداكن/الفاتح');
+
+    function updateBtnIcon(theme) {
+        toggleBtn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+        toggleBtn.title = theme === 'dark' ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن';
+    }
+
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateBtnIcon(currentTheme);
+
+    toggleBtn.addEventListener('click', function() {
+        const activeTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', activeTheme);
+        localStorage.setItem('afaq_theme', activeTheme);
+        updateBtnIcon(activeTheme);
+    });
+
+    headerBtns.insertBefore(toggleBtn, headerBtns.firstChild);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    initDarkMode();
     // اكتشاف نوع الصفحة لتحديد الفلتر الافتراضي
     const pagePath = window.location.pathname.toLowerCase();
     let defaultFilter = 'all';
