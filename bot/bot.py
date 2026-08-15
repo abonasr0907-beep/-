@@ -1712,6 +1712,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _reject_visitor_request(update, req_id, query=query)
 
     # Task 1: إدارة المدراء
+    elif data == "renew_guides":
+        await cmd_renew_guides(update, context, query=query)
     elif data == "admin_manage":
         await _admin_manage_menu(update, query=query)
     elif data == "admin_add":
@@ -4376,9 +4378,10 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"/setmax <number> — تغيير حد الصور\n"
         f"/toggleauto — تفعيل/تعطيل التجديد التلقائي"
     )
-    # Task 1: زر إدارة المدراء في لوحة التحكم
+    # Task 1: زر إدارة المدراء وزر تجديد الأدلة في لوحة التحكم
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("👤 إدارة المدراء", callback_data="admin_manage")],
+        [InlineKeyboardButton("🔄 تجديد الأدلة", callback_data="renew_guides")]
     ])
     await update.message.reply_text(msg, reply_markup=keyboard)
 
@@ -6607,6 +6610,90 @@ async def cmd_repair_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
+async def cmd_renew_guides(update: Update, context: ContextTypes.DEFAULT_TYPE, query=None):
+    """أمر/زر تجديد الأدلة للمدراء فقط"""
+    user_id = update.effective_user.id if update.effective_user else (query.from_user.id if query else 0)
+    if not is_authorized(user_id):
+        msg = "⛔ ليس لديك صلاحية تجديد الأدلة (للمدراء والمالك فقط)."
+        if query: await query.answer(msg, show_alert=True)
+        elif update.message: await update.message.reply_text(msg)
+        return
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    guides_path = os.path.join(os.path.dirname(__file__), "..", "data", "guides.json")
+    os.makedirs(os.path.dirname(guides_path), exist_ok=True)
+
+    guides_data = {
+        "last_updated": today_str,
+        "guides": [
+            {
+                "id": "farms-guide",
+                "title": "دليل شراء المزارع في الخرج والرياض",
+                "updated_at": today_str,
+                "summary": "دليل شامل لشراء المزارع في الخرج والرياض — تقييم الآبار والصكوك والأسعار.",
+                "compass_average_price_per_m2": 35,
+                "examples": [
+                    "مزرعة 50,000 م² بالخرج بئر 2 بوصة بسعر متوسط 1,750,000 ريال",
+                    "مزرعة 100,000 م² بالدلم شبكة ري متكاملة بسعر متوسط 3,500,000 ريال"
+                ]
+            },
+            {
+                "id": "resthouses-guide",
+                "title": "دليل الاستراحات والشاليهات",
+                "updated_at": today_str,
+                "summary": "كل ما تحتاج معرفته عن شراء الاستراحات والاستثمار فيها بالخرج والرياض.",
+                "compass_average_price_per_m2": 450,
+                "examples": [
+                    "استراحة 1,000 م² بالرحمانية مسبح ومسطحات بسعر متوسط 450,000 ريال",
+                    "استراحة 2,000 م² بالهياثم تشطيب فاخر بسعر متوسط 900,000 ريال"
+                ]
+            },
+            {
+                "id": "lands-guide",
+                "title": "دليل الأراضي السكنية والزراعية",
+                "updated_at": today_str,
+                "summary": "خطوات شراء الأراضي السكنية والتأكد من المخططات والصكوك الإلكترونية.",
+                "compass_average_price_per_m2": 650,
+                "examples": [
+                    "أرض سكنية 500 م² بالرحمانية مخطط معتمد بسعر متوسط 325,000 ريال",
+                    "أرض زراعية 10,000 م² بالعفجة بسعر متوسط 600,000 ريال"
+                ]
+            }
+        ]
+    }
+
+    try:
+        with open(guides_path, "w", encoding="utf-8") as f:
+            json.dump(guides_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.error(f"خطأ حفظ data/guides.json: {e}")
+
+    github_token = os.environ.get("GITHUB_CONTENT_TOKEN")
+    pushed = False
+    if github_token:
+        try:
+            import subprocess
+            subprocess.run(["git", "config", "user.name", "Afaq Bot"], check=False)
+            subprocess.run(["git", "config", "user.email", "bot@afaq.local"], check=False)
+            subprocess.run(["git", "add", "data/guides.json"], check=False)
+            res = subprocess.run(["git", "commit", "-m", f"chore: auto renew guides {today_str}"], capture_output=True, text=True)
+            if res.returncode == 0:
+                pushed = True
+        except Exception as ge:
+            logger.error(f"خطأ الالتزام التلقائي للأدلة: {ge}")
+
+    res_msg = f"✅ تم تجديد الأدلة بنجاح ({today_str})!\n"
+    if pushed:
+        res_msg += "📦 تم الالتزام والتحديث تلقائيًا عبر Git."
+    else:
+        res_msg += "📝 ملاحظة للمدراء: تم تحديث data/guides.json محليًا."
+
+    if query:
+        await query.message.reply_text(res_msg)
+        await query.answer()
+    elif update.message:
+        await update.message.reply_text(res_msg)
+
 async def cmd_admin_log(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض سجل عمليات الأدمن — /admin_log"""
     uid = update.effective_user.id
@@ -6917,6 +7004,65 @@ async def cmd_seo_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ فشل: {e}")
 
 
+async def send_hidden_admin_report(context: ContextTypes.DEFAULT_TYPE, message_text: str):
+    """إرسال تقرير نصي خفي للمدراء والمالك فقط"""
+    staff_ids = set()
+    if OWNER_ID:
+        staff_ids.add(OWNER_ID)
+    if ADMIN_IDS:
+        staff_ids.update(ADMIN_IDS)
+    for staff_id in staff_ids:
+        try:
+            await context.bot.send_message(chat_id=staff_id, text=message_text)
+        except Exception as e:
+            logger.error(f"خطأ إرسال تقرير خفي للمدير {staff_id}: {e}")
+
+async def auto_guardian_privacy_check(context: ContextTypes.DEFAULT_TYPE):
+    """فحص دوري لحارس السرية والنظام (Guardian)"""
+    try:
+        root = os.path.join(os.path.dirname(__file__), "..")
+        # 1. Privacy Guard (grep public files for bot leaks)
+        forbidden = ["t.me/", "أرسل عبر البوت", "send via bot"]
+        leaks = []
+        html_js_files = []
+        for r, dirs, files in os.walk(root):
+            if "bot" in r or ".git" in r or "node_modules" in r:
+                continue
+            for fname in files:
+                if fname.endswith(".html") or fname.endswith(".js"):
+                    html_js_files.append(os.path.join(r, fname))
+
+        for fpath in html_js_files:
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                for term in forbidden:
+                    if term in content:
+                        leaks.append((fpath, term))
+            except Exception:
+                pass
+
+        if leaks:
+            leak_msg = f"⚠️ [حارس السرية] تم اكتشاف {len(leaks)} تسريب للبوت في واجهات الزوار العامة:\n"
+            for lp, lt in leaks[:5]:
+                rel = os.path.relpath(lp, root)
+                leak_msg += f"- {rel} (يحتوي: {lt})\n"
+            leak_msg += "\nتم التنبيه لإصلاحها فورًا (إزالة الإشارة للبوت)."
+            await send_hidden_admin_report(context, leak_msg)
+
+        # 2. Guardian Health Check
+        from ai_system.guardian.health_checker import HealthChecker
+        hc = HealthChecker(root)
+        report = hc.run_full_health_check()
+        if report["status"] != "HEALTHY":
+            guardian_msg = "🛡️ [Guardian Triage Report]\n"
+            guardian_msg += f"Status: {report['status']}\nIssues count: {len(report['issues'])}\n"
+            for issue in report["issues"]:
+                guardian_msg += f"- Type: {issue['type']}\n  Severity: {issue['risk']['severity']}\n  Rec: {issue['risk']['recommendation']}\n"
+            await send_hidden_admin_report(context, guardian_msg)
+    except Exception as e:
+        logger.error(f"خطأ فحص Guardian الدوري: {e}")
+
 async def auto_seo_report(context):
     """إرسال تقرير SEO الأسبوعي تلقائياً — كل أحد 9:30 صباحاً"""
     if seo_monitor is None:
@@ -6986,6 +7132,7 @@ def _setup_handlers(app):
     app.add_handler(CommandHandler("news", update_news_cmd))
 
     # ── أوامر جديدة: لوحة التحكم وإدارة المستخدمين ──
+    app.add_handler(CommandHandler("renew_guides", cmd_renew_guides))
     app.add_handler(CommandHandler("dashboard", dashboard))
     app.add_handler(CommandHandler("add_user", cmd_add_user))
     app.add_handler(CommandHandler("myid", cmd_myid))
@@ -7062,6 +7209,11 @@ def _setup_handlers(app):
             _bounce_guard.init_ref_count()
         except Exception:
             pass
+
+    # Guardian & Privacy Guard periodic checks (every 12 hours)
+    if app.job_queue:
+        app.job_queue.run_repeating(auto_guardian_privacy_check, interval=12 * 3600, first=600)
+        logger.info("🛡️ تم جدولة حارس السرية والنظام Guardian — كل 12 ساعة")
 
 
 

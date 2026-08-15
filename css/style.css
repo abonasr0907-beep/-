@@ -19,12 +19,74 @@
     --dark-text: #1A1A1A;
     --gray-text: #555555;
     --light-gray: #F0F0F0;
+    --bg-main: #FFFFFF;
+    --card-bg: #FFFFFF;
+    --border-color: #E0E0E0;
     --shadow: 0 4px 20px rgba(42, 80, 80, 0.15);
     --shadow-hover: 0 8px 30px rgba(42, 80, 80, 0.25);
     --transition: all 0.3s ease;
     --border-radius: 12px;
     --whatsapp: #25D366;
     --phone: #2A5050;
+}
+
+[data-theme="dark"] {
+    --primary: #3D6B6B;
+    --primary-dark: #2A5050;
+    --primary-light: #528B8B;
+    --gold: #E8C969;
+    --gold-light: #F2DA88;
+    --cream: #182424;
+    --cream-dark: #121C1C;
+    --white: #1F2E2E;
+    --dark-text: #E8E0D0;
+    --gray-text: #B0A8A0;
+    --light-gray: #2A3B3B;
+    --bg-main: #121C1C;
+    --card-bg: #1F2E2E;
+    --border-color: #2D4242;
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg-main);
+    color: var(--dark-text);
+}
+
+[data-theme="dark"] .property-card,
+[data-theme="dark"] .feature-card,
+[data-theme="dark"] .service-card,
+[data-theme="dark"] .silo-hub-card,
+[data-theme="dark"] .silo-trust-bar,
+[data-theme="dark"] .silo-links-section,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .quick-filter,
+[data-theme="dark"] .header {
+    background-color: var(--card-bg);
+    color: var(--dark-text);
+    border-color: var(--border-color);
+}
+
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    transition: var(--transition);
+    margin-left: 8px;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--gold);
+    color: var(--primary-dark);
 }
 
 * {

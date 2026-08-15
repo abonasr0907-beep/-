@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <script>(function(){var t=localStorage.getItem("afaq_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>صفحة العقار | مكتب آفاق الإنجاز العقاري</title>
@@ -617,6 +618,41 @@
                 </div>
             </div>
 
+            <!-- ROI Calculator Section (Commercial / Farms / Resthouses) -->
+            <div class="property-description-section" id="roi-calculator-section" style="display:none; border: 1px solid var(--gold); background: var(--card-bg);">
+                <h2 class="property-section-title">
+                    <i class="fas fa-calculator" style="color: var(--gold);"></i> حاسبة العائد على الاستثمار (ROI)
+                </h2>
+                <p style="font-size: 14px; color: var(--gray-text); margin-bottom: 15px;">احسب صافي العائد السنوي المتوقع وفترة استرداد رأس المال لهذا العقار:</p>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px;">سعر الشراء (ريال)</label>
+                        <input type="number" id="roi-price-input" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; background: var(--bg-main); color: var(--dark-text);" placeholder="أدخل سعر الشراء">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px;">الإيجار الشهري المتوقع (ريال)</label>
+                        <input type="number" id="roi-rent-input" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; background: var(--bg-main); color: var(--dark-text);" placeholder="مثال: 5000">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px;">المصاريف السنوية (ريال)</label>
+                        <input type="number" id="roi-expenses-input" value="0" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; background: var(--bg-main); color: var(--dark-text);" placeholder="صيانة/إدارة">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 20px; background: var(--cream); padding: 15px; border-radius: 10px; text-align: center; justify-content: space-around; margin-bottom: 10px;">
+                    <div>
+                        <div style="font-size: 13px; color: var(--gray-text);">صافي العائد السنوي</div>
+                        <div id="roi-net-rate" style="font-size: 22px; font-weight: 900; color: var(--primary);">0.0 %</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 13px; color: var(--gray-text);">فترة الاسترداد</div>
+                        <div id="roi-payback-years" style="font-size: 22px; font-weight: 900; color: var(--gold);">0 سنة</div>
+                    </div>
+                </div>
+                <small style="display: block; color: var(--gray-text); font-size: 12px; text-align: center;">* تقديري وليس استشارة مالية</small>
+            </div>
+
             <!-- Description -->
             <div class="property-description-section" id="description-section">
                 <h2 class="property-section-title">
@@ -961,6 +997,14 @@
                 // Map
                 renderMap(offer);
 
+                // Setup ROI Calculator if relevant
+                var cat = (offer.category || offer.property_type || '').toLowerCase();
+                var sec = (offer.section || '').toLowerCase();
+                if (cat.includes('تجاري') || cat.includes('مزرعة') || cat.includes('مزارع') || cat.includes('استراحة') || cat.includes('استراحات') ||
+                    sec.includes('تجاري') || sec.includes('مزارع') || sec.includes('استراحات')) {
+                    setupRoiCalculator(offer);
+                }
+
                 // Phase 2: عقارات مشابهة (نفس النوع أو نفس المنطقة، منشورة فقط، باستثناء الحالي)
                 renderSimilar(offer);
 
@@ -1036,6 +1080,49 @@
                     '<button onclick="document.getElementById(\'prop-bid-success\').remove()" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-family:inherit;">إغلاق</button>' +
                     '</div></div>';
                 document.body.insertAdjacentHTML('beforeend', successHtml);
+            }
+
+            function setupRoiCalculator(offer) {
+                var section = document.getElementById('roi-calculator-section');
+                if (!section) return;
+                section.style.display = 'block';
+
+                var priceInput = document.getElementById('roi-price-input');
+                var rentInput = document.getElementById('roi-rent-input');
+                var expensesInput = document.getElementById('roi-expenses-input');
+
+                if (priceInput && !priceInput.value && offer.price) {
+                    priceInput.value = offer.price;
+                }
+
+                function calculateROI() {
+                    var price = parseFloat(priceInput.value) || 0;
+                    var monthlyRent = parseFloat(rentInput.value) || 0;
+                    var annualExpenses = parseFloat(expensesInput.value) || 0;
+
+                    var netRateEl = document.getElementById('roi-net-rate');
+                    var paybackEl = document.getElementById('roi-payback-years');
+
+                    if (price <= 0 || monthlyRent <= 0) {
+                        netRateEl.textContent = '0.0 %';
+                        paybackEl.textContent = '0 سنة';
+                        return;
+                    }
+
+                    var annualIncome = monthlyRent * 12;
+                    var netAnnualIncome = annualIncome - annualExpenses;
+                    var roiPercent = (netAnnualIncome / price) * 100;
+                    var paybackYears = netAnnualIncome > 0 ? (price / netAnnualIncome) : 0;
+
+                    netRateEl.textContent = roiPercent.toFixed(2) + ' %';
+                    paybackEl.textContent = paybackYears > 0 ? paybackYears.toFixed(1) + ' سنة' : 'غ/م';
+                }
+
+                priceInput.addEventListener('input', calculateROI);
+                rentInput.addEventListener('input', calculateROI);
+                expensesInput.addEventListener('input', calculateROI);
+
+                calculateROI();
             }
 
             function offerDetailLinkP(offer) {
