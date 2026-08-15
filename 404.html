@@ -69,9 +69,11 @@
                 window.location.replace(redirectUrl);
                 return;
             }
-            // Default: redirect to home
-            var homePath = path.split('/').slice(0, -1).join('/') + '/';
-            window.location.replace(homePath || './');
+            // Smart Fallback after 2.5s if no redirect occurred
+            setTimeout(function() {
+                var contentEl = document.getElementById('smart-404-content');
+                if (contentEl) contentEl.style.display = 'block';
+            }, 2500);
         })();
     </script>
     <style>
@@ -112,7 +114,15 @@
 <body>
     <h1>مكتب آفاق الإنجاز العقاري - إعادة توجيه</h1>
     <div class="loader">⏳</div>
-    <h2>جاري إعادة التوجيه...</h2>
-    <p>إذا لم يتم إعادة توجيهك تلقائياً، <a href="./">اضغط هنا</a></p>
+    <h2>جاري البحث وإعادة التوجيه...</h2>
+    <div id="smart-404-content" style="display:none; margin-top:20px;">
+        <p style="font-size:1.1rem; color:#666;">الصفحة المطلوبة غير موجودة أو تم نقلها. نقترح عليك تصفح الأقسام الرئيسية:</p>
+        <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:20px;">
+            <a href="index.html" style="padding:10px 20px; background:#1b3d3d; color:#fff; border-radius:8px; text-decoration:none;">الرئيسية</a>
+            <a href="farms.html" style="padding:10px 20px; background:#1b3d3d; color:#fff; border-radius:8px; text-decoration:none;">المزارع</a>
+            <a href="resthouses.html" style="padding:10px 20px; background:#1b3d3d; color:#fff; border-radius:8px; text-decoration:none;">الاستراحات</a>
+            <a href="lands.html" style="padding:10px 20px; background:#1b3d3d; color:#fff; border-radius:8px; text-decoration:none;">الأراضي السكنية</a>
+        </div>
+    </div>
 </body>
 </html>
