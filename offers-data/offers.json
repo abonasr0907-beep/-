@@ -820,37 +820,6 @@
       "featured": false,
       "publish_status": "Published",
       "status": "published"
-    },
-    {
-      "id": "FRM-8F95B9",
-      "type": "land",
-      "category": "مزرعة",
-      "section": "",
-      "property_type": "مزرعة",
-      "status": "published",
-      "title": "مزرعه — الضبيعيه",
-      "area": "الضبيعة",
-      "area_en": "",
-      "size_sqm": "70000",
-      "price": "3000000",
-      "price_text": "3000000 ريال",
-      "original_price": "3000000",
-      "description": "🏗️ أرض للبيع — الضبيعية بالخرج\n\nمساحة 70000 م²، جاهزة للبناء، صك إلكتروني معتمد.\n\nتواصل معنا: 0561610748",
-      "features": [],
-      "images": [],
-      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-      "visitor_map_link": "https://www.google.com/maps?q=24.148841,47.154806",
-      "visitor_lat": "24.148841",
-      "visitor_lng": "47.154806",
-      "date_added": "2026-08-16",
-      "featured": false,
-      "source": "visitor_request",
-      "priceType": "fixed",
-      "highestBid": "",
-      "operation_type": "sale",
-      "visitor_name": "افاق العقاري",
-      "visitor_phone": "0561610748",
-      "publish_status": "Published"
     }
   ]
 }
