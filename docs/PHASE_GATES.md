@@ -288,3 +288,19 @@
 - **التحقق البنيوي:**
   - [x] `py_compile bot/bot.py bot/user_manager.py api_server/visitor_api.py` ✅
   - [x] `node --check js/main.js` و `node --check js/silo.js` ✅
+
+---
+
+## بوابة المهمة M15 — النمو والفهرسة والإعلانات الخجولة والتنظيف (M15 Growth)
+- **الفرع:** `mission/m15-growth`
+- **وسم المرحلة:** `m15-growth`
+- **الحالة:** مكتملة واجتازت كافة الفحوصات البنيوية والتقنية ✅
+- **العناصر المنفذة:**
+  - [x] جرد وتنظيف المستودع وسجلات وحذف الفروع المدموجة القديمة بأمان.
+  - [x] نظام الإعلانات الخجولة (data/ads.json schema, js/ads.js, css/ads.css, #ad-home, #ad-detail, معالج البوت للمالك "📢 إدارة الإعلانات").
+  - [x] الفهرسة والهوية: favicon.ico + PNG 192/512 + apple-touch، canonical و og:url مطلقة على GitHub Pages،Schemas (Organization, WebSite, LocalBusiness)، إعادة توليد sitemap.xml بـ 56 رابطاً، وتحديث robots.txt مع فتحة google-site-verification.
+- **التحقق البنيوي:**
+  - [x] `py_compile bot/bot.py` ✅
+  - [x] `node --check js/ads.js` و `node --check js/main.js` و `node --check js/silo.js` ✅
+  - [x] فحص XML لسلاسل sitemap.xml ✅
+  - [x] فحص grep لغياب أي Huawei canonical قديم وجودة favicons وسرية البوت ✅

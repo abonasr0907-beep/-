@@ -1,0 +1,117 @@
+/* Ads System — Timid Ads Styling (M15) */
+.timid-ad-container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 20px;
+  display: block;
+}
+
+.timid-ad-container.hidden {
+  display: none !important;
+}
+
+.timid-ad-box {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timid-ad-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.timid-ad-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+  padding: 12px 16px;
+  gap: 16px;
+}
+
+.timid-ad-img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.timid-ad-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: right;
+}
+
+.timid-ad-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timid-ad-badge {
+  background: #C4A956;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.timid-ad-title {
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2A5050;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.timid-ad-close {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.06);
+  color: #666666;
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.2s, color 0.2s;
+  z-index: 5;
+}
+
+.timid-ad-close:hover {
+  background: #e53935;
+  color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .timid-ad-img {
+    width: 64px;
+    height: 64px;
+  }
+  .timid-ad-title {
+    font-size: 13.5px;
+  }
+  .timid-ad-link {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+}

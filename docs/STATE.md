@@ -73,3 +73,16 @@
 
 ## 6. Deployment Path
 يتم نشر محتوى الموقع تلقائيًا من فرع main إلى GitHub Pages عبر GitHub Actions workflow في `.github/workflows/static.yml` عند كل push بدون أي خطوات يدويّة مطلوبة من المالك.
+
+---
+
+## 7. حالة المهمة M15 (M15 Growth & Identity)
+- **الحالة الحالية:** M15 completed ✅
+- **النطاق المكتمل:** النمو والفهرسة والإعلانات الخجولة والتنظيف والهوية
+  - [x] جرد المرشحين وإزالة الملفات الميتة وحذف الفروع المدموجة القديمة بأمان (`git branch -d`).
+  - [x] نظام الإعلانات الخجولة: `data/ads.json` + `js/ads.js` + `css/ads.css` + مواضع `#ad-home` و `#ad-detail` + زر إدارة الإعلانات للمالك في البوت.
+  - [x] الفهرسة والهوية: canonical و og:url مطلقة على GitHub Pages (`https://abonasr0907-beep.github.io/-/`) وإزالة أية تحويلات قديمة لـ Huawei.
+  - [x] Favicons متكاملة (favicon.ico + PNG 192/512 + apple-touch-icon) مربورة في `<head>` كل الصفحات.
+  - [x] Schemas هيكلية شاملة (Organization, WebSite, LocalBusiness) مع logo و sameAs.
+  - [x] إعادة توليد `sitemap.xml` بـ 56 رابطاً مطلقا مع lastmod و xmlns صحيح، وتحديث `robots.txt` والإبقاء على فتحة `google-site-verification`.
+  - [x] المضيف الفعلي المعتمد للنشر والتتبع: GitHub Pages (`https://abonasr0907-beep.github.io/-/`).

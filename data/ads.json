@@ -1,0 +1,14 @@
+{
+  "ads": [
+    {
+      "id": "ad_101",
+      "image": "images/logo.jpg",
+      "link": "https://abonasr0907-beep.github.io/-/contact.html",
+      "title": "مكتب آفاق الإنجاز العقاري — خدمات عقارية متكاملة في الخرج والرياض",
+      "active": true,
+      "from": "2025-01-01",
+      "to": "2026-12-31",
+      "placement": "all"
+    }
+  ]
+}

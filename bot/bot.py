@@ -817,7 +817,7 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
         ["🗑️ حذف عرض", "✏️ تعديل عرض"],
         ["📨 طلبات الزوار", "🏡 عروض الزوار"],
-        ["🎬 استوديو التسويق"],
+        ["🎬 استوديو التسويق", "📢 إدارة الإعلانات"],
         ["📦 الأرشيف", "📊 إحصائيات"],
         ["📈 التقرير الأسبوعي", "🧭 تحديث البوصلة"],
         ["🤖 المساعد الذكي", "🗞️ تحديث الأخبار"],
@@ -1649,6 +1649,100 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         await _finalize_offer(update, uid)
         return
 
+    # ── إضافة إعلان خجول ──
+    if session.get("state") == "awaiting_ad_title":
+        session["new_ad"]["title"] = text
+        session["state"] = "awaiting_ad_image"
+        await update.message.reply_text("🖼️ أرسل مسار/رابط صورة الإعلان (مثال: images/logo.jpg):")
+        return
+
+    if session.get("state") == "awaiting_ad_image":
+        session["new_ad"]["image"] = text
+        session["state"] = "awaiting_ad_link"
+        await update.message.reply_text("🔗 أرسل رابط وجهة الإعلان (مثال: https://...):")
+        return
+
+    if session.get("state") == "awaiting_ad_link":
+        session["new_ad"]["link"] = text
+        session["state"] = "awaiting_ad_dates"
+        await update.message.reply_text("📅 أرسل تاريخ البداية والنهاية مفصولين بمسافة (مثال: 2025-01-01 2026-12-31):")
+        return
+
+    if session.get("state") == "awaiting_ad_dates":
+        parts = text.strip().split()
+        if len(parts) >= 2:
+            session["new_ad"]["from"] = parts[0]
+            session["new_ad"]["to"] = parts[1]
+        else:
+            session["new_ad"]["from"] = "2025-01-01"
+            session["new_ad"]["to"] = "2026-12-31"
+
+        ads_data = _load_ads_data()
+        ads_data.setdefault("ads", []).append(session["new_ad"])
+        _save_ads_data(ads_data)
+        session.pop("new_ad", None)
+        session["state"] = None
+        await update.message.reply_text("✅ تم إدراج وتفعيل الإعلان بنجاح!", reply_markup=MAIN_KEYBOARD)
+        return
+
+ADS_FILE_PATH = BASE_DIR / "data" / "ads.json"
+
+def _load_ads_data():
+    if not ADS_FILE_PATH.exists():
+        return {"ads": []}
+    try:
+        with open(ADS_FILE_PATH, "r", encoding="utf-8") as f:
+            return _json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load ads.json: {e}")
+        return {"ads": []}
+
+def _save_ads_data(data):
+    ADS_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(ADS_FILE_PATH, "w", encoding="utf-8") as f:
+        _json.dump(data, f, ensure_ascii=False, indent=2)
+    # Commit / Sync fallback
+    token = os.getenv("GITHUB_CONTENT_TOKEN") or os.getenv("GITHUB_TOKEN")
+    if token:
+        try:
+            github_sync.upload_text_file(
+                _json.dumps(data, ensure_ascii=False, indent=2),
+                "data/ads.json",
+                "Update ads.json via bot ad manager"
+            )
+        except Exception as ge:
+            logger.error(f"GitHub ads sync failed: {ge}")
+
+async def manage_ads_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if user_manager.get_user_role(uid) != "owner":
+        await update.message.reply_text("⛔ هذه الخاصية مخصصة للمالك فقط.")
+        return
+
+    ads_data = _load_ads_data()
+    ads = ads_data.get("ads", [])
+    msg = "📢 <b>إدارة الإعلانات الخجولة</b>\n\n"
+    if not ads:
+        msg += "لا توجد إعلانات مسجلة حالياً.\n"
+    else:
+        for idx, ad in enumerate(ads, 1):
+            status = "✅ نشط" if ad.get("active") else "⏸️ موقوف"
+            msg += f"<b>{idx}. {ad.get('title', 'إعلان')}</b> ({status})\n"
+            msg += f"🖼️ {ad.get('image')}\n🔗 {ad.get('link')}\n📅 {ad.get('from')} إلى {ad.get('to')}\n\n"
+
+    keyboard = [
+        [InlineKeyboardButton("➕ إضافة إعلان", callback_data="ad_add")],
+    ]
+    if ads:
+        for idx, ad in enumerate(ads):
+            st_btn = "⏸️ إيقاف" if ad.get("active") else "▶️ تفعيل"
+            keyboard.append([
+                InlineKeyboardButton(f"{st_btn} #{idx+1}", callback_data=f"ad_toggle_{idx}"),
+                InlineKeyboardButton(f"🗑️ حذف #{idx+1}", callback_data=f"ad_del_{idx}")
+            ])
+
+    await update.message.reply_text(msg, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update.effective_user.id):
         return
@@ -1657,6 +1751,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     session = get_session(uid)
     data = query.data or ""
+
+    if data.startswith("ad_"):
+        if user_manager.get_user_role(uid) != "owner":
+            await query.edit_message_text("⛔ مخصص للمالك فقط.")
+            return
+        if data == "ad_add":
+            session["state"] = "awaiting_ad_title"
+            session["new_ad"] = {"id": f"ad_{int(time.time())}", "active": True, "placement": "all"}
+            await query.message.reply_text("📢 أدخل عنوان الإعلان:")
+            return
+        elif data.startswith("ad_toggle_"):
+            idx = int(data.split("_")[2])
+            ads_data = _load_ads_data()
+            if 0 <= idx < len(ads_data.get("ads", [])):
+                ads_data["ads"][idx]["active"] = not ads_data["ads"][idx].get("active", True)
+                _save_ads_data(ads_data)
+                await query.edit_message_text("✅ تم تحديث حالة الإعلان بنجاح.")
+            return
+        elif data.startswith("ad_del_"):
+            idx = int(data.split("_")[2])
+            ads_data = _load_ads_data()
+            if 0 <= idx < len(ads_data.get("ads", [])):
+                ads_data["ads"].pop(idx)
+                _save_ads_data(ads_data)
+                await query.edit_message_text("🗑️ تم حذف الإعلان بنجاح.")
+            return
 
     if data in ("reinit_system", "reinit"):
         await cmd_reinit_system(update, context)
@@ -5026,7 +5146,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "➕ إضافة عرض جديد", "📋 قائمة العروض", "🗑️ حذف عرض", "✏️ تعديل عرض",
         "📨 طلبات الزوار", "🏡 عروض الزوار", "🎬 استوديو التسويق", "🔍 فلترة العروض",
         "📦 الأرشيف", "📊 إحصائيات", "📈 التقرير الأسبوعي", "🧭 تحديث البوصلة",
-        "🤖 المساعد الذكي", "🗞️ تحديث الأخبار", "⚙️ الإعدادات",
+        "🤖 المساعد الذكي", "🗞️ تحديث الأخبار", "⚙️ الإعدادات", "📢 إدارة الإعلانات",
         "🔄 إلغاء / بدء جديد",
     ]
     if session["state"] in _ADD_FLOW_STATES:
@@ -5078,6 +5198,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await settings(update, context)
     elif text == "📦 الأرشيف":
         await archive_menu(update, context)
+    elif text == "📢 إدارة الإعلانات":
+        await manage_ads_cmd(update, context)
     elif text == "🔄 إلغاء / بدء جديد":
         await _reset_operation(update, context)
     else:
