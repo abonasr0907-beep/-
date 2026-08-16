@@ -73,3 +73,6 @@
 
 ## 6. Deployment Path
 يتم نشر محتوى الموقع تلقائيًا من فرع main إلى GitHub Pages عبر GitHub Actions workflow في `.github/workflows/static.yml` عند كل push بدون أي خطوات يدويّة مطلوبة من المالك.
+
+## Phase Gates Log
+- **M17-POLISH PHASE GATE PASSED**: Standardized unified header across all 29 HTML pages, updated comparison drawer to bottom sheet with outside-click dismiss, verified via node --check and Playwright screenshots.
