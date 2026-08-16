@@ -669,6 +669,14 @@
                 <div class="property-features-grid" id="property-features"></div>
             </div>
 
+            <!-- Video Section -->
+            <div class="property-description-section" id="video-section" style="display:none;">
+                <h2 class="property-section-title">
+                    <i class="fas fa-video" style="color:var(--gold,#C4A956);"></i> 🎬 جولة فيديو
+                </h2>
+                <div id="video-container"></div>
+            </div>
+
             <!-- Map -->
             <div class="property-map-section">
                 <h2 class="property-section-title">
@@ -982,6 +990,32 @@
                     document.getElementById('features-section').style.display = 'block';
                 } else {
                     document.getElementById('features-section').style.display = 'none';
+                }
+
+                // Video Tour
+                if (offer.video_url || offer.youtube_url) {
+                    var vUrl = offer.video_url || offer.youtube_url;
+                    var videoSec = document.getElementById('video-section');
+                    var videoContainer = document.getElementById('video-container');
+                    if (videoSec && videoContainer) {
+                        videoSec.style.display = 'block';
+                        var uLower = vUrl.toLowerCase();
+                        if (uLower.includes('youtube') || uLower.includes('youtu.be')) {
+                            var embedUrl = getYouTubeEmbedUrl(vUrl);
+                            videoContainer.innerHTML = `
+                                <div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px;">
+                                    <iframe src="${embedUrl}" title="جولة فيديو" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" style="position:absolute; top:0; left:0; width:100%; height:100%;"></iframe>
+                                </div>
+                            `;
+                        } else {
+                            videoContainer.innerHTML = `
+                                <div style="text-align:center; padding:15px; background:var(--card-bg, #fff); border-radius:10px; border:1px solid rgba(0,0,0,0.08);">
+                                    <button onclick="openVideoModal('${vUrl}', '${escapeHtml(offer.title)}')" style="background:var(--primary, #1b3d3d); color:#fff; border:none; padding:12px 24px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-play-circle" style="color:var(--gold, #C4A956);"></i> تشغيل جولة الفيديو 🎬</button>
+                                    <a href="${vUrl}" target="_blank" rel="noopener" style="margin-right:12px; display:inline-block; color:var(--primary, #1b3d3d); font-weight:bold; text-decoration:none;"><i class="fas fa-external-link-alt"></i> فتح خارجيًا</a>
+                                </div>
+                            `;
+                        }
+                    }
                 }
 
                 // Contact links
