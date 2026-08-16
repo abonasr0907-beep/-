@@ -227,13 +227,13 @@
             cmp.push({ id: id, title: title, img: img });
         }
         lsSet(COMPARE_KEY, cmp);
-        updateCompareDrawer();
+        updateCompareDrawer(true);
         return idx < 0;
     }
     function isInCompare(id) {
         return getCompare().some(function(c){ return c.id === id; });
     }
-    function updateCompareDrawer() {
+    function updateCompareDrawer(openIfItems) {
         var drawer = document.getElementById('luxury-compare-drawer');
         if (!drawer) return;
         var cmp = getCompare();
@@ -241,7 +241,9 @@
             drawer.classList.remove('active');
             return;
         }
-        drawer.classList.add('active');
+        if (openIfItems === true) {
+            drawer.classList.add('active');
+        }
         var itemsHtml = '';
         cmp.forEach(function(c) {
             itemsHtml += '<div class="luxury-compare-item">' +
@@ -714,10 +716,21 @@
         initExclusivesBar();
         initHubCards();
         updateFavCounter();
-        updateCompareDrawer();
+        updateCompareDrawer(false);
         initLuxuryProperty();
         renderFullCompareTable();
         loadGuidesAndNews();
+
+        // Close compare drawer when touching or clicking outside
+        function closeDrawerIfOutside(e) {
+            var drawer = document.getElementById('luxury-compare-drawer');
+            if (!drawer || !drawer.classList.contains('active')) return;
+            if (drawer.contains(e.target)) return;
+            if (e.target.closest('[data-compare-id]') || e.target.closest('#header-fav-link') || e.target.closest('.contact-icon-btn')) return;
+            drawer.classList.remove('active');
+        }
+        document.addEventListener('click', closeDrawerIfOutside);
+        document.addEventListener('touchstart', closeDrawerIfOutside, { passive: true });
 
         // Inject breadcrumb schema if data attribute present
         var bcData = document.getElementById('breadcrumb-schema-data');
