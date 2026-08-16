@@ -664,9 +664,15 @@
                     generatePropertyPoster(prop);
                 });
 
-                // Wire Video Tour if present
-                if (prop.video_url || prop.video) {
-                    var vUrl = prop.video_url || prop.video;
+                // Wire Video Tour if present (normalized)
+                var rawV = prop.video_url || prop.youtube_url || prop.tour_url || prop.video;
+                if (rawV) prop.video_url = rawV;
+                delete prop.youtube_url;
+                delete prop.tour_url;
+                delete prop.video;
+
+                if (prop.video_url) {
+                    var vUrl = prop.video_url;
                     var vBtn = document.createElement('button');
                     vBtn.className = 'luxury-action-btn btn-video-tour';
                     vBtn.innerHTML = '<i class="fas fa-video"></i> 🎬 جولة فيديو';

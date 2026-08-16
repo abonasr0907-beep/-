@@ -76,3 +76,4 @@
 
 ## Phase Gates Log
 - **M17-POLISH PHASE GATE PASSED**: Standardized unified header across all 29 HTML pages, updated comparison drawer to bottom sheet with outside-click dismiss, verified via node --check and Playwright screenshots.
+- **M18-ROOT PHASE GATE PASSED**: Adopted OFFERS_PATH as single source of truth, normalized video fields to video_url, completed 10-item paginated tours, permanent manager authorization, mobile-first 2-column grid at 320px, lightweight offers-index.json with fallback UI, and 6-hour Regression Guardian system immunity.
