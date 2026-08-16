@@ -979,6 +979,50 @@
         });
     }
 
+    // ===== Video Modal Helpers for Property Page =====
+    window.getYouTubeEmbedUrl = function(url) {
+        if (!url) return '';
+        var regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        var match = url.match(regExp);
+        var id = (match && match[2].length === 11) ? match[2] : null;
+        return id ? 'https://www.youtube.com/embed/' + id : url;
+    };
+
+    window.openVideoModal = function(url, title) {
+        var modal = document.getElementById('video-modal');
+        if (!modal) {
+            var html = '<div id="video-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;">' +
+                '<div style="background:#111;border-radius:12px;padding:16px;max-width:600px;width:90%;position:relative;">' +
+                '<button onclick="closeVideoModal()" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;">&times;</button>' +
+                '<h4 style="color:#fff;margin:0 0 12px;font-size:16px;">' + escHtml(title || 'جولة فيديو') + '</h4>' +
+                '<div id="video-modal-body" style="width:100%;height:350px;"></div>' +
+                '</div></div>';
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal = document.getElementById('video-modal');
+        } else {
+            modal.style.display = 'flex';
+        }
+        var body = document.getElementById('video-modal-body');
+        var uLower = (url || '').toLowerCase();
+        if (uLower.includes('tiktok.com')) {
+            var match = url.match(/\/video\/(\d+)/);
+            var videoId = match ? match[1] : '';
+            body.innerHTML = '<iframe src="https://www.tiktok.com/embed/v2/' + videoId + '" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>';
+        } else if (uLower.includes('instagram.com')) {
+            var cleanUrl = url.split('?')[0].replace(/\/$/, '');
+            body.innerHTML = '<iframe src="' + cleanUrl + '/embed" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>';
+        } else {
+            body.innerHTML = '<iframe src="' + window.getYouTubeEmbedUrl(url) + '" style="width:100%;height:100%;border:none;" allowfullscreen></iframe>';
+        }
+    };
+
+    window.closeVideoModal = function() {
+        var modal = document.getElementById('video-modal');
+        if (modal) modal.style.display = 'none';
+        var body = document.getElementById('video-modal-body');
+        if (body) body.innerHTML = '';
+    };
+
     // Expose for property page integration
     window.afaqSilo = {
         toggleFavorite: toggleFavorite,

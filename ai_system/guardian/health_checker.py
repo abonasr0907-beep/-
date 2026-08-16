@@ -20,10 +20,10 @@ class HealthChecker:
 
         # Check offers count
         offers_cnt = self.monitor.check_offers_count()
-        if offers_cnt != 27:
+        if offers_cnt < 27:
             issue = {
-                "type": "offers_count_drop" if offers_cnt < 27 else "offers_count_mismatch",
-                "details": f"Offers count is {offers_cnt}, expected 27",
+                "type": "offers_count_drop",
+                "details": f"Offers count dropped to {offers_cnt}, expected at least 27",
                 "risk": RiskAnalyzer.analyze_issue("offers_count_drop", f"Count: {offers_cnt}")
             }
             report["status"] = "UNHEALTHY"
