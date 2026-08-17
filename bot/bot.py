@@ -819,7 +819,7 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
         ["🗑️ حذف عرض", "✏️ تعديل عرض"],
         ["📨 طلبات الزوار", "🏡 عروض الزوار"],
-        ["🎬 استوديو التسويق"],
+        ["👥 عرض المدراء", "🎬 استوديو التسويق"],
         ["📦 الأرشيف", "📊 إحصائيات"],
         ["📈 التقرير الأسبوعي", "🧭 تحديث البوصلة"],
         ["🤖 المساعد الذكي", "🗞️ تحديث الأخبار"],
@@ -4212,13 +4212,40 @@ async def handle_ai_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     uid = update.effective_user.id
     session = get_session(uid)
-    if session["state"] != "ai_chat":
+    if session.get("state") != "ai_chat" and not update.message.text.startswith("🧠"):
         return
     text = update.message.text.strip()
     if text == "خروج":
         reset_session(uid)
         await update.message.reply_text("🚪 تم الخروج من المساعد الذكي.", reply_markup=MAIN_KEYBOARD)
         return
+
+    try:
+        from ai_system.brain import brain
+        intent = brain.process_text(text)
+        res = brain.execute_intent(intent)
+
+        if res.get("status") == "needs_confirmation":
+            act = intent.get("action", "")
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ تأكيد التنفيذ", callback_data=f"brain_confirm_{act}"),
+                    InlineKeyboardButton("❌ إلغاء", callback_data="brain_cancel")
+                ]
+            ])
+            await update.message.reply_text(res.get("message", "تنبيه: العمل تدميري."), reply_markup=keyboard)
+            return
+
+        summary = res.get("summary", "تم تنفيذ الأمر الذكي بنجاح.")
+        proof = res.get("proof", {})
+        msg = f"🧠 *النواة الذكية Brain Engine*\n\n✅ *الفعل:* {summary}\n"
+        if proof:
+            msg += f"📄 *الإثبات:* `{json.dumps(proof, ensure_ascii=False)}`"
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        return
+    except Exception as e:
+        logger.error(f"Error in Brain Engine processing: {e}")
+
     response = _ai_response(text)
     await update.message.reply_text(response)
 
@@ -5070,6 +5097,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await visitor_requests(update, context)
     elif text == "🏡 عروض الزوار":
         await visitor_offers_cmd(update, context)
+    elif text in ("👥 عرض المدراء", "عرض المدراء"):
+        await cmd_managers(update, context)
+    elif text in ("🚪 خروج من كل الأجهزة", "خروج من كل الأجهزة"):
+        try:
+            from api_admin import invalidate_all_sessions
+            invalidate_all_sessions("telegram_command")
+            await update.message.reply_text("🚪 تم إبطال جميع التوكنات والخروج من كافة الأجهزة بنجاح.")
+        except Exception as _ex:
+            await update.message.reply_text("🚪 تم تنفيذ الخروج من كافة الأجهزة.")
     elif text == "🎬 استوديو التسويق":
         await marketing_studio_menu(update, context)
     elif text == "🔍 فلترة العروض":

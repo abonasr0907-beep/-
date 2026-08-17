@@ -1,0 +1,94 @@
+{
+  "logs": [
+    {
+      "timestamp": "2026-08-17 08:56:32",
+      "action": "create_ad",
+      "intent": {
+        "action": "create_ad",
+        "params": {
+          "title": "إعلان عرض الأسبوع",
+          "type": "weekly_featured",
+          "target": "home"
+        },
+        "is_destructive": false,
+        "summary": "إنشاء إعلان مخصص لعرض الأسبوع"
+      },
+      "proof": {
+        "ad_id": "ad-1786956992",
+        "file_updated": "/app/data/ads.json"
+      }
+    },
+    {
+      "timestamp": "2026-08-17 08:57:39",
+      "action": "create_ad",
+      "intent": {
+        "action": "create_ad",
+        "params": {
+          "title": "إعلان عرض الأسبوع",
+          "type": "weekly_featured",
+          "target": "home"
+        },
+        "is_destructive": false,
+        "summary": "إنشاء إعلان مخصص لعرض الأسبوع"
+      },
+      "proof": {
+        "ad_id": "ad-1786957059",
+        "file_updated": "/app/data/ads.json"
+      }
+    },
+    {
+      "timestamp": "2026-08-17 08:57:39",
+      "action": "add_manager",
+      "intent": {
+        "action": "add_manager",
+        "params": {},
+        "is_destructive": false,
+        "summary": "إضافة وتعيين مدير جديد"
+      },
+      "proof": {
+        "executed_at": "2026-08-17 08:57:39",
+        "status": "completed"
+      }
+    },
+    {
+      "timestamp": "2026-08-17 08:57:39",
+      "action": "generate_report",
+      "intent": {
+        "action": "generate_report",
+        "params": {},
+        "is_destructive": false,
+        "summary": "توليد تقرير شامل للنظام"
+      },
+      "proof": {
+        "report_time": "2026-08-17 08:57:39",
+        "summary": "تم توليد تقرير الأداء الشامل بنجاح"
+      }
+    },
+    {
+      "timestamp": "2026-08-17 08:57:39",
+      "action": "generate_template",
+      "intent": {
+        "action": "generate_template",
+        "params": {
+          "placeholders": [
+            "اسم",
+            "سعر",
+            "منطقة",
+            "رابط"
+          ]
+        },
+        "is_destructive": false,
+        "summary": "توليد قالب تسويقي مع المحجوزات"
+      },
+      "proof": {
+        "template_id": "tpl-1786957059",
+        "placeholders": [
+          "اسم",
+          "سعر",
+          "منطقة",
+          "رابط"
+        ]
+      }
+    }
+  ]
+}

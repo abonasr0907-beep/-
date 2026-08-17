@@ -28,7 +28,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "FRM-002",
@@ -57,7 +58,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الدلم"
     },
     {
       "id": "FRM-003",
@@ -86,7 +88,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الضبيعة"
     },
     {
       "id": "FRM-004",
@@ -114,7 +117,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "العفجة"
     },
     {
       "id": "FRM-005",
@@ -143,7 +147,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الهياثم"
     },
     {
       "id": "RST-001",
@@ -173,7 +178,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "RST-002",
@@ -202,7 +208,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الهياثم"
     },
     {
       "id": "RST-003",
@@ -231,7 +238,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الدلم"
     },
     {
       "id": "RST-004",
@@ -261,7 +269,8 @@
       "operation_type": "sale",
       "status": "published",
       "publish_status": "Published",
-      "video_url": "https://youtube.com/shorts/wKfxmRUsUhk?si=eQVDwh0Au7kpZ34O"
+      "video_url": "https://youtube.com/shorts/wKfxmRUsUhk?si=eQVDwh0Au7kpZ34O",
+      "space": "الضبيعة"
     },
     {
       "id": "LND-001",
@@ -292,7 +301,8 @@
       "operation_type": "sale",
       "status": "published",
       "publish_status": "Published",
-      "video_url": "https://youtube.com/shorts/wKfxmRUsUhk?si=eQVDwh0Au7kpZ34O"
+      "video_url": "https://youtube.com/shorts/wKfxmRUsUhk?si=eQVDwh0Au7kpZ34O",
+      "space": "الرحمانية"
     },
     {
       "id": "LND-003",
@@ -320,7 +330,8 @@
       "property_type": "أرض سكنية",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الدلم"
     },
     {
       "id": "LND-004",
@@ -348,7 +359,8 @@
       "property_type": "أرض سكنية",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "العفجة"
     },
     {
       "id": "AFQ-2026-0001",
@@ -370,7 +382,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0005",
@@ -392,7 +405,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0008",
@@ -418,7 +432,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0010",
@@ -440,7 +455,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0012",
@@ -462,7 +478,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0014",
@@ -488,7 +505,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الشديده"
     },
     {
       "id": "AFQ-2026-0017",
@@ -514,7 +532,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0020",
@@ -538,7 +557,8 @@
       "property_type": "استراحة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "العفجة"
     },
     {
       "id": "AFQ-2026-0023",
@@ -560,7 +580,8 @@
       "property_type": "مزرعة",
       "operation_type": "sale",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "FRM-AB0149",
@@ -591,7 +612,8 @@
       "section": "أراضي",
       "property_type": "مزرعة",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الدلم"
     },
     {
       "id": "AFQ-2026-0026",
@@ -617,7 +639,8 @@
       "date_added": "2026-08-12",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0028",
@@ -643,7 +666,8 @@
       "date_added": "2026-08-12",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
     },
     {
       "id": "FAR-BBF0C3",
@@ -672,7 +696,8 @@
       },
       "contact": "0561610748",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الرحمانية"
     },
     {
       "id": "LND-430F75",
@@ -703,7 +728,8 @@
       "visitor_name": "افاق العقاري",
       "visitor_phone": "0561610748",
       "status": "published",
-      "publish_status": "Published"
+      "publish_status": "Published",
+      "space": "الدلم"
     },
     {
       "id": "AFQ-2026-0029",
@@ -725,7 +751,8 @@
       "date_added": "2026-08-15",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0030",
@@ -747,7 +774,8 @@
       "date_added": "2026-08-16",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0031",
@@ -769,7 +797,8 @@
       "date_added": "2026-08-16",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0032",
@@ -791,7 +820,8 @@
       "date_added": "2026-08-16",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
     },
     {
       "id": "AFQ-2026-0033",
@@ -813,7 +843,28 @@
       "date_added": "2026-08-16",
       "featured": false,
       "publish_status": "Published",
-      "status": "published"
+      "status": "published",
+      "space": "الرحمانية"
+    },
+    {
+      "id": "FAR-805F10",
+      "type": "farm",
+      "category": "مزرعة",
+      "title": "مزرعة",
+      "area": "الرحمانية",
+      "size_sqm": 55000,
+      "price_text": "1228889",
+      "description": "🌿 مزرعة خصبة للبيع في الرحمانية بالخرج!\n\nمساحة 55000 م²، موقع استراتيجي وقريب من الخدمات. فرصة استثمارية لا تعوض لمن يبحث عن مزرعة مثالية.\n\n📞 للتفاصيل والمعاينة: واتساب 0545888931",
+      "features": [],
+      "images": [
+        "images/bot/offer_1786122697_0.jpg"
+      ],
+      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+      "date_added": "2026-08-07",
+      "featured": false,
+      "publish_status": "Published",
+      "status": "published",
+      "space": "الرحمانية"
     }
   ]
 }
