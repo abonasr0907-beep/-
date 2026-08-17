@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.tiktok.com https://www.instagram.com; connect-src 'self' https://afaq-ingest-bridge.up.railway.app https://s3.val.sd;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
     <script>(function(){var t=localStorage.getItem("afaq_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>صفحة العقار | مكتب آفاق الإنجاز العقاري</title>
+    <title>صفحة العقار | الخرج والرياض | آفاق الإنجاز</title>
     <meta name="description" content="تفاصيل العقار في مكتب آفاق الإنجاز العقاري — مزارع واستراحات وأراضي سكنية في الخرج والرياض.">
     <meta name="keywords" content="عقارات في الرياض, عقارات في الخرج, مزارع للبيع في الرياض, مزارع للبيع في الخرج, استراحات للبيع في الرياض, استراحات للبيع في الخرج, أراضي سكنية للبيع في الرياض, فلل للبيع في الرياض, آفاق الإنجاز العقاري, بيع عقارات في الرياض, شراء عقارات في الرياض">
     <meta name="robots" content="index, follow">
@@ -43,7 +48,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/base.css?v=4">
+    <link rel="stylesheet" href="css/components.css?v=4">
+    <link rel="stylesheet" href="css/pages.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=4">
     <link rel="stylesheet" href="css/luxury.css">
     <link rel="stylesheet" href="css/silo.css">
 
@@ -476,13 +484,37 @@
         }
     </style>
 <script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+
+    <link rel="alternate" hreflang="en" href="https://abonasr0907-beep.github.io/-/property.html">
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "الرئيسية",
+                "item": "https://abonasr0907-beep.github.io/-/index.html"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "property",
+                "item": "https://abonasr0907-beep.github.io/-/property.html"
+            }
+        ]
+    }
+    </script>
+
 </head>
 <body>
     <!-- Header -->
         <header class="header">
         <div class="header-container">
             <div class="logo-section" onclick="window.location.href='index.html'">
-                <img src="images/logo.jpg" alt="شعار مكتب آفاق الإنجاز العقاري | Afaq Al-Injaz Real Estate Office logo" class="logo-img">
+                <img width="400" height="250" loading="lazy" src="images/logo.jpg" alt="شعار مكتب آفاق الإنجاز العقاري | Afaq Al-Injaz Real Estate Office logo" class="logo-img">
                 <div class="logo-text">
                     <span class="logo-name">آفاق الإنجاز</span>
                     <span class="logo-full">مكتب آفاق الإنجاز العقاري</span>
@@ -526,6 +558,13 @@
         </div>
     </header>
 
+    <nav class="visible-breadcrumb" aria-label="breadcrumb" style="padding: 10px 16px; background: #F1F5F9; font-size: 13px; margin-bottom: 15px;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <a href="index.html"><i class="fas fa-home"></i> الرئيسية</a> &gt; <span>property.html</span>
+        </div>
+    </nav>
+
+
     <!-- Property Detail Container -->
     <div class="property-page-container">
         <!-- Breadcrumb -->
@@ -557,7 +596,7 @@
             <div class="property-detail-grid">
                 <!-- Image Gallery -->
                 <div class="property-gallery">
-                    <img src="" alt="تفاصيل العقار | Property details — Afaq Al-Injaz Real Estate" class="property-main-image" id="property-main-image" loading="eager">
+                    <img width="400" height="250" src="" alt="تفاصيل العقار | Property details — Afaq Al-Injaz Real Estate" class="property-main-image" id="property-main-image" loading="eager">
                     <div class="property-thumbnails" id="property-thumbnails"></div>
                 </div>
 
@@ -719,7 +758,7 @@
 
     <!-- Lightbox -->
     <div class="property-lightbox" id="property-lightbox">
-        <img src="" alt="عرض مكبر للعقار | Property enlarged view — Afaq Al-Injaz Real Estate" id="lightbox-img">
+        <img width="400" height="250" loading="lazy" src="" alt="عرض مكبر للعقار | Property enlarged view — Afaq Al-Injaz Real Estate" id="lightbox-img">
     </div>
 
     <!-- Leaflet JS (fallback) -->
@@ -934,6 +973,7 @@
                 // Hide loading, show content
                 document.getElementById('property-loading').style.display = 'none';
                 document.getElementById('property-content').style.display = 'block';
+                if (window.initDetailSwipeGesture) window.initDetailSwipeGesture();
 
                 // Update meta
                 updateMeta(offer);
@@ -1221,7 +1261,7 @@
                     var img = (o.images && o.images[0]) ? o.images[0] : DEFAULT_IMG;
                     var title = o.title || (o.category || 'عقار');
                     return '<a href="' + offerDetailLinkP(o) + '" class="similar-card">' +
-                        '<img src="' + img + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + DEFAULT_IMG + '\';">' +
+                        '<img width="400" height="250" src="' + img + '" alt="' + title + '" loading="lazy" onerror="this.onerror=null;this.src=\'' + DEFAULT_IMG + '\';">' +
                         '<div class="similar-card-body"><h4>' + title + '</h4>' +
                         '<div class="sc-price">' + (o.price_text || '') + '</div>' +
                         '<div class="sc-loc"><i class="fas fa-map-marker-alt"></i> ' + (o.area || '') + '</div>' +
