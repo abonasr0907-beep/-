@@ -557,30 +557,24 @@ a.hero-feature:hover {
     font-weight: 600;
 }
 
-/* ===== شبكة العروض ===== */
-.offers-grid, .property-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 24px;
+/* ===== شبكة العروض — Mobile First ===== */
+.offers-grid, .property-grid, .properties-grid, .cards-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px;
 }
 
-@media (max-width: 1200px) {
-    .offers-grid, .property-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 890px) {
-    .offers-grid, .property-grid {
-        grid-template-columns: repeat(2, 1fr);
+@media (min-width: 640px) {
+    .offers-grid, .property-grid, .properties-grid, .cards-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
         gap: 16px;
     }
 }
 
-@media (max-width: 580px) {
-    .offers-grid, .property-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
+@media (min-width: 1024px) {
+    .offers-grid, .property-grid, .properties-grid, .cards-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 24px;
     }
 }
 
@@ -2054,10 +2048,6 @@ select.form-control {
     .btn {
         width: 100%;
         justify-content: center;
-    }
-
-    .offers-grid {
-        grid-template-columns: 1fr;
     }
 
     .stat-item .stat-number {

@@ -40,10 +40,15 @@ logger = logging.getLogger(__name__)
 #  مسارات الملفات (mirror bot.py)
 # ============================================================
 
+try:
+    from config import OFFERS_PATH, read_offers_live, save_offers_live
+except ImportError:
+    from bot.config import OFFERS_PATH, read_offers_live, save_offers_live
+
 BASE_DIR = Path(__file__).resolve().parent
 WEBSITE_DIR = BASE_DIR.parent
 DATA_DIR = BASE_DIR / "data"
-OFFERS_JSON = WEBSITE_DIR / "offers-data" / "offers.json"
+OFFERS_JSON = OFFERS_PATH
 BOT_OFFERS = DATA_DIR / "bot_offers.json"
 BOUNCE_LOG = DATA_DIR / "bounce_guard_log.json"
 

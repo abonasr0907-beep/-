@@ -393,31 +393,31 @@ const BOUSLA_PRICES = {
 // ===== العروض =====
 let OFFERS = [];
 
-// ===== تحميل العروض من ملف JSON أو من localStorage =====
-async function loadOffers(defaultFilter = 'all') {
-    // محاولة تحميل العروض من localStorage (من بوت التلجرام)
-    const storedOffers = localStorage.getItem('afaq_offers');
-    if (storedOffers) {
-        try {
-            OFFERS = JSON.parse(storedOffers);
-        } catch(e) {
-            OFFERS = getDefaultOffers();
+// ===== تحميل العروض من ملف الفهرس النحيف offers-index.json =====
+async function loadOffers(defaultFilter) {
+    if (!defaultFilter) defaultFilter = 'all';
+    var grid = document.getElementById('offers-grid');
+    try {
+        var response = await fetch('offers-index.json', { cache: 'no-store' });
+        if (!response.ok) {
+            response = await fetch('offers-data/offers.json', { cache: 'no-store' });
         }
-    } else {
-        // تحميل من ملف JSON
-        try {
-            const response = await fetch('offers-data/offers.json');
-            const data = await response.json();
-            OFFERS = data.offers;
-            localStorage.setItem('afaq_offers', JSON.stringify(OFFERS));
-        } catch(e) {
-            OFFERS = getDefaultOffers();
+        var data = await response.json();
+        OFFERS = data.offers || [];
+        localStorage.setItem('afaq_offers', JSON.stringify(OFFERS));
+        renderOffers(defaultFilter);
+        updateStats();
+        updatePropertyTypeFilter();
+        renderMostViewedBar();
+    } catch(e) {
+        console.error('Failed to load offers index:', e);
+        if (grid) {
+            grid.innerHTML = '<div style="text-align:center; padding:30px; grid-column:1/-1;">' +
+                '<p style="color:#d32f2f; font-weight:700; margin-bottom:15px; font-size:18px;">تعذر العرض — إعادة</p>' +
+                '<button class="btn btn-primary" onclick="loadOffers(\'' + defaultFilter + '\')"><i class="fas fa-redo"></i> إعادة المحاولة</button>' +
+                '</div>';
         }
     }
-    renderOffers(defaultFilter);
-    updateStats();
-    updatePropertyTypeFilter();
-    renderMostViewedBar();
 }
 
 // ===== العروض الافتراضية =====
@@ -468,6 +468,16 @@ function renderOffers(filter = 'all', areaFilter = 'all', propTypeFilter = 'all'
     }
 
     grid.innerHTML = filtered.map(offer => {
+        const vUrl = offer.video_url || offer.youtube_url || offer.tour_url || offer.video || '';
+        if (vUrl && typeof vUrl === 'string' && vUrl.trim()) {
+            offer.video_url = vUrl.trim();
+        } else {
+            delete offer.video_url;
+        }
+        delete offer.youtube_url;
+        delete offer.tour_url;
+        delete offer.video;
+
         const bousla = BOUSLA_PRICES[offer.area] || BOUSLA_PRICES["الرحمانية"];
         const bouslaPrice = offer.type === 'farm' ? bousla.farm : (offer.type === 'resthouse' ? bousla.resthouse : bousla.land);
         const featuresHtml = (offer.features || []).slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');

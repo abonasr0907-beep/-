@@ -30,6 +30,11 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
+try:
+    from config import OFFERS_PATH, read_offers_live, save_offers_live, OWNER_ID as CONFIG_OWNER_ID, SITE_BASE_URL as CONFIG_SITE_BASE_URL, generate_offers_index, MANAGERS_PATH
+except ImportError:
+    from bot.config import OFFERS_PATH, read_offers_live, save_offers_live, OWNER_ID as CONFIG_OWNER_ID, SITE_BASE_URL as CONFIG_SITE_BASE_URL, generate_offers_index, MANAGERS_PATH
+
 import requests
 from PIL import Image, ImageEnhance, ImageFilter
 
@@ -132,7 +137,7 @@ from telegram.ext import (
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.json"
 WEBSITE_DIR = BASE_DIR.parent  # afaq-website
-OFFERS_JSON = WEBSITE_DIR / "offers-data" / "offers.json"
+OFFERS_JSON = OFFERS_PATH
 IMAGES_DIR = WEBSITE_DIR / "images" / "bot"  # صور العروض المرفوعة
 DATA_DIR = BASE_DIR / "data"
 VISITOR_REQUESTS = DATA_DIR / "visitor_requests.json"
@@ -314,17 +319,14 @@ ADMIN_IDS = set(CONFIG.get("admin_ids", []))
 #  البيانات — العروض وطلبات الزوار
 # ============================================================
 def load_offers_json():
-    """تحميل عروض الموقع من offers.json"""
-    if OFFERS_JSON.exists():
-        with open(OFFERS_JSON, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"offers": []}
+    """تحميل عروض الموقع من OFFERS_PATH قراءة حية عند الطلب بدون كاش"""
+    return read_offers_live()
 
 def save_offers_json(data):
-    """حفظ عروض الموقع في offers.json (نشر مباشر)"""
-    with open(OFFERS_JSON, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    logger.info("تم حفظ offers.json — نشر مباشر على الموقع")
+    """حفظ عروض الموقع في OFFERS_PATH وحفظ تحديث الفهرس النحيف"""
+    res = save_offers_live(data)
+    logger.info("تم حفظ OFFERS_PATH — نشر مباشر على الموقع وتحديث الفهرس")
+    return res
 
 def load_bot_offers():
     """تحميل عروض البوت (قاعدة بيانات البوت المنفصلة)"""
@@ -1716,7 +1718,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "studio_main":
         await marketing_studio_menu(update, context)
     elif data == "studio_tours":
-        await studio_tours_list(update, context)
+        await studio_tours_list(update, context, page=0)
+    elif data.startswith("studio_tours_page_"):
+        try:
+            pg = int(data.replace("studio_tours_page_", ""))
+        except ValueError:
+            pg = 0
+        await studio_tours_list(update, context, page=pg)
     elif data.startswith("studio_yt_add_"):
         offer_id_val = data.replace("studio_yt_add_", "")
         session["state"] = f"studio_yt_await_{offer_id_val}"
@@ -4979,14 +4987,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for o in site_data.get("offers", []):
             if str(o.get("id")) == str(offer_id_val):
                 o["video_url"] = yt_url
-                o["youtube_url"] = yt_url
+                o.pop("youtube_url", None)
+                o.pop("tour_url", None)
                 break
         save_offers_json(site_data)
         bot_data = load_bot_offers()
         for o in bot_data.get("offers", []):
             if str(o.get("id")) == str(offer_id_val):
                 o["video_url"] = yt_url
-                o["youtube_url"] = yt_url
+                o.pop("youtube_url", None)
+                o.pop("tour_url", None)
                 break
         save_bot_offers(bot_data)
         reset_session(uid)
@@ -6551,35 +6561,68 @@ async def marketing_studio_menu(update: Update, context: ContextTypes.DEFAULT_TY
         await update.callback_query.message.edit_text(msg, parse_mode="Markdown", reply_markup=keyboard)
 
 
-async def studio_tours_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """قائمة الجولات العقارية مع روابط يوتيوب والأزرار للتعديل/الحذف"""
-    query = update.callback_query
+def get_tours_raw_list() -> list:
+    """بناء قائمة الجولات الكاملة لحظة الاستدعاء من OFFERS_PATH مباشرة بدون كاش"""
     site_data = load_offers_json() or {}
     offers = site_data.get("offers") or []
-    if not offers:
+    tours_list = []
+    for o in offers:
+        if not isinstance(o, dict):
+            continue
+        oid = str(o.get("id") or "N/A")
+        title = str(o.get("title") or o.get("category") or "عقار")
+        v_url = str(o.get("video_url") or "لا يوجد")
+        imgs = o.get("images") or []
+        first_img = imgs[0] if imgs else "بدون صورة"
+        imgs_cnt = len(imgs)
+        tours_list.append({
+            "id": oid,
+            "title": title,
+            "video_url": v_url,
+            "image": first_img,
+            "images_count": imgs_cnt,
+            "item_text": f"📸 {first_img} | 🔹 *[{oid}]* {title}\n   🎬 الفيديو: {v_url}"
+        })
+    return tours_list
+
+
+async def studio_tours_list(update: Update, context: ContextTypes.DEFAULT_TYPE, page: int = 0):
+    """قائمة الجولات العقارية الكاملة مبنية لحظة الاستدعاء مع التصفح كل 10 عناصر"""
+    query = update.callback_query
+    all_tours = get_tours_raw_list()
+    if not all_tours:
         msg = "⚠️ لا توجد عروض حالياً لإدارة جولاتها."
         if query and query.message:
             await query.message.edit_text(msg)
         return
 
-    text = "🎥 *إدارة الجولات العقارية (روابط فيديو يوتيوب)*\n\n"
+    page_size = 10
+    total_items = len(all_tours)
+    start_idx = page * page_size
+    end_idx = min(start_idx + page_size, total_items)
+    page_tours = all_tours[start_idx:end_idx]
+
+    text = f"🎥 *إدارة الجولات العقارية ({start_idx+1}-{end_idx} من {total_items})*\n\n"
     buttons = []
-    for o in offers[:10]:
-        if not isinstance(o, dict):
-            continue
-        oid = str(o.get("id") or "N/A")
-        title = str(o.get("title") or o.get("category") or "عقار")
-        v_url = str(o.get("video_url") or o.get("youtube_url") or "لا يوجد")
-        imgs_cnt = len(o.get("images") or [])
-        text += f"🔹 *[{oid}]* {title}\n"
-        text += f"   📸 الصور: {imgs_cnt} | 🎬 الفيديو: {v_url}\n\n"
+    for tour in page_tours:
+        oid = tour["id"]
+        v_url = tour["video_url"]
+        text += f"{tour['item_text']}\n\n"
 
         row = [
-            InlineKeyboardButton(f"➕/✏️ يوتيوب {oid}", callback_data=f"studio_yt_add_{oid}")
+            InlineKeyboardButton(f"➕/✏️ فيديو {oid}", callback_data=f"studio_yt_add_{oid}")
         ]
         if v_url != "لا يوجد":
             row.append(InlineKeyboardButton(f"🗑️ حذف {oid}", callback_data=f"studio_yt_del_{oid}"))
         buttons.append(row)
+
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("◂ السابق", callback_data=f"studio_tours_page_{page-1}"))
+    if end_idx < total_items:
+        nav_row.append(InlineKeyboardButton("المزيد ▸", callback_data=f"studio_tours_page_{page+1}"))
+    if nav_row:
+        buttons.append(nav_row)
 
     buttons.append([InlineKeyboardButton("🔙 العودة للاستوديو", callback_data="studio_main")])
     kb = InlineKeyboardMarkup(buttons)
@@ -7013,6 +7056,27 @@ async def cmd_fix(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 #  Phase 3 S1.3: Bounce Guard - Auto Check
 # ============================================================
+async def auto_regression_guardian_job(context):
+    """Job periodic function for Regression Guardian running every 6 hours."""
+    try:
+        try:
+            from regression_guardian import run_regression_guardian
+        except ImportError:
+            from bot.regression_guardian import run_regression_guardian
+        rep = run_regression_guardian()
+        if rep.get("status") != "PASSED":
+            failures = rep.get("failures", [])
+            msg = f"⚠️ *تقرير حارس نظام المناعة (Regression Guardian)*\n\nعُثر على {len(failures)} مشكلة:\n"
+            for f in failures:
+                msg += f"• `{f.get('file')}` (سطر {f.get('line')}): {f.get('detail')}\n"
+            try:
+                await context.bot.send_message(chat_id=CONFIG_OWNER_ID, text=msg, parse_mode="Markdown")
+            except Exception as e:
+                logger.error(f"Failed to send Regression Guardian report to owner: {e}")
+    except Exception as err:
+        logger.error(f"Error running auto_regression_guardian_job: {err}")
+
+
 async def _bounce_guard_auto_check(context):
     """Auto check every 6 hours - called from JobQueue."""
     if not _bounce_guard:
@@ -7419,6 +7483,10 @@ def _setup_handlers(app):
     if app.job_queue and _bounce_guard:
         app.job_queue.run_repeating(_bounce_guard_auto_check, interval=6 * 3600, first=300)
         logger.info("🛡️ تم جدولة حارس الارتداد — كل 6 ساعات")
+
+    if app.job_queue:
+        app.job_queue.run_repeating(auto_regression_guardian_job, interval=6 * 3600, first=300)
+        logger.info("🛡️ تم جدولة Regression Guardian (نظام المناعة) — كل 6 ساعات")
         # تهيئة العدّاد المرجعي
         try:
             _bounce_guard.init_ref_count()

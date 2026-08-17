@@ -39,10 +39,15 @@ logger = logging.getLogger("afaq_bot.publish_verifier")
 # ============================================================
 #  المسارات
 # ============================================================
+try:
+    from config import OFFERS_PATH, read_offers_live, save_offers_live
+except ImportError:
+    from bot.config import OFFERS_PATH, read_offers_live, save_offers_live
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 WEBSITE_DIR = BASE_DIR.parent
-OFFERS_JSON = WEBSITE_DIR / "offers-data" / "offers.json"
+OFFERS_JSON = OFFERS_PATH
 BOT_OFFERS_JSON = DATA_DIR / "bot_offers.json"
 VERIFICATION_LOG = DATA_DIR / "publish_verification_log.json"
 

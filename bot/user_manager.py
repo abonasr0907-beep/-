@@ -491,11 +491,24 @@ def is_admin(user_id) -> bool:
 
 
 def is_owner(user_id) -> bool:
-    """التحقق إن كان المستخدم المالك (owner)."""
-    uid = str(user_id) if user_id is not None else ""
-    if uid and uid == get_owner_id():
+    """التحقق إن كان المستخدم المالك (owner) - قراءة حية من managers.json"""
+    if user_id is None:
+        return False
+    uid = str(user_id).strip()
+    if uid == str(get_owner_id()):
         return True
-    return get_user_role(user_id) == ROLE_OWNER
+    mpath = BASE_DIR.parent / "data" / "managers.json"
+    if mpath.exists():
+        try:
+            with open(mpath, "r", encoding="utf-8") as f:
+                mdata = json.load(f)
+            for m in mdata.get("managers", []):
+                mid = str(m.get("id") or m.get("telegram_id") or "").strip()
+                if mid == uid and m.get("role") == "owner" and m.get("status", "active") != "suspended":
+                    return True
+        except Exception:
+            pass
+    return False
 
 
 def is_full_admin(user_id) -> bool:
@@ -512,7 +525,23 @@ def is_full_admin(user_id) -> bool:
 
 
 def is_manager(user_id) -> bool:
-    """التحقق إن كان المستخدم مديراً (manager)."""
+    """التحقق إن كان المستخدم مديراً (manager) - قراءة حية من managers.json بدون استهلاك"""
+    if user_id is None:
+        return False
+    uid = str(user_id).strip()
+    if is_owner(uid):
+        return True
+    mpath = BASE_DIR.parent / "data" / "managers.json"
+    if mpath.exists():
+        try:
+            with open(mpath, "r", encoding="utf-8") as f:
+                mdata = json.load(f)
+            for m in mdata.get("managers", []):
+                mid = str(m.get("id") or m.get("telegram_id") or "").strip()
+                if mid == uid and m.get("status", "active") != "suspended":
+                    return True
+        except Exception:
+            pass
     return get_user_role(user_id) == ROLE_MANAGER
 
 

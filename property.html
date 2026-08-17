@@ -566,6 +566,7 @@
                     <span class="property-id-badge" id="property-id-badge">معرف العقار</span>
                     <span class="property-operation-badge sale" id="property-operation-badge">للبيع</span>
                     <span class="property-sold-badge" id="property-sold-badge" style="display:none;">✔️ تم البيع</span>
+                    <span class="property-video-badge" id="property-video-badge" style="display:none; background:#8E24AA; color:#fff; padding:6px 14px; border-radius:20px; font-size:14px; font-weight:700; margin-right:8px;">🎬 جولة فيديو</span>
                     <h1 class="property-title" id="property-title">عنوان العقار</h1>
 
                     <div class="property-price-box">
@@ -963,12 +964,27 @@
                     opBadge.className = 'property-operation-badge sale';
                 }
 
+                // Video Tour Normalization
+                var videoUrl = offer.video_url || offer.youtube_url || offer.tour_url;
+                if (videoUrl) {
+                    offer.video_url = videoUrl;
+                } else {
+                    delete offer.video_url;
+                }
+                delete offer.youtube_url;
+                delete offer.tour_url;
+
                 // Phase 2: شارة "تم البيع" — العقار المباع يبقى بصفحته ولا يُحذف
                 var soldBadge = document.getElementById('property-sold-badge');
                 if (offer.sold) {
                     soldBadge.style.display = 'inline-block';
                 } else {
                     soldBadge.style.display = 'none';
+                }
+
+                var videoBadge = document.getElementById('property-video-badge');
+                if (videoBadge) {
+                    videoBadge.style.display = offer.video_url ? 'inline-block' : 'none';
                 }
 
                 // Title
@@ -1010,8 +1026,8 @@
                 }
 
                 // Video Tour
-                if (offer.video_url || offer.youtube_url) {
-                    var vUrl = offer.video_url || offer.youtube_url;
+                if (offer.video_url) {
+                    var vUrl = offer.video_url;
                     var videoSec = document.getElementById('video-section');
                     var videoContainer = document.getElementById('video-container');
                     if (videoSec && videoContainer) {
