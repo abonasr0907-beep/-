@@ -29,7 +29,7 @@ from aiohttp import web, ClientSession
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_REPO = "abonasr0907-beep/-"
 GITHUB_FILE_PATH = "bot/data/visitor_requests.json"
-BOT_TOKEN = "8629398802:AAE2ndFy06GfV8qSQpd-cOKDccPUt_G05Os"
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 ADMIN_CHAT_ID = "7746757675"
 TELEGRAM_API_BASE = "https://api.telegram.org/bot"
 PORT = int(os.environ.get("PORT", "8090"))
@@ -533,6 +533,11 @@ def create_app():
     app.router.add_get("/api/properties/map", handle_properties_map)
     app.router.add_get("/health", handle_health)
     app.router.add_get("/", handle_root)
+    try:
+        from api_admin import setup_admin_routes
+        setup_admin_routes(app)
+    except Exception as e:
+        print(f"⚠️ تعذر تحميل مسارات Admin API: {e}")
     return app
 
 if __name__ == "__main__":

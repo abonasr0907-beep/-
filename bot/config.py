@@ -60,6 +60,52 @@ def is_manager(user_id) -> bool:
     return False
 
 
+def save_managers_live(managers_list: list) -> bool:
+    """حفظ دائم ومدمج لحماية قائمة المدراء من الضياع، مع الحفاظ على المالك دائماً"""
+    try:
+        MANAGERS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        existing_managers = []
+        if MANAGERS_PATH.exists():
+            try:
+                with open(MANAGERS_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    existing_managers = data.get("managers", [])
+            except Exception as e:
+                logger.error(f"Error reading MANAGERS_PATH before save: {e}")
+
+        mgr_map = {}
+        owner_entry = {
+            "id": str(OWNER_ID),
+            "telegram_id": str(OWNER_ID),
+            "role": "owner",
+            "name": "المالك",
+            "permissions": "full",
+            "status": "active"
+        }
+        mgr_map[str(OWNER_ID)] = owner_entry
+
+        for m in existing_managers:
+            m_id = str(m.get("id") or m.get("telegram_id") or "").strip()
+            if m_id:
+                mgr_map[m_id] = m
+
+        for m in managers_list:
+            m_id = str(m.get("id") or m.get("telegram_id") or "").strip()
+            if m_id:
+                if m_id in mgr_map:
+                    mgr_map[m_id].update(m)
+                else:
+                    mgr_map[m_id] = m
+
+        final_list = list(mgr_map.values())
+        with open(MANAGERS_PATH, "w", encoding="utf-8") as f:
+            json.dump({"managers": final_list}, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving managers live to {MANAGERS_PATH}: {e}")
+        return False
+
+
 def load_config() -> dict:
     if CONFIG_JSON_PATH.exists():
         try:
@@ -100,12 +146,19 @@ def read_offers_live() -> dict:
 
 
 def save_offers_live(data: dict) -> bool:
-    """حفظ مباشر في OFFERS_PATH وحفظ تحديث الفهرس النحيف"""
+    """حفظ مباشر في OFFERS_PATH وحفظ تحديث الفهرس النحيف وتحديث خرائط السايت ماب"""
     try:
         OFFERS_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(OFFERS_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         generate_offers_index(data)
+        try:
+            sys.path.insert(0, str(REPO_ROOT / "tools"))
+            from gen_sitemap import generate_sitemaps, send_indexnow_ping
+            generate_sitemaps()
+            send_indexnow_ping()
+        except Exception as _sm_err:
+            logger.warning(f"Sitemap auto-update failed: {_sm_err}")
         return True
     except Exception as e:
         logger.error(f"Error saving offers live to {OFFERS_PATH}: {e}")

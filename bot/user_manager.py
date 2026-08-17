@@ -331,8 +331,23 @@ def init_from_config(config):
 
 
 def _save_users():
-    """حفظ المستخدمين على القرص (داخلي)"""
+    """حفظ المستخدمين على القرص (داخلي) مع المزامنة لحافظة المدراء"""
     _atomic_write_json(USERS_FILE, _users)
+    try:
+        from bot.config import save_managers_live
+        mgr_list = []
+        for uid, u in _users.items():
+            if isinstance(u, dict) and u.get("role") in (ROLE_MANAGER, ROLE_ADMIN, ROLE_OWNER):
+                mgr_list.append({
+                    "id": str(uid),
+                    "telegram_id": str(uid),
+                    "role": u.get("role"),
+                    "name": u.get("name", ""),
+                    "status": u.get("status", STATUS_ACTIVE)
+                })
+        save_managers_live(mgr_list)
+    except Exception as e:
+        logger.error(f"Error syncing managers in _save_users: {e}")
 
 
 def _save_audit():
