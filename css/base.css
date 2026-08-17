@@ -1,0 +1,396 @@
+/* =========================================================
+   Afaq Real Estate Platform - Base CSS (css/base.css)
+   Variables, Reset, Fonts, Header, Navigation, Footer
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Cairo:wght@400;600;700;800&family=Reem+Kufi:wght@600;700&display=swap');
+
+:root {
+    --primary-color: #1B365D;
+    --primary-light: #2A5050;
+    --accent-color: #C4A956;
+    --accent-gold: #D4AF37;
+    --success-color: #10B981;
+    --text-dark: #1E293B;
+    --text-muted: #64748B;
+    --bg-light: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --border-color: #E2E8F0;
+    --radius-card: 14px;
+    --radius-btn: 8px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+    --font-main: 'Tajawal', system-ui, sans-serif;
+    --font-heading: 'Reem Kufi', 'Cairo', sans-serif;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    direction: rtl;
+    text-align: right;
+    line-height: 1.6;
+    -webkit-tap-highlight-color: transparent;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* ===== Header & Sticky Top Bar ===== */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.logo-img {
+    height: 42px;
+    width: auto;
+}
+
+.logo-text .logo-title {
+    font-family: var(--font-heading);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    list-style: none;
+}
+
+.nav-links a {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-dark);
+    transition: color 0.2s;
+}
+
+.nav-links a:hover, .nav-links a.active {
+    color: var(--accent-color);
+}
+
+.btn-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--primary-color);
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* Mobile Sidebar Drawer */
+@media (max-width: 768px) {
+    .nav-links {
+        position: fixed;
+        top: 0;
+        right: -280px;
+        width: 280px;
+        height: 100vh;
+        background: #FFFFFF;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 60px 20px 20px;
+        box-shadow: var(--shadow-lg);
+        transition: right 0.3s ease;
+        z-index: 1001;
+    }
+    .nav-links.active {
+        right: 0;
+    }
+    .btn-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Dark Mode */
+body.dark-mode {
+    --bg-light: #0F172A;
+    --bg-card: #1E293B;
+    --text-dark: #F8FAFC;
+    --text-muted: #94A3B8;
+    --border-color: #334155;
+}
+
+/* Footer */
+.site-footer {
+    background: var(--primary-color);
+    color: #FFFFFF;
+    padding: 40px 16px 20px;
+    margin-top: 60px;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}
+
+.footer-bottom {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin-top: 30px;
+    padding-top: 15px;
+    text-align: center;
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+}
+
+
+/* ===== Navigation Menu & Drawer Styling ===== */
+.nav-menu, .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-menu li, .nav-links li {
+    list-style: none;
+}
+
+.nav-menu a, .nav-links a {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-dark, #1E293B);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.nav-menu a:hover, .nav-links a:hover,
+.nav-menu a.active, .nav-links a.active {
+    color: var(--accent-color, #C4A956);
+    background: rgba(196, 169, 86, 0.1);
+}
+
+.btn-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--primary-color, #1B365D);
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.mobile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+}
+
+.mobile-overlay.active {
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .nav-menu, .nav-links {
+        position: fixed;
+        top: 0;
+        right: -300px;
+        width: 280px;
+        height: 100vh;
+        background: #FFFFFF;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 70px 20px 30px;
+        box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1001;
+        overflow-y: auto;
+    }
+
+    .nav-menu.active, .nav-links.active {
+        right: 0;
+    }
+
+    .nav-menu li, .nav-links li {
+        width: 100%;
+    }
+
+    .nav-menu a, .nav-links a {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 15px;
+        border-bottom: 1px solid #F1F5F9;
+    }
+
+    .btn-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+
+/* ===== 2-Layer Large Brand Identity ===== */
+.homepage-hero-identity {
+    padding: 24px 16px 20px;
+    background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%);
+    text-align: center;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.hero-logo-112 {
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    border: 4px solid #D4AF37;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+    margin: 0 auto 12px;
+    display: block;
+}
+
+.hero-brand-name-30 {
+    font-family: var(--font-heading, 'Reem Kufi', sans-serif);
+    font-size: 30px;
+    font-weight: 800;
+    color: #1B365D;
+    line-height: 1.25;
+    margin-bottom: 6px;
+}
+
+.hero-gold-line {
+    width: 80px;
+    height: 3px;
+    background: #C4A956;
+    margin: 8px auto;
+    border-radius: 2px;
+}
+
+.hero-exp-chip-14 {
+    display: inline-block;
+    background: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FCD34D;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-top: 6px;
+}
+
+/* Compact Sticky Bar on Scroll */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border-color, #E2E8F0);
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.08));
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo-section .compact-logo-40 {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #D4AF37;
+}
+
+.logo-section .compact-name-16 {
+    font-family: var(--font-heading, 'Reem Kufi', sans-serif);
+    font-size: 16px;
+    font-weight: 700;
+    color: #1B365D;
+}
+
+/* Category & Hub Identity Row */
+.hub-identity-header {
+    padding: 20px 16px;
+    background: #FFFFFF;
+    text-align: center;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.hub-logo-72 {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 3px solid #D4AF37;
+    object-fit: cover;
+    margin: 0 auto 8px;
+    display: block;
+}
+
+.hub-brand-name-26 {
+    font-family: var(--font-heading, 'Reem Kufi', sans-serif);
+    font-size: 26px;
+    font-weight: 800;
+    color: #1B365D;
+    line-height: 1.2;
+}
+
+.hub-category-title-22 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #C4A956;
+    margin-top: 4px;
+}
+
+/* Font Floor Rule: min 11px */
+* {
+    min-font-size: 11px;
+}

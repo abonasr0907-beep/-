@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; img-src 'self' data: blob: https:; frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.tiktok.com https://www.instagram.com; connect-src 'self' https://afaq-ingest-bridge.up.railway.app https://s3.val.sd;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
     <script>(function(){var t=localStorage.getItem("afaq_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مكتب آفاق الإنجاز العقاري | عقارات ومزارع واستراحات وأراضي سكنية ومقاولات وحفر آبار وإدارة أملاك في الخرج والرياض</title>
+    <title>مكتب آفاق الإنجاز العقاري | الخرج | آفاق الإنجاز</title>
     <meta name="description" content="مكتب آفاق الإنجاز العقاري — أفضل مكتب عقاري في الرياض والخرج. بيع وشراء عقارات في الرياض: مزارع، استراحات، أراضي سكنية، فلل للبيع في الرياض. مشاريع عقارية واستثمار عقاري بالرياض. مقاولات عامة وحفر آبار زراعية وإدارة الأملاك العقارية. خبرة 20 سنة.">
     <meta name="keywords" content="عقارات الخرج, مزارع الخرج, استراحات الخرج, أراضي سكنية الخرج, مخطط الرحمانية, الهياثم, الدلم, الضبية, العفجة, مكتب عقاري الرياض, آفاق الإنجاز العقاري, خدمات عقارية, حفر آبار, رخص بناء, مقاولات, تشطيبات, إدارة أملاك, إدارة الأملاك في الرياض, مقاولات الرياض, حفر آبار الخرج, عقارات السعودية, عقارات الرياض, مزارع للبيع الرياض, استراحات للبيع الرياض, أراضي سكنية الرياض, بوصلة عقارية, مؤشرات عقارية, تسويق عقاري, مكتب عقاري معتمد, صك إلكتروني, رخصة بناء, حفر آبار ارتوازية, مقاولات عامة, تشطيبات فاخرة, إدارة أملاك سعودية, عقار الخرج, استثمار عقاري الخرج, بيع الأراضي في الرياض, بيع الأراضي في الخرج, خدمات عقارية متكاملة">
     <meta name="author" content="مكتب آفاق الإنجاز العقاري">
@@ -168,7 +173,10 @@
     </script>
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/base.css?v=4">
+    <link rel="stylesheet" href="css/components.css?v=4">
+    <link rel="stylesheet" href="css/pages.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=4">
     <!-- Phase 3 §2.4: Luxury Identity Add-on -->
     <link rel="stylesheet" href="css/luxury.css">
     <link rel="stylesheet" href="css/silo.css">
@@ -282,6 +290,23 @@
         .leaflet-popup-content { margin: 10px 12px; }
         .leaflet-popup-content-wrapper { border-radius: 10px; }
     </style>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "عقارات آفاق الإنجاز المتاحة",
+  "numberOfItems": 12,
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "عقارات الخرج والرياض المميزة"
+    }
+  ]
+}
+</script>
+
 </head>
 <body>
 
@@ -294,12 +319,8 @@
         <header class="header">
         <div class="header-container">
             <div class="logo-section" onclick="window.location.href='index.html'">
-                <img src="images/logo.jpg" alt="شعار مكتب آفاق الإنجاز العقاري | Afaq Al-Injaz Real Estate Office logo" class="logo-img">
-                <div class="logo-text">
-                    <span class="logo-name">آفاق الإنجاز</span>
-                    <span class="logo-full">مكتب آفاق الإنجاز العقاري</span>
-                    <span>للخدمات العقارية</span>
-                </div>
+                <img width="400" height="250" loading="lazy" src="images/logo.jpg" alt="شعار مكتب آفاق الإنجاز العقاري | Afaq Al-Injaz Real Estate Office logo" class="logo-img">
+                <div class="logo-text"><span class="compact-name-16">آفاق الإنجاز العقارية</span></div>
             </div>
 
             <nav>
@@ -338,10 +359,26 @@
         </div>
     </header>
 
+    <!-- Top In-flow Identity Block (Layer A) -->
+    <section class="homepage-hero-identity">
+        <img src="images/hero-bg.jpg" alt="آفاق الإنجاز العقارية" class="hero-logo-112">
+        <h1 class="hero-brand-name-30">آفاق الإنجاز<br>العقارية</h1>
+        <div class="hero-gold-line"></div>
+        <span class="hero-exp-chip-14"><i class="fas fa-award"></i> خبرة 20 سنة في الخرج والرياض</span>
+    </section>
+
+
+    <nav class="visible-breadcrumb" aria-label="breadcrumb" style="padding: 10px 16px; background: #F1F5F9; font-size: 13px; margin-bottom: 15px;">
+        <div style="max-width: 1200px; margin: 0 auto;">
+            <a href="index.html"><i class="fas fa-home"></i> الرئيسية</a> &gt; <span>index.html</span>
+        </div>
+    </nav>
+
+
     <!-- القسم الرئيسي (Hero) -->
     <section class="hero">
         <div class="hero-content">
-            <img src="images/logo.jpg" alt="آفاق الإنجاز العقاري | Afaq Al-Injaz Real Estate" class="hero-logo">
+            <img width="400" height="250" loading="lazy" src="images/logo.jpg" alt="آفاق الإنجاز العقاري | Afaq Al-Injaz Real Estate" class="hero-logo">
             <h1>مكتب <span>آفاق الإنجاز</span> العقاري</h1>
             <p class="hero-subtitle">مزارع • استراحات • أراضي سكنية • مقاولات • حفر آبار • إدارة أملاك</p>
             <p>وجهتك الأولى للعقارات في الخرج والرياض — خبرة 20 سنة في خدمتك</p>
@@ -400,7 +437,7 @@
 
         <div class="categories-grid">
             <a href="farms.html" class="category-card">
-                <img src="images/farms-bg.jpg" alt="مزارع للبيع في الرياض والخرج — آفاق الإنجاز العقاري | Farms for sale in Riyadh and Al-Kharj — Afaq Al-Injaz Real Estate" class="category-card-img">
+                <img width="400" height="250" loading="lazy" src="images/farms-bg.jpg" alt="مزارع للبيع في الرياض والخرج — آفاق الإنجاز العقاري | Farms for sale in Riyadh and Al-Kharj — Afaq Al-Injaz Real Estate" class="category-card-img">
                 <div class="category-card-body">
                     <h3><i class="fas fa-seedling"></i> المزارع</h3>
                     <p>مزارع زراعية في مخطط الرحمانية، الهياثم، الدلم، الضبيعة، العفجة</p>
@@ -409,7 +446,7 @@
             </a>
 
             <a href="resthouses.html" class="category-card">
-                <img src="images/resthouse-bg.jpg" alt="استراحات للبيع في الرياض والخرج — آفاق الإنجاز العقاري | Resthouses for sale in Riyadh and Al-Kharj — Afaq Al-Injaz Real Estate" class="category-card-img">
+                <img width="400" height="250" loading="lazy" src="images/resthouse-bg.jpg" alt="استراحات للبيع في الرياض والخرج — آفاق الإنجاز العقاري | Resthouses for sale in Riyadh and Al-Kharj — Afaq Al-Injaz Real Estate" class="category-card-img">
                 <div class="category-card-body">
                     <h3><i class="fas fa-home"></i> الاستراحات</h3>
                     <p>استراحات فاخرة بتصاميم عصرية في أرقى مواقع الخرج</p>
@@ -418,7 +455,7 @@
             </a>
 
             <a href="lands.html" class="category-card">
-                <img src="images/land-bg.jpg" alt="أراضي سكنية للبيع في الرياض والخرج — آفاق الإنجاز العقاري | Residential lands for sale in Riyadh and Al-Kharj — Afaq Al-Injaz Real Estate" class="category-card-img">
+                <img width="400" height="250" loading="lazy" src="images/land-bg.jpg" alt="أراضي سكنية للبيع في الرياض والخرج — آفاق الإنجاز العقاري | Residential lands for sale in Riyadh and Al-Kharj — Afaq Al-Injaz Real Estate" class="category-card-img">
                 <div class="category-card-body">
                     <h3><i class="fas fa-map"></i> الأراضي السكنية</h3>
                     <p>أراضٍ سكنية جاهزة للبناء في مخططات معتمدة بالخرج</p>
@@ -427,7 +464,7 @@
             </a>
 
             <a href="services.html" class="category-card">
-                <img src="images/services-bg.jpg" alt="خدمات ما بعد البيع العقاري — مقاولات وحفر آبار — آفاق الإنجاز العقاري | Post-sale real estate services — contracting and well drilling — Afaq Al-Injaz Real Estate" class="category-card-img">
+                <img width="400" height="250" loading="lazy" src="images/services-bg.jpg" alt="خدمات ما بعد البيع العقاري — مقاولات وحفر آبار — آفاق الإنجاز العقاري | Post-sale real estate services — contracting and well drilling — Afaq Al-Injaz Real Estate" class="category-card-img">
                 <div class="category-card-body">
                     <h3><i class="fas fa-tools"></i> خدمات ما بعد البيع</h3>
                     <p>رخص البناء، المقاولات، التشطيب، إدارة الأملاك، حفر الآبار</p>
@@ -469,6 +506,70 @@
         </div>
 
         <div id="most-viewed-bar"></div>
+
+        <!-- Stories Section: جديد الأسبوع -->
+        <section class="stories-section">
+            <div class="section-container">
+                <h3 class="stories-title" style="font-size:16px; font-weight:700; margin-bottom:8px; color:#1B365D;"><i class="fas fa-sparkles"></i> جديد الأسبوع</h3>
+                <div id="stories-container" class="stories-strip"></div>
+            </div>
+        </section>
+
+        <!-- Sticky Filter Bar -->
+        <div class="sticky-filter-bar">
+            <div class="filter-bar-container">
+                <div class="search-voice-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search-input" class="search-input-field" placeholder="ابحث بالتفاصيل، الحي، أو الفئة..." oninput="filterOffers()">
+                    <button type="button" id="btn-voice-search" class="btn-voice-search" title="البحث الصوتي"><i class="fas fa-microphone"></i></button>
+                </div>
+                <div class="filter-controls-group">
+                    <select id="filter-status" class="filter-select" onchange="filterOffers()">
+                        <option value="all">الحالة: الكل</option>
+                        <option value="متاح">متاح</option>
+                        <option value="مباع">مباع</option>
+                    </select>
+                    <select id="filter-area" class="filter-select" onchange="filterOffers()">
+                        <option value="all">المنطقة: الكل</option>
+                        <option value="الخرج">الخرج</option>
+                        <option value="الرياض">الرياض</option>
+                        <option value="الهياثم">الهياثم</option>
+                        <option value="الدلم">الدلم</option>
+                        <option value="العفجة">العفجة</option>
+                        <option value="الضبيعة">الضبيعة</option>
+                        <option value="الرحمانية">الرحمانية</option>
+                    </select>
+                    <select id="filter-category" class="filter-select" onchange="filterOffers()">
+                        <option value="all">الفئة: الكل</option>
+                        <option value="فلل">فلل</option>
+                        <option value="أراضي">أراضي</option>
+                        <option value="شقق">شقق</option>
+                        <option value="عمائر">عمائر</option>
+                        <option value="استراحات">استراحات</option>
+                        <option value="مزارع">مزارع</option>
+                    </select>
+                    <select id="filter-sort" class="filter-select" onchange="filterOffers()">
+                        <option value="default">الترتيب: الافتراضي</option>
+                        <option value="price-asc">السعر: الأقل أولاً</option>
+                        <option value="price-desc">السعر: الأعلى أولاً</option>
+                        <option value="newest">الأحدث</option>
+                    </select>
+                    <button type="button" class="btn-save-search" onclick="saveSearchAlert()" title="احفظ البحث">
+                        <i class="fas fa-bell"></i> احفظ البحث
+                    </button>
+                    <div class="live-counter-badge"><span id="offers-count">0</span> عروض</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recently Viewed Section -->
+        <section id="recently-viewed-section" class="recently-viewed-section" style="display:none;">
+            <div class="section-container">
+                <h3 class="section-title"><i class="fas fa-history"></i> شوهدت مؤخراً</h3>
+                <div id="recently-viewed-container" class="recently-viewed-grid"></div>
+            </div>
+        </section>
+
         <div class="offers-grid" id="offers-grid">
             <p style="text-align:center; grid-column:1/-1; padding:40px; color:#555;">جاري تحميل العروض...</p>
         </div>
@@ -611,7 +712,7 @@
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-col">
-                <img src="images/logo.jpg" alt="آفاق الإنجاز | Afaq Al-Injaz" class="footer-logo">
+                <img width="400" height="250" loading="lazy" src="images/logo.jpg" alt="آفاق الإنجاز | Afaq Al-Injaz" class="footer-logo">
                 <h3>مكتب آفاق الإنجاز العقاري</h3>
                 <p>مكتب عقاري متخصص في المزارع والاستراحات والأراضي السكنية في الخرج والرياض. خبرة 20 سنة في خدمة عملائنا بأعلى معايير الجودة والاحترافية.</p>
                 <div class="footer-social">
@@ -659,7 +760,11 @@
         <div class="footer-bottom">
             <p>© 2025 مكتب آفاق الإنجاز العقاري — جميع الحقوق محفوظة | <a href="index.html">abonasr0907-beep.github.io/-</a></p>
         </div>
-    </footer>
+    <div class="footer-silo-links" style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.1); font-size:12px; display:flex; flex-wrap:wrap; gap:10px;">
+<strong>محاور العقارات والخدمات:</strong>
+<a href="center-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">عقارات وسط الخرج</a> | <a href="lands-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">أراضي الخرج</a> | <a href="resthouses-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">استراحات الخرج</a> | <a href="north-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">شمال الخرج</a> | <a href="farms-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">مزارع الخرج</a> | <a href="rahmaniyah-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">حي الرحمانية الخرج</a> | <a href="real-estate-alkharj/index.html" style="color:#CBD5E1; text-decoration:none;">عقارات الخرج الرئيسية</a> | <a href="real-estate-riyadh/index.html" style="color:#CBD5E1; text-decoration:none;">عقارات الرياض الرئيسية</a> | <a href="lands-riyadh/index.html" style="color:#CBD5E1; text-decoration:none;">أراضي الرياض</a> | <a href="resthouses-riyadh/index.html" style="color:#CBD5E1; text-decoration:none;">استراحات الرياض</a> | <a href="farms-riyadh/index.html" style="color:#CBD5E1; text-decoration:none;">مزارع الرياض</a> | <a href="property-management-riyadh/index.html" style="color:#CBD5E1; text-decoration:none;">إدارة أملاك الرياض</a> | <a href="well-drilling-services/index.html" style="color:#CBD5E1; text-decoration:none;">خدمات حفر الآبار</a> | <a href="well-location-services/index.html" style="color:#CBD5E1; text-decoration:none;">خدمات تحديد مواقع الآبار</a> | <a href="property.html" style="color:#CBD5E1; text-decoration:none;">تفاصيل العقار</a> | <a href="areas.html" style="color:#CBD5E1; text-decoration:none;">دليل المناطق</a> | <a href="categories.html" style="color:#CBD5E1; text-decoration:none;">دليل الأقسام</a> | <a href="404.html" style="color:#CBD5E1; text-decoration:none;">صفحة المساعدة</a> |
+</div>
+</footer>
 
     <!-- زر واتساب عائم -->
     <div class="floating-whatsapp">
@@ -671,11 +776,11 @@
     <!-- المساعد الذكي -->
     <div class="ai-assistant">
         <div class="ai-assistant-btn" onclick="toggleAI()" title="المساعد الذكي">
-            <img src="images/logo.jpg" alt="المساعد الذكي | Smart Assistant">
+            <img width="400" height="250" loading="lazy" src="images/logo.jpg" alt="المساعد الذكي | Smart Assistant">
         </div>
         <div class="ai-chat-box" id="ai-chat-box">
             <div class="ai-chat-header">
-                <img src="images/logo.jpg" alt="آفاق الإنجاز | Afaq Al-Injaz">
+                <img width="400" height="250" loading="lazy" src="images/logo.jpg" alt="آفاق الإنجاز | Afaq Al-Injaz">
                 <div>
                     <h4>مساعد آفاق الذكي</h4>
                     <span><span class="online-dot"></span> متصل الآن</span>
@@ -695,7 +800,18 @@
     <!-- Leaflet JS (Phase 4 Interactive Map) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
     <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js" defer></script>
-    <script src="js/main.js"></script>
+    <script src="js/utils.js?v=4"></script>
+    <script src="js/cards.js?v=4"></script>
+    <script src="js/browse.js?v=4"></script>
+    <script src="js/compare.js?v=4"></script>
+    <script src="js/video.js?v=4"></script>
+    <script src="js/main.js?v=4"></script>
     <script src="js/silo.js" defer></script>
+
+    <!-- Floating List/Map Switcher Button -->
+    <button type="button" id="btn-floating-map-toggle" class="btn-floating-map-toggle" title="تبديل الخريطة/القائمة">
+        <i class="fas fa-map-marked-alt"></i> الخريطة
+    </button>
+
 </body>
 </html>

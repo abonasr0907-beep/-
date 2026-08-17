@@ -476,4 +476,56 @@
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <!-- Phase 3 §2.5: روابط العروض المنشورة (add-only) -->
+  <url>
+    <loc>https://abonasr0907-beep.github.io/-/offer/AFQ-2026-0029/مزرعه</loc>
+    <lastmod>2026-08-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://abonasr0907-beep.github.io/-/images/bot/draft_0_1786797517.webp</image:loc>
+      <image:title>مزرعه</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/-/offer/AFQ-2026-0030/مزرعه</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://abonasr0907-beep.github.io/-/images/bot/draft_0_1786860354.webp</image:loc>
+      <image:title>مزرعه</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/-/offer/AFQ-2026-0031/مزرعه-مجهزه-بالرحمانيه</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://abonasr0907-beep.github.io/-/images/bot/draft_0_1786861051.webp</image:loc>
+      <image:title>مزرعه مجهزه بالرحمانيه</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/-/offer/AFQ-2026-0032/مزرعه</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://abonasr0907-beep.github.io/-/images/bot/draft_0_1786882712.webp</image:loc>
+      <image:title>مزرعه</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/-/offer/AFQ-2026-0033/مزرعه</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://abonasr0907-beep.github.io/-/images/bot/draft_0_1786888581.webp</image:loc>
+      <image:title>مزرعه</image:title>
+    </image:image>
+  </url>
 </urlset>
