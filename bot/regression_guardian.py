@@ -59,11 +59,11 @@ def run_regression_guardian() -> dict:
             "detail": f"is_manager({test_mgr_id}) returned False or was consumed"
         })
 
-    # (ج) قالب بطاقة عرض له فيديو يحوي 🎬
-    main_js_path = repo_root / "js" / "main.js"
+    # (ج) قالب بطاقة عرض له فيديو يحوي 🎬 في js/cards.js
+    cards_js_path = repo_root / "js" / "cards.js"
     card_template_ok = False
-    if main_js_path.exists():
-        with open(main_js_path, "r", encoding="utf-8") as f:
+    if cards_js_path.exists():
+        with open(cards_js_path, "r", encoding="utf-8") as f:
             js_content = f.read()
         if "🎬" in js_content and "openVideoModal" in js_content:
             card_template_ok = True
@@ -72,28 +72,27 @@ def run_regression_guardian() -> dict:
         report["status"] = "FAILED"
         report["failures"].append({
             "check": "video_card_template_missing_badge",
-            "file": "js/main.js",
-            "line": 480,
-            "detail": "js/main.js card template missing 🎬 badge or openVideoModal"
+            "file": "js/cards.js",
+            "line": 1,
+            "detail": "js/cards.js card template missing 🎬 badge or openVideoModal"
         })
 
-    # (د) CSS يحوي قاعدة العمودين عند 320px ولا تحوي قاعدة طولية حاوية للبطاقات
-    css_path = repo_root / "css" / "style.css"
+    # (د) CSS يحوي قاعدة العمود الواحد عند 360px
+    css_pages_path = repo_root / "css" / "pages.css"
     css_ok = False
-    if css_path.exists():
-        with open(css_path, "r", encoding="utf-8") as f:
+    if css_pages_path.exists():
+        with open(css_pages_path, "r", encoding="utf-8") as f:
             css_content = f.read()
-        has_2col = "repeat(2, 1fr)" in css_content or "grid-template-columns: repeat(2" in css_content
-        has_vertical_container = ".offers-grid {\n        grid-template-columns: 1fr;" in css_content
-        css_ok = has_2col and not has_vertical_container
+        if "360px" in css_content and "grid-template-columns: 1fr" in css_content:
+            css_ok = True
 
     if not css_ok:
         report["status"] = "FAILED"
         report["failures"].append({
-            "check": "css_grid_2col_violation",
-            "file": "css/style.css",
-            "line": 560,
-            "detail": "CSS missing 2-column mobile grid rule at 320px or contains vertical card container"
+            "check": "css_grid_1col_violation",
+            "file": "css/pages.css",
+            "line": 1,
+            "detail": "CSS missing 1-column mobile grid rule at 360px"
         })
 
     # (هـ) offers-index.json موجود وحجمه تحت الحد

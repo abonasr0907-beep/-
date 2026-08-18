@@ -1639,6 +1639,19 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
     # نص مخصص
     if session["state"] == "awaiting_custom_desc":
         session["offer"]["description"] = text
+        session["state"] = "awaiting_video_prompt"
+        save_session(uid)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏭️ تخطي الفيديو", callback_data="skip_video_prompt")]
+        ])
+        await update.message.reply_text("🎬 فيديو جولة؟ أرسل رابط الفيديو (يوتيوب/مقطع) أو اضغط تخطي:", reply_markup=keyboard)
+        return
+
+    # فيديو جولة
+    if session.get("state") == "awaiting_video_prompt":
+        v_link = (text or "").strip()
+        if v_link and v_link.lower() not in ["لا", "no", "تخطي", "skip"]:
+            session["offer"]["video_url"] = v_link
         await _finalize_offer(update, uid)
         return
 
@@ -1648,7 +1661,12 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
             session["offer"]["map_link"] = CONFIG["office_location"]
         else:
             session["offer"]["map_link"] = text
-        await _finalize_offer(update, uid)
+        session["state"] = "awaiting_video_prompt"
+        save_session(uid)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏭️ تخطي الفيديو", callback_data="skip_video_prompt")]
+        ])
+        await update.message.reply_text("🎬 فيديو جولة؟ أرسل رابط الفيديو (يوتيوب/مقطع) أو اضغط تخطي:", reply_markup=keyboard)
         return
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1696,6 +1714,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if data == "publish_auto":
+        session["state"] = "awaiting_video_prompt"
+        save_session(uid)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⏭️ تخطي الفيديو", callback_data="skip_video_prompt")]
+        ])
+        await query.edit_message_text("🎬 فيديو جولة؟ أرسل رابط الفيديو (يوتيوب/مقطع) أو اضغط تخطي:", reply_markup=keyboard)
+
+    elif data == "skip_video_prompt":
         await _finalize_offer(update, uid, query=query)
 
     elif data == "custom_desc":

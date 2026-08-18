@@ -95,8 +95,48 @@ def get_recent_syncs(limit=5):
 # ============================================================
 #  التوكن والإعدادات
 # ============================================================
+def _enqueue_fallback(operation, path, text_content=None, file_path=None, commit_msg=""):
+    """تخزين التغييرات في data/queue.json وإرسال إشعار خفي للـ Owner عند غياب التوكن أو فشل المزامنة المباشرة"""
+    try:
+        queue_file = DATA_DIR / "queue.json"
+        queue_data = {"queue": []}
+        if queue_file.exists():
+            try:
+                with open(queue_file, "r", encoding="utf-8") as f:
+                    queue_data = json.load(f)
+            except Exception:
+                pass
+        entry = {
+            "id": f"q_{int(time.time())}_{len(queue_data.get('queue', []))}",
+            "operation": operation,
+            "path": path,
+            "text_content": text_content,
+            "file_path": str(file_path) if file_path else None,
+            "commit_message": commit_msg,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        queue_data.setdefault("queue", []).append(entry)
+        tmp = queue_file.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(queue_data, f, ensure_ascii=False, indent=2)
+        tmp.replace(queue_file)
+
+        # تنبيه خفي للـ Owner
+        try:
+            bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+            owner_id = "7746757675"
+            if bot_token:
+                alert_text = f"🚨 *تنبيه خفي للبوت*\nتعذّر الدفع المباشر عبر GITHUB_CONTENT_TOKEN.\nتمت إضافة العملية `{operation}` ({path}) إلى طابور `data/queue.json`."
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                requests.post(url, json={"chat_id": owner_id, "text": alert_text, "parse_mode": "Markdown"}, timeout=5)
+        except Exception as alert_err:
+            logger.warning(f"Failed to send silent alert: {alert_err}")
+    except Exception as q_err:
+        logger.error(f"Failed to enqueue fallback operation: {q_err}")
+
+
 def _get_token():
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    token = os.environ.get("GITHUB_CONTENT_TOKEN") or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token:
         # محاولة قراءة من ملف محلي اختياري
         try:
@@ -167,8 +207,9 @@ def upload_text_file(path_in_repo, text_content, commit_message):
     """رفع/تحديث ملف نصي (مثل offers.json) إلى المستودع."""
     token = _get_token()
     if not token:
-        logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي الرفع (وضع محلي)")
-        log_sync(f"upload_text:{path_in_repo}", "skipped", "GITHUB_TOKEN غير مضبوط")
+        logger.info("github_sync: GITHUB_CONTENT_TOKEN غير مضبوط — طابور queue.json + تنبيه خفي")
+        log_sync(f"upload_text:{path_in_repo}", "queued", "GITHUB_CONTENT_TOKEN غير مضبوط")
+        _enqueue_fallback("upload_text", path_in_repo, text_content=text_content, commit_msg=commit_message)
         return False
     try:
         sha = _get_file_sha(path_in_repo)
@@ -188,13 +229,15 @@ def upload_text_file(path_in_repo, text_content, commit_message):
             log_sync(f"upload_text:{path_in_repo}", "success")
             return True
         status = r.status_code if r else "no_response"
-        err_text = r.text[:200] if r else last_error if 'last_error' in dir() else "unknown"
+        err_text = r.text[:200] if r else "unknown"
         logger.error(f"github_sync: فشل رفع {path_in_repo}: {status} {err_text}")
         log_sync(f"upload_text:{path_in_repo}", "failed", f"{status}: {err_text}")
+        _enqueue_fallback("upload_text", path_in_repo, text_content=text_content, commit_msg=commit_message)
         return False
     except Exception as e:
         logger.error(f"github_sync: استثناء عند رفع {path_in_repo}: {e}")
         log_sync(f"upload_text:{path_in_repo}", "failed", str(e))
+        _enqueue_fallback("upload_text", path_in_repo, text_content=text_content, commit_msg=commit_message)
         return False
 
 
@@ -202,8 +245,9 @@ def upload_binary_file(path_in_repo, file_path, commit_message):
     """رفع ملف ثنائي (صورة) إلى المستودع."""
     token = _get_token()
     if not token:
-        logger.info("github_sync: GITHUB_TOKEN غير مضبوط — تخطّي رفع الصورة (وضع محلي)")
-        log_sync(f"upload_image:{path_in_repo}", "skipped", "GITHUB_TOKEN غير مضبوط")
+        logger.info("github_sync: GITHUB_CONTENT_TOKEN غير مضبوط — طابور queue.json + تنبيه خفي")
+        log_sync(f"upload_image:{path_in_repo}", "queued", "GITHUB_CONTENT_TOKEN غير مضبوط")
+        _enqueue_fallback("upload_image", path_in_repo, file_path=file_path, commit_msg=commit_message)
         return False
     try:
         with open(file_path, "rb") as f:
@@ -226,10 +270,12 @@ def upload_binary_file(path_in_repo, file_path, commit_message):
         err_text = r.text[:200] if r else "unknown"
         logger.error(f"github_sync: فشل رفع الصورة {path_in_repo}: {status} {err_text}")
         log_sync(f"upload_image:{path_in_repo}", "failed", f"{status}: {err_text}")
+        _enqueue_fallback("upload_image", path_in_repo, file_path=file_path, commit_msg=commit_message)
         return False
     except Exception as e:
         logger.error(f"github_sync: استثناء عند رفع الصورة {path_in_repo}: {e}")
         log_sync(f"upload_image:{path_in_repo}", "failed", str(e))
+        _enqueue_fallback("upload_image", path_in_repo, file_path=file_path, commit_msg=commit_message)
         return False
 
 
