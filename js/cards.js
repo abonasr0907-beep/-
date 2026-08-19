@@ -1,7 +1,24 @@
 /* =========================================================
-   Afaq Real Estate Platform - Cards Module (js/cards.js)
-   Bayut-Style Card Rendering & Specs Formatting
+   Afaq Real Estate Platform - Cards Module (js/cards.js - v6)
+   Unified Bayut-Style Renderer v5
    ========================================================= */
+
+var CARD_BASE_URL = window.SITE_BASE_URL || 'https://abonasr0907-beep.github.io/-/';
+
+function normalizeImgSrc(src) {
+    if (!src || src === 'undefined' || src === 'null' || src === '–') {
+        return CARD_BASE_URL + 'images/hero-bg.jpg';
+    }
+    var str = String(src).trim();
+    if (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('data:')) {
+        return str;
+    }
+    if (str.startsWith('/')) {
+        return CARD_BASE_URL + str.substring(1);
+    }
+    return CARD_BASE_URL + str;
+}
+window.normalizeImgSrc = normalizeImgSrc;
 
 // Favorites logic
 function isCardFav(id) {
@@ -33,7 +50,7 @@ function toggleCardFav(id, btn) {
                 icon.className = isFavNow ? 'fas fa-heart' : 'far fa-heart';
             }
         }
-        window.showToast(isFavNow ? 'تمت الإضافة للمفضلة' : 'تمت الإزالة من المفضلة', 'info');
+        if (window.showToast) window.showToast(isFavNow ? 'تمت الإضافة للمفضلة' : 'تمت الإزالة من المفضلة', 'info');
     } catch (e) { console.warn('Fav toggle error', e); }
 }
 window.toggleCardFav = toggleCardFav;
@@ -57,7 +74,7 @@ function toggleCardCompare(id, btn) {
             comps.splice(idx, 1);
         } else {
             if (comps.length >= 4) {
-                window.showToast('يمكنك مقارنة 4 عقارات كحد أقصى', 'warning');
+                if (window.showToast) window.showToast('يمكنك مقارنة 4 عقارات كحد أقصى', 'warning');
                 return;
             }
             comps.push(strId);
@@ -68,44 +85,73 @@ function toggleCardCompare(id, btn) {
         if (btn) {
             btn.classList.toggle('active', isCompNow);
         }
-        window.showToast(isCompNow ? 'تمت إضافة العقار للمقارنة' : 'تمت إزالة العقار من المقارنة', 'info');
+        if (window.showToast) window.showToast(isCompNow ? 'تمت إضافة العقار للمقارنة' : 'تمت إزالة العقار من المقارنة', 'info');
         if (window.updateCompareDrawer) window.updateCompareDrawer();
     } catch (e) { console.warn('Compare toggle error', e); }
 }
 window.toggleCardCompare = toggleCardCompare;
 
-// Specs Chips Builder - STRICTLY drops missing values
+// Inspection Modal Helper
+function openInspectionModal(id, title) {
+    if (window.openBookingModal) {
+        window.openBookingModal(id, title);
+    } else {
+        var msg = 'طلب حجز معاينة للعقار رقم ' + id + (title ? ' (' + title + ')' : '');
+        var waPhone = (window.OFFICE_DATA && window.OFFICE_DATA.whatsapp) ? window.OFFICE_DATA.whatsapp : '0545888931';
+        if (window.openWhatsAppFast) {
+            window.openWhatsAppFast(waPhone, msg);
+        } else {
+            window.open('https://wa.me/966' + waPhone.replace(/^0/, '') + '?text=' + encodeURIComponent(msg), '_blank');
+        }
+    }
+}
+window.openInspectionModal = openInspectionModal;
+
+// Share Helper
+function shareOfferLink(id, title, url) {
+    var fullUrl = url.startsWith('http') ? url : CARD_BASE_URL + url.replace(/^\//, '');
+    if (navigator.share) {
+        navigator.share({ title: title || 'عرض عقاري', url: fullUrl }).catch(function(){});
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(fullUrl).then(function() {
+            if (window.showToast) window.showToast('تم نسخ رابط العرض', 'info');
+        });
+    }
+}
+window.shareOfferLink = shareOfferLink;
+
+// Specs Chips Builder - STRICTLY drops missing/undefined/– values
 function buildSpecChipsHTML(offer) {
     if (!offer) return '';
     var chips = [];
 
     // Area / المساحة
-    var area = offer.area || offer.land_area || offer.building_area || offer.size;
-    if (area && !isNaN(parseFloat(area)) && parseFloat(area) > 0) {
+    var area = offer.area || offer.land_area || offer.building_area || offer.size || offer.size_sqm;
+    if (area && area !== 'undefined' && area !== '–' && !isNaN(parseFloat(area)) && parseFloat(area) > 0) {
         chips.push('<span class="spec-chip"><i class="fas fa-ruler-combined"></i> ' + escapeHtml(area) + ' م²</span>');
     }
 
     // Rooms / الغرف
     var rooms = offer.rooms || offer.bedrooms || offer.beds;
-    if (rooms && !isNaN(parseInt(rooms)) && parseInt(rooms) > 0) {
+    if (rooms && rooms !== 'undefined' && rooms !== '–' && !isNaN(parseInt(rooms)) && parseInt(rooms) > 0) {
         chips.push('<span class="spec-chip"><i class="fas fa-bed"></i> ' + escapeHtml(rooms) + ' غرف</span>');
     }
 
     // Bathrooms / دورات المياه
     var baths = offer.bathrooms || offer.baths;
-    if (baths && !isNaN(parseInt(baths)) && parseInt(baths) > 0) {
+    if (baths && baths !== 'undefined' && baths !== '–' && !isNaN(parseInt(baths)) && parseInt(baths) > 0) {
         chips.push('<span class="spec-chip"><i class="fas fa-bath"></i> ' + escapeHtml(baths) + ' حمامات</span>');
     }
 
     // Street Width / عرض الشارع
     var street = offer.street_width || offer.street;
-    if (street && !isNaN(parseFloat(street)) && parseFloat(street) > 0) {
+    if (street && street !== 'undefined' && street !== '–' && !isNaN(parseFloat(street)) && parseFloat(street) > 0) {
         chips.push('<span class="spec-chip"><i class="fas fa-road"></i> شارع ' + escapeHtml(street) + 'م</span>');
     }
 
     // Age / العمر
     var age = offer.age || offer.building_age;
-    if (age && age !== 'جديد' && !isNaN(parseInt(age)) && parseInt(age) >= 0) {
+    if (age && age !== 'undefined' && age !== '–' && age !== 'جديد' && !isNaN(parseInt(age)) && parseInt(age) >= 0) {
         chips.push('<span class="spec-chip"><i class="fas fa-calendar"></i> ' + (parseInt(age) === 0 ? 'جديد' : escapeHtml(age) + ' سنوات') + '</span>');
     } else if (age === 'جديد') {
         chips.push('<span class="spec-chip"><i class="fas fa-sparkles"></i> جديد</span>');
@@ -115,7 +161,7 @@ function buildSpecChipsHTML(offer) {
 }
 window.buildSpecChipsHTML = buildSpecChipsHTML;
 
-// Bayut Card Renderer
+// Unified Card Renderer v5
 function createOfferCardHTML(offer, index) {
     if (!offer) return '';
     var id = offer.id || offer.external_id || index;
@@ -130,24 +176,37 @@ function createOfferCardHTML(offer, index) {
         imgs = [offer.image];
     }
     if (imgs.length === 0) {
-        imgs = ['images/hero-bg.jpg'];
+        imgs = [CARD_BASE_URL + 'images/hero-bg.jpg'];
     }
 
     var isFav = isCardFav(id);
     var isComp = isCardCompare(id);
-    var isSold = offer.status === 'مباع';
-    var isVerified = offer.verified !== false; // Default true for Afaq properties
-    var title = offer.title || offer.name || offer.type || 'عرض عقاري مميز';
+    var isSold = offer.status === 'مباع' || offer.sold === true;
+    var isVerified = offer.verified !== false;
+    var title = offer.title || offer.name || offer.type || offer.category || 'عرض عقاري مميز';
+    if (title === 'undefined' || title === '–') title = 'عرض عقاري مميز';
+
     var priceSAR = offer.price || offer.total_price || 0;
-    var priceFormatted = window.formatCurrency ? window.formatCurrency(priceSAR) : (priceSAR + ' ر.س');
-    var city = offer.city || 'الخرج';
-    var neighborhood = offer.neighborhood || offer.district || '';
+    var priceFormatted = offer.price_text;
+    if (!priceFormatted || priceFormatted === 'undefined' || priceFormatted === '–') {
+        priceFormatted = priceSAR ? (window.formatCurrency ? window.formatCurrency(priceSAR) : (priceSAR + ' ر.س')) : 'السعر عند الاتصال';
+    }
+
+    var city = offer.city;
+    if (!city || city === 'undefined' || city === '–') city = 'الخرج';
+    var neighborhood = offer.neighborhood || offer.district || offer.area || '';
+    if (neighborhood === 'undefined' || neighborhood === '–') neighborhood = '';
     var locationText = (neighborhood ? neighborhood + '، ' : '') + city;
-    var videoUrl = offer.video_url || offer.youtube_url || offer.video;
+
+    var videoUrl = offer.video_url || offer.youtube_url || offer.video || '';
+    if (videoUrl === 'undefined' || videoUrl === '–') videoUrl = '';
+
+    var fallbackImg = CARD_BASE_URL + 'images/hero-bg.jpg';
 
     // Gallery Track HTML
     var slidesHTML = imgs.map(function(src, i) {
-        return '<div class="gallery-slide" style="background-image: url(\'' + escapeHtml(src) + '\');"></div>';
+        var fullSrc = normalizeImgSrc(src);
+        return '<div class="gallery-slide"><img src="' + escapeHtml(fullSrc) + '" onerror="this.onerror=null;this.src=\'' + escapeHtml(fallbackImg) + '\';" alt="' + escapeHtml(title) + '" class="gallery-slide-img" loading="' + (i === 0 ? 'eager' : 'lazy') + '"></div>';
     }).join('');
 
     // Dots HTML
@@ -159,6 +218,8 @@ function createOfferCardHTML(offer, index) {
     }
 
     var specChips = buildSpecChipsHTML(offer);
+    var waPhone = (window.OFFICE_DATA && window.OFFICE_DATA.whatsapp) ? window.OFFICE_DATA.whatsapp : '0545888931';
+    var mapLink = offer.map_link || 'https://urldra.cloud.huawei.com/BExUoXngu4';
 
     return '' +
     '<a href="' + escapeHtml(detailUrl) + '" class="property-card-bayut ' + (isSold ? 'sold-card' : '') + '" data-id="' + escapeHtml(id) + '">' +
@@ -175,17 +236,43 @@ function createOfferCardHTML(offer, index) {
                 '<button type="button" class="btn-action-touch btn-fav ' + (isFav ? 'active' : '') + '" title="حفظ العرض" onclick="event.preventDefault(); event.stopPropagation(); toggleCardFav(\'' + escapeHtml(id) + '\', this);">' +
                     '<i class="' + (isFav ? 'fas' : 'far') + ' fa-heart"></i>' +
                 '</button>' +
-                (videoUrl ? '<button type="button" class="btn-action-touch btn-video" title="جولة فيديو" onclick="event.preventDefault(); event.stopPropagation(); openVideoModal(\'' + escapeHtml(videoUrl) + '\');"><i class="fas fa-play"></i></button>' : '') +
-                '<button type="button" class="btn-action-touch btn-wa" title="تواصل واتساب" onclick="event.preventDefault(); event.stopPropagation(); openWhatsAppFast(\'' + (window.OFFICE_DATA ? window.OFFICE_DATA.whatsapp : '0545888931') + '\', \'استفسار عن العرض رقم ' + escapeHtml(id) + ': ' + escapeHtml(title) + '\');">' +
+                (videoUrl ? '<button type="button" class="btn-action-touch btn-video" title="جولة فيديو" onclick="event.preventDefault(); event.stopPropagation(); openVideoModal(\'' + escapeHtml(videoUrl) + '\');"><i class="fas fa-play"></i> 🎬</button>' : '') +
+                '<button type="button" class="btn-action-touch btn-wa" title="تواصل واتساب" onclick="event.preventDefault(); event.stopPropagation(); openWhatsAppFast(\'' + waPhone + '\', \'استفسار عن العرض رقم ' + escapeHtml(id) + ': ' + escapeHtml(title) + '\');">' +
                     '<i class="fab fa-whatsapp"></i>' +
                 '</button>' +
             '</div>' +
         '</div>' +
         '<div class="card-content-body">' +
-            '<div class="card-price-22">' + priceFormatted + '</div>' +
+            '<div class="card-price-22">' + escapeHtml(priceFormatted) + '</div>' +
             '<h3 class="card-title-15">' + escapeHtml(title) + '</h3>' +
             '<div class="card-location-text"><i class="fas fa-map-marker-alt"></i> ' + escapeHtml(locationText) + '</div>' +
             (specChips ? '<div class="card-specs-12">' + specChips + '</div>' : '') +
+        '</div>' +
+        '<div class="card-bottom-actions-bar" onclick="event.preventDefault(); event.stopPropagation();">' +
+            '<button type="button" class="card-action-bar-btn btn-appointment" title="حجز معاينة" onclick="event.preventDefault(); event.stopPropagation(); openInspectionModal(\'' + escapeHtml(id) + '\', \'' + escapeHtml(title) + '\');">' +
+                '<i class="fas fa-calendar-check"></i> حجز معاينة' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-wa-bar" title="واتساب" onclick="event.preventDefault(); event.stopPropagation(); openWhatsAppFast(\'' + waPhone + '\', \'استفسار عن العرض رقم ' + escapeHtml(id) + ': ' + escapeHtml(title) + '\');">' +
+                '<i class="fab fa-whatsapp"></i> واتساب' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-call-bar" title="اتصال" onclick="event.preventDefault(); event.stopPropagation(); window.location.href=\'tel:0544699933\';">' +
+                '<i class="fas fa-phone-alt"></i> اتصال' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-fav-bar ' + (isFav ? 'active' : '') + '" title="حفظ" onclick="event.preventDefault(); event.stopPropagation(); toggleCardFav(\'' + escapeHtml(id) + '\', this);">' +
+                '<i class="' + (isFav ? 'fas' : 'far') + ' fa-heart"></i> المفضلة' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-compare-bar ' + (isComp ? 'active' : '') + '" title="مقارنة" onclick="event.preventDefault(); event.stopPropagation(); toggleCardCompare(\'' + escapeHtml(id) + '\', this);">' +
+                '<i class="fas fa-balance-scale"></i> مقارنة' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-video-bar" title="جولة فيديو" onclick="event.preventDefault(); event.stopPropagation(); ' + (videoUrl ? 'openVideoModal(\'' + escapeHtml(videoUrl) + '\');' : 'alert(\'لا يوجد فيديو متاح لهذا العرض\');') + '">' +
+                '<i class="fas fa-play-circle"></i> فيديو' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-map-bar" title="الخريطة" onclick="event.preventDefault(); event.stopPropagation(); window.open(\'' + escapeHtml(mapLink) + '\', \'_blank\');">' +
+                '<i class="fas fa-map-marked-alt"></i> الخريطة' +
+            '</button>' +
+            '<button type="button" class="card-action-bar-btn btn-share-bar" title="مشاركة" onclick="event.preventDefault(); event.stopPropagation(); shareOfferLink(\'' + escapeHtml(id) + '\', \'' + escapeHtml(title) + '\', \'' + escapeHtml(detailUrl) + '\');">' +
+                '<i class="fas fa-share-alt"></i> مشاركة' +
+            '</button>' +
         '</div>' +
     '</a>';
 }
@@ -222,7 +309,7 @@ function renderMostViewedBar() {
         }).slice(0, 5);
         if (sorted.length > 0) {
             container.innerHTML = sorted.map(function(o) {
-                return '<a href="' + window.offerDetailLink(o) + '" class="most-viewed-chip"><i class="fas fa-fire"></i> ' + escapeHtml(o.title || o.name) + '</a>';
+                return '<a href="' + window.offerDetailLink(o) + '" class="most-viewed-chip"><i class="fas fa-fire"></i> ' + escapeHtml(o.title || o.name || 'عرض مميز') + '</a>';
             }).join('');
         }
     } catch (e) {}
@@ -230,11 +317,8 @@ function renderMostViewedBar() {
 window.renderMostViewedBar = renderMostViewedBar;
 
 // Lightbox
-function initLightbox() {
-    // Lightbox modal logic if initialized
-}
+function initLightbox() {}
 window.initLightbox = initLightbox;
-
 
 // Detail Page Touch Swipe Gesture (50px threshold, 250ms slide, progress dots)
 function initDetailSwipeGesture() {

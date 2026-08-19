@@ -51,8 +51,66 @@
     width: 100%;
     height: 100%;
     scroll-snap-align: start;
-    background-size: cover;
-    background-position: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.gallery-slide-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.card-bottom-actions-bar {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 8px 12px 10px;
+    background: #F8FAFC;
+    border-top: 1px solid #E2E8F0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.card-bottom-actions-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.card-action-bar-btn {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 10px;
+    border-radius: 20px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    color: #1E293B;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+.card-action-bar-btn:active {
+    transform: scale(0.96);
+}
+
+.card-action-bar-btn.btn-appointment {
+    background: #10B981;
+    color: #FFFFFF;
+    border-color: #10B981;
+}
+
+.card-action-bar-btn.btn-wa-bar {
+    color: #059669;
+    border-color: #A7F3D0;
 }
 
 .gallery-dots {
