@@ -21,20 +21,20 @@
   },
   "areas": {
     "الرحمانية": {
-      "land_avg_price_sqm": "846",
-      "farm_avg_price_sqm": "12",
+      "land_avg_price_sqm": "832",
+      "farm_avg_price_sqm": "11",
       "resthouse_avg_price": "350,000 - 1,200,000",
       "description": "مخطط الرحمانية من أبرز المخططات في الخرج، يتميز بقربه من الهياثم والدلم"
     },
     "الهياثم": {
-      "land_avg_price_sqm": "534",
-      "farm_avg_price_sqm": "154",
+      "land_avg_price_sqm": "0",
+      "farm_avg_price_sqm": "147",
       "resthouse_avg_price": "400,000 - 1,500,000",
       "description": "حي الهياثم من الأحياء الحيوية في الخرج، قريب من الخدمات"
     },
     "الدلم": {
-      "land_avg_price_sqm": "201",
-      "farm_avg_price_sqm": "44",
+      "land_avg_price_sqm": "199",
+      "farm_avg_price_sqm": "89",
       "resthouse_avg_price": "250,000 - 900,000",
       "description": "الدلم مركز تاريخي زراعي، مشهور بمزارعه وأراضيه الزراعية الواسعة"
     },
@@ -45,8 +45,8 @@
       "description": "منطقة زراعية هادئة بقرب من الخرج، مناسبة للمزارع والاستراحات"
     },
     "العفجة": {
-      "land_avg_price_sqm": "646",
-      "farm_avg_price_sqm": "97",
+      "land_avg_price_sqm": "648",
+      "farm_avg_price_sqm": "96",
       "resthouse_avg_price": "260,000 - 950,000",
       "description": "منطقة زراعية بمنطقة الخرج، تتميز بأراضيها الخصبة"
     }
@@ -84,5 +84,5 @@
       ]
     }
   ],
-  "bousla_last_update": "2026-08-18"
+  "bousla_last_update": "2026-08-19"
 }
