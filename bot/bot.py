@@ -35,6 +35,8 @@ try:
 except ImportError:
     from bot.config import OFFERS_PATH, read_offers_live, save_offers_live, OWNER_ID as CONFIG_OWNER_ID, SITE_BASE_URL as CONFIG_SITE_BASE_URL, generate_offers_index, MANAGERS_PATH
 
+OWNER_ID = CONFIG_OWNER_ID or 7746757675
+
 import requests
 from PIL import Image, ImageEnhance, ImageFilter
 
@@ -625,7 +627,7 @@ def is_authorized(user_id):
 
 def is_owner(user_id):
     """التحقق إن كان المستخدم المالك (owner)"""
-    if ADMIN_IDS and user_id == ADMIN_IDS[0]:
+    if ADMIN_IDS and user_id == list(ADMIN_IDS)[0]:
         return True
     return user_manager.is_owner(user_id)
 
@@ -832,7 +834,7 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
 # ============================================================
 #  خدمات ما بعد البيع (M27)
 # ============================================================
-SERVICE_REQUESTS_FILE = DATA_DIR / "service-requests.json"
+SERVICE_REQUESTS_FILE = WEBSITE_DIR / "data" / "service-requests.json"
 
 def load_service_requests():
     if SERVICE_REQUESTS_FILE.exists():
@@ -1826,13 +1828,22 @@ async def handle_text_during_add(update: Update, context: ContextTypes.DEFAULT_T
         return
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_authorized(update.effective_user.id):
-        return
     query = update.callback_query
-    await query.answer()
-    uid = update.effective_user.id
+    if not query:
+        return
+    try:
+        await query.answer()
+    except Exception as e:
+        logger.warning(f"Failed to answer callback query: {e}")
+
+    data = (query.data or "").strip()
+    if not data:
+        return
+
+    uid = update.effective_user.id if update.effective_user else (query.from_user.id if query.from_user else 0)
+    if not is_authorized(uid):
+        return
     session = get_session(uid)
-    data = query.data or ""
 
     if data in ("reinit_system", "reinit"):
         await cmd_reinit_system(update, context)
@@ -4390,13 +4401,15 @@ async def ai_assistant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_ai_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not update.effective_user or not is_admin(update.effective_user.id):
         return
     uid = update.effective_user.id
     session = get_session(uid)
-    if session.get("state") != "ai_chat" and not update.message.text.startswith("🧠"):
+    msg = update.effective_message or update.message
+    msg_text = (msg.text or msg.caption or "").strip() if msg else ""
+    if session.get("state") != "ai_chat" and not msg_text.startswith("🧠"):
         return
-    text = update.message.text.strip()
+    text = msg_text
     if text == "خروج":
         reset_session(uid)
         await update.message.reply_text("🚪 تم الخروج من المساعد الذكي.", reply_markup=MAIN_KEYBOARD)
@@ -5030,9 +5043,14 @@ async def _archive_show_list_msg(update, items, title, page=0, per_page=5):
     await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
+    message = update.effective_message or update.message
+    if not message:
+        return
+    text = (message.text or message.caption or "").strip()
+    if not text:
+        return
+    uid = update.effective_user.id if update.effective_user else 0
     session = get_session(uid)
-    text = update.message.text.strip()
     # ── معالجة رسالة بيانات VR_DATA من الموقع (مسار الاحتياط) ──
     # عندما يفشل خادم البوت، يرسل الموقع رسالة بيانات VR_DATA:{json}
     # البوت يحفظ الطلب ثم يحذف رسالة البيانات ويرسل إشعار بالأزرار
@@ -5267,7 +5285,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     # ── خدمة طلبات ما بعد البيع ──
-    if text == "🛠️ خدمات ما بعد البيع" or session.get("state", "").startswith("srv_"):
+    srv_state = str(session.get("state") or "")
+    if text == "🛠️ خدمات ما بعد البيع" or srv_state.startswith("srv_"):
         handled = await handle_service_request_flow(update, context, text, session, uid)
         if handled:
             return
@@ -5857,7 +5876,7 @@ async def cmd_reinit_system(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open("offers-data/office-data.json", "r", encoding="utf-8") as f:
                 OFFICE_DATA = json.load(f)
 
-        user_manager.load_users()
+        user_manager.init()
         site_data = load_offers_json()
         offers = site_data.get("offers", [])
         visitor_data = load_visitor_requests()
