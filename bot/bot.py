@@ -817,16 +817,172 @@ OPERATION_TYPE_KEYBOARD = ReplyKeyboardMarkup(
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
-        ["🗑️ حذف عرض", "✏️ تعديل عرض"],
-        ["📨 طلبات الزوار", "🏡 عروض الزوار"],
-        ["👥 عرض المدراء", "🎬 استوديو التسويق"],
-        ["📦 الأرشيف", "📊 إحصائيات"],
-        ["📈 التقرير الأسبوعي", "🧭 تحديث البوصلة"],
-        ["🤖 المساعد الذكي", "🗞️ تحديث الأخبار"],
-        ["⚙️ الإعدادات", "🔄 إلغاء / بدء جديد"],
+        ["🛠️ خدمات ما بعد البيع", "✏️ تعديل عرض"],
+        ["🗑️ حذف عرض", "📨 طلبات الزوار"],
+        ["🏡 عروض الزوار", "👥 عرض المدراء"],
+        ["🎬 استوديو التسويق", "📦 الأرشيف"],
+        ["📊 إحصائيات", "📈 التقرير الأسبوعي"],
+        ["🧭 تحديث البوصلة", "🤖 المساعد الذكي"],
+        ["🗞️ تحديث الأخبار", "⚙️ الإعدادات"],
+        ["🔄 إلغاء / بدء جديد"],
     ],
     resize_keyboard=True,
 )
+
+# ============================================================
+#  خدمات ما بعد البيع (M27)
+# ============================================================
+SERVICE_REQUESTS_FILE = DATA_DIR / "service-requests.json"
+
+def load_service_requests():
+    if SERVICE_REQUESTS_FILE.exists():
+        try:
+            with open(SERVICE_REQUESTS_FILE, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return json.loads(content)
+        except Exception:
+            pass
+    return {"requests": []}
+
+def save_service_request(request_data):
+    data = load_service_requests()
+    if "requests" not in data or not isinstance(data["requests"], list):
+        data["requests"] = []
+    req_id = request_data.get("id") or f"SRV-{int(time.time())}"
+    request_data["id"] = req_id
+    data["requests"].append(request_data)
+    with open(SERVICE_REQUESTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return req_id
+
+SERVICE_TITLES = [
+    "📜 استخراج رخص البناء",
+    "🏗️ المقاولات",
+    "🎨 التشطيب",
+    "🏘️ إدارة الأملاك",
+    "💧 حفر الآبار",
+    "📍 تعيين مكان الآبار",
+    "📸 تصوير الآبار"
+]
+
+SERVICES_KEYBOARD = ReplyKeyboardMarkup(
+    [
+        ["📜 استخراج رخص البناء", "🏗️ المقاولات"],
+        ["🎨 التشطيب", "🏘️ إدارة الأملاك"],
+        ["💧 حفر الآبار", "📍 تعيين مكان الآبار"],
+        ["📸 تصوير الآبار"],
+        ["🔄 إلغاء / العودة للقائمة الرئيسية"]
+    ],
+    resize_keyboard=True,
+)
+
+async def handle_service_request_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, session: dict, uid: int):
+    state = session.get("state")
+    if text == "🛠️ خدمات ما بعد البيع":
+        session["state"] = "srv_select_service"
+        await update.message.reply_text(
+            "🛠️ **خدمات ما بعد البيع**\n\nاختر الخدمة المطلوبة لتقديم طلب جديد:",
+            parse_mode="Markdown",
+            reply_markup=SERVICES_KEYBOARD
+        )
+        return True
+
+    if state == "srv_select_service":
+        if text in SERVICE_TITLES or any(s in text for s in ["رخص", "مقاولات", "تشطيب", "إدارة", "حفر", "تعيين", "تصوير"]):
+            session["srv_title"] = text
+            session["state"] = "srv_awaiting_name"
+            await update.message.reply_text(
+                f"📋 الخدمة المختارة: {text}\n\nالرجاء كتابة **اسم العميل**:",
+                parse_mode="Markdown",
+                reply_markup=ADMIN_CANCEL_KEYBOARD
+            )
+            return True
+        elif text in ("🔄 إلغاء / العودة للقائمة الرئيسية", "❌ إلغاء العملية", "❌ إلغاء"):
+            reset_session(uid)
+            await update.message.reply_text("تم إلغاء الطلب.", reply_markup=MAIN_KEYBOARD)
+            return True
+
+    if state == "srv_awaiting_name":
+        if text in ("❌ إلغاء العملية", "❌ إلغاء", "🔄 إلغاء / العودة للقائمة الرئيسية"):
+            reset_session(uid)
+            await update.message.reply_text("تم إلغاء الطلب.", reply_markup=MAIN_KEYBOARD)
+            return True
+        session["srv_client_name"] = text
+        session["state"] = "srv_awaiting_phone"
+        await update.message.reply_text(
+            "الرجاء إدخال **رقم الجوال** (مثال: 0545888931):",
+            parse_mode="Markdown",
+            reply_markup=ADMIN_CANCEL_KEYBOARD
+        )
+        return True
+
+    if state == "srv_awaiting_phone":
+        if text in ("❌ إلغاء العملية", "❌ إلغاء", "🔄 إلغاء / العودة للقائمة الرئيسية"):
+            reset_session(uid)
+            await update.message.reply_text("تم إلغاء الطلب.", reply_markup=MAIN_KEYBOARD)
+            return True
+        session["srv_phone"] = text
+        session["state"] = "srv_awaiting_desc"
+        await update.message.reply_text(
+            "الرجاء كتابة **وصف مختصر للخدمة المطلوبة**:",
+            parse_mode="Markdown",
+            reply_markup=ADMIN_CANCEL_KEYBOARD
+        )
+        return True
+
+    if state == "srv_awaiting_desc":
+        if text in ("❌ إلغاء العملية", "❌ إلغاء", "🔄 إلغاء / العودة للقائمة الرئيسية"):
+            reset_session(uid)
+            await update.message.reply_text("تم إلغاء الطلب.", reply_markup=MAIN_KEYBOARD)
+            return True
+        session["srv_desc"] = text
+        session["state"] = "srv_awaiting_region"
+        await update.message.reply_text(
+            "الرجاء تحديد **المنطقة** (مثال: الخرج، الرياض، الرحمانية...):",
+            parse_mode="Markdown",
+            reply_markup=ADMIN_CANCEL_KEYBOARD
+        )
+        return True
+
+    if state == "srv_awaiting_region":
+        if text in ("❌ إلغاء العملية", "❌ إلغاء", "🔄 إلغاء / العودة للقائمة الرئيسية"):
+            reset_session(uid)
+            await update.message.reply_text("تم إلغاء الطلب.", reply_markup=MAIN_KEYBOARD)
+            return True
+        srv_data = {
+            "id": f"SRV-{int(time.time())}",
+            "service_name": session.get("srv_title", "خدمة غير محددة"),
+            "client_name": session.get("srv_client_name", "غير محدد"),
+            "phone": session.get("srv_phone", "غير محدد"),
+            "description": session.get("srv_desc", "بدون وصف"),
+            "region": text,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        req_id = save_service_request(srv_data)
+
+        alert_msg = (
+            f"📥 **طلب خدمة جديدة:** {srv_data['service_name']}\n"
+            f"👤 **من:** {srv_data['client_name']}\n"
+            f"📞 **الجوال:** {srv_data['phone']}\n"
+            f"📍 **المنطقة:** {srv_data['region']}\n"
+            f"📝 **الوصف:** {srv_data['description']}\n"
+            f"🔖 **المرجع:** {req_id}"
+        )
+        try:
+            await context.bot.send_message(chat_id=OWNER_ID, text=alert_msg, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"Failed to send owner notification for service request: {e}")
+
+        await update.message.reply_text(
+            f"✅ تم استلام طلبك بنجاح! رقم المرجع: `{req_id}`.\nوسيتواصل معك الفريق في أقرب وقت.",
+            parse_mode="Markdown",
+            reply_markup=MAIN_KEYBOARD
+        )
+        reset_session(uid)
+        return True
+
+    return False
 
 # ============================================================
 #  Phase 2 — نظام المزايدات (deep-link + أوامر المدراء)
@@ -5086,7 +5242,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "awaiting_desc_confirm", "awaiting_custom_desc",
     ]
     _MAIN_BUTTONS = [
-        "➕ إضافة عرض جديد", "📋 قائمة العروض", "🗑️ حذف عرض", "✏️ تعديل عرض",
+        "➕ إضافة عرض جديد", "📋 قائمة العروض", "🛠️ خدمات ما بعد البيع", "🗑️ حذف عرض", "✏️ تعديل عرض",
         "📨 طلبات الزوار", "🏡 عروض الزوار", "🎬 استوديو التسويق", "🔍 فلترة العروض",
         "📦 الأرشيف", "📊 إحصائيات", "📈 التقرير الأسبوعي", "🧭 تحديث البوصلة",
         "🤖 المساعد الذكي", "🗞️ تحديث الأخبار", "⚙️ الإعدادات",
@@ -5108,6 +5264,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             # نص عادي ضمن عملية الإضافة → معالجة عادية
             await handle_text_during_add(update, context)
+            return
+
+    # ── خدمة طلبات ما بعد البيع ──
+    if text == "🛠️ خدمات ما بعد البيع" or session.get("state", "").startswith("srv_"):
+        handled = await handle_service_request_flow(update, context, text, session, uid)
+        if handled:
             return
 
     # الأزرار الرئيسية
