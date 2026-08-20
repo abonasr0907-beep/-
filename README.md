@@ -38,3 +38,5 @@
 ## 🔍 SEO
 - `sitemap.xml` و `robots.txt` يشيران للرابط الدائم
 - أرسل الموقع لـ Google Search Console: https://search.google.com/search/console
+
+<!-- Deployment trigger v12.1 -->
