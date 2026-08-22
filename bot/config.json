@@ -22,5 +22,10 @@
   "enable_audit_log": true,
   "multi_user": true,
   "SITE_BASE_URL": "https://urldra.cloud.huawei.com/BExUoXngu4",
-  "ingest_secret": "afaq_ingest_2026_secure"
+  "ingest_secret": "afaq_ingest_2026_secure",
+  "social_links": {
+    "instagram": "https://www.instagram.com/afaqalanqaz",
+    "tiktok": "https://www.tiktok.com/@whatyouarelookingforisw3",
+    "snapchat": "https://www.snapchat.com/add/mmnf2278"
+  }
 }
