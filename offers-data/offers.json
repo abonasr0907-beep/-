@@ -699,38 +699,6 @@
       "status": "published",
       "publish_status": "Published",
       "space": "الرحمانية"
-    },
-    {
-      "id": "LND-430F75",
-      "type": "land",
-      "category": "أرض سكنية",
-      "section": "",
-      "property_type": "أرض سكنية",
-      "title": "أرض سكنية — الدلم",
-      "area": "الدلم",
-      "area_en": "",
-      "size_sqm": "5000",
-      "price": "50000",
-      "price_text": "50000 ريال",
-      "original_price": "50000",
-      "description": "📐 أرض سكنية مميزة في الدلم\n\nالمساحة: 5000 م²\neموقع استراتيجي وقريب من الخدمات. استثمار آمن.\n\nللتفاصيل: 0544699933\n\n📝 تم",
-      "features": [],
-      "images": [],
-      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-      "visitor_map_link": "https://www.google.com/maps?q=24.256705,47.278461",
-      "visitor_lat": "24.256705",
-      "visitor_lng": "47.278461",
-      "date_added": "2026-08-13",
-      "featured": false,
-      "source": "visitor_request",
-      "priceType": "fixed",
-      "highestBid": "",
-      "operation_type": "sale",
-      "visitor_name": "افاق العقاري",
-      "visitor_phone": "0561610748",
-      "status": "published",
-      "publish_status": "Published",
-      "space": "الدلم"
     }
   ]
 }
