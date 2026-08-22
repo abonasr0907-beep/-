@@ -40,4 +40,4 @@
 - أرسل الموقع لـ Google Search Console: https://search.google.com/search/console
 
 <!-- تحديث النشر: 22 أغسطس 2026 -->
-<!-- Deployment trigger v12.1 -->
+<!-- Deployment trigger v12.1: 🚀 تم فتح باب النشر وإعادة تفعيل ورشة GitHub Pages بنجاح — M31 -->
