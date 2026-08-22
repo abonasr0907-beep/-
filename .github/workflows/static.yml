@@ -1,35 +1,16 @@
-# Simple workflow for deploying static content to GitHub Pages
 name: Deploy static content to Pages
-
 on:
-  # Runs on pushes targeting the default branch
-  # NOTE: Ignore offers-data/news.json to prevent the frequent news-bot
-  # commits from constantly re-triggering and cancelling
-  # the Pages deployment. news.json is still included in every deploy
-  # because the entire repo is uploaded as the artifact.
   push:
     branches: ["main"]
-    paths-ignore:
-      - "offers-data/news.json"
-      - "offers-data/news-*.json"
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
-
-# Allow only one concurrent deployment, cancelling older runs to prevent
-# queue buildup from rapid bot commits.
 concurrency:
   group: "pages"
-  cancel-in-progress: true
-
+  cancel-in-progress: false
 jobs:
-  # Single deploy job since we're just deploying static content
   deploy:
     environment:
       name: github-pages
@@ -37,14 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
       - name: Setup Pages
-        uses: actions/configure-pages@1f813d22b7ddef8981091ad59e5ed860124a87a2 # v5.0.0
+        uses: actions/configure-pages@v5
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
           path: '.'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6db59d0a5b84d29e49622d490b9f0ed14828f0e # v4.0.5
+        uses: actions/deploy-pages@v4
