@@ -932,38 +932,6 @@
       "featured": false,
       "publish_status": "Published",
       "status": "published"
-    },
-    {
-      "id": "LND-1AA86C",
-      "type": "land",
-      "category": "أرض سكنية",
-      "section": "",
-      "property_type": "أرض تجارية",
-      "status": "published",
-      "title": "ارض تجاريه — الهياثم",
-      "area": "الهياثم",
-      "area_en": "",
-      "size_sqm": "46",
-      "price": "688787",
-      "price_text": "688787 ريال",
-      "original_price": "688787",
-      "description": "📐 أرض سكنية مميزة في الهياثم\n\nالمساحة: 46 م²\neموقع استراتيجي وقريب من الخدمات. استثمار آمن.\n\nللتفاصيل: 0544699933\n\n📝 Hogjgh",
-      "features": [],
-      "images": [],
-      "map_link": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-      "visitor_map_link": "https://www.google.com/maps?q=24.248399,47.294025",
-      "visitor_lat": "24.248399",
-      "visitor_lng": "47.294025",
-      "date_added": "2026-08-21",
-      "featured": false,
-      "source": "visitor_request",
-      "priceType": "fixed",
-      "highestBid": "",
-      "operation_type": "sale",
-      "visitor_name": "أنا",
-      "visitor_phone": "0561610748",
-      "publish_status": "Published",
-      "category_raw": "أرض تجارية"
     }
   ]
 }
