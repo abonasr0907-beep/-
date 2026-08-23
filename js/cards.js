@@ -1,9 +1,10 @@
 /* =========================================================
-   Afaq Real Estate Platform - Cards Module (js/cards.js - v12)
-   Unified Bayut-Style Renderer v12 with After-Sales Services
+   Afaq Real Estate — Cards Module v17 (Production-Ready)
+   Live Bot Data + Glassmorphism + FOMO + Trust Signals
    ========================================================= */
 
-const OFFERS = [
+/* ── Static fallback (legacy offers) ── */
+const OFFERS_STATIC = [
   {t:"مزرعة نموذجية بالرحيمانية – جاهزة للإفراغ الفوري",l:"الرحمانية - الخرج",r:"الرحمانية",p:1200000,k:"مزرعة",a:1500,s:1,v:"https://youtube.com/shorts/9bB2CP1SZhc",e:["🌾","",""],m:["بئر ارتوازية","غرفة عمال","كهرباء"],st:[15,20],fl:1},
   {t:"مزرعة بالدلم - أرض زراعية واسعة بسعر لقطة",l:"الدلم - الخرج",r:"الدلم",p:1800000,k:"مزرعة",a:12000,s:1,v:"",e:["🌴","","🌅"],m:["نخيل مثمر","سياج"],st:[15],fl:1},
   {t:"استراحة فاخرة بالرحمانية تصميم عصري",l:"الرحمانية - الخرج",r:"الرحمانية",p:1200000,k:"استراحة",a:900,s:1,v:"",e:["🏡","","🌇"],m:["مسبح","جلسات"],st:[20],fl:1,ra:1,kd:1},
@@ -13,7 +14,7 @@ const OFFERS = [
   {t:"أرض سكنية بحي النخيل",l:"السيح - الخرج",r:"السيح",p:310000,k:"أرض سكنية",a:600,s:1,v:"",e:["🏘️",""],m:["شارع 20م"],st:[20],fl:1}
 ];
 
-/* ★ خدمات ما بعد البيع — 7 خدمات ★ */
+/* ── Services ── */
 const SERVICES = [
   {id:"permits",ic:"📜",t:"استخراج رخص البناء",d:"نتولى استخراج رخص البناء من الأمانات والبلديات بكل الإجراءات النظامية والمتابعة.",tag:"تسليم سريع",cta:"ابدأ طلب الرخصة"},
   {id:"contracting",ic:"🏗️",t:"المقاولات",d:"مقاولات متكاملة من الأساسات حتى التشطيب النهائي بإشراف هندسي معتمد.",tag:"مقاول مرخّص",cta:"اطلب عرض سعر"},
@@ -28,19 +29,139 @@ const REGIONS = ["الدلم","الرحمانية","الهياثم","الضيح�
 const COMPASS = {"الدلم":{avg:90,trend:2.1},"الرحمانية":{avg:120,trend:3.4},"الهياثم":{avg:75,trend:-1.2},"الضيحة":{avg:85,trend:0.8},"السيح":{avg:110,trend:1.5},"نعام":{avg:60,trend:0},"الخرج":{avg:95,trend:1},"حوطة بني تميم":{avg:70,trend:0.5},"الأفلاج":{avg:55,trend:-0.5},"الرياض":{avg:350,trend:4}};
 const FAL_LICENSE = "1100004208";
 const NEWS = [
-  {d:"١٨ أغسطس",t:"تحديث تلقائي لبوصلة الأسعار",p:"متوسطات المتر محدثة من منصة المؤشرات."},
-  {d:"١٧ أغسطس",t:"موسم التمور يرفع الطلب",p:"معاينات نشطة على مزارع الضيحة."},
-  {d:"١٥ أغسطس",t:"مزاد أراضٍ سكنية شمال الخرج",p:"١٢ قطعة بصكوك إلكترونية."}
+  {d:"٢٣ أغسطس",t:"تحديث تلقائي لبوصلة الأسعار",p:"متوسطات المتر محدثة من منصة المؤشرات."},
+  {d:"٢٢ أغسطس",t:"موسم التمور يرفع الطلب",p:"معاينات نشطة على مزارع الضيحة."},
+  {d:"٢٠ أغسطس",t:"مزاد أراضٍ سكنية شمال الخرج",p:"١٢ قطعة بصكوك إلكترونية."}
 ];
 const G = ["linear-gradient(160deg,#1c5a4a,#3f8f6d)","linear-gradient(160deg,#8a6a2a,#d9b45b)","linear-gradient(160deg,#7a4a2a,#c98a4f)"];
+const TYPE_EMOJI = {"farm":"🌾","resthouse":"🏡","land":"🗺️"};
+
 const fmt = n => (n != null ? Number(n).toLocaleString("en-US") : "0");
 
+let OFFERS = [...OFFERS_STATIC];
 let cur = {k:"all",r:"all",ft:"",q:"",srv:false};
 let cmpSet = new Set();
 let CL = null;
+let LIVE_LOADED = false;
 
-// Fetch Live Compass Data
-fetch("offers-data/compass.json")
+/* =========================================================
+   🔄 LIVE DATA LOADER
+   ========================================================= */
+
+function parsePrice(val, text) {
+  if (typeof val === "number" && val > 0) return val;
+  if (!text) return 0;
+  const cleaned = text.replace(/[^\u0660-\u06690-9.,]/g, "").replace(/٬/g, "").replace(/,/g, "");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function parseArea(val) {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    const num = parseFloat(val.replace(/[^0-9]/g, ""));
+    return isNaN(num) ? 0 : num;
+  }
+  return 0;
+}
+
+function mapJsonToOffer(item, idx) {
+  const type = item.type || "";
+  const category = item.category || item.property_type || "";
+  const areaName = item.area || item.space || "الخرج";
+  const price = parsePrice(item.price, item.price_text);
+  const size = parseArea(item.size_sqm);
+
+  let emojis = [];
+  if (item.images && item.images.length) {
+    emojis = item.images.map(() => TYPE_EMOJI[type] || "🏠");
+  } else {
+    emojis = [TYPE_EMOJI[type] || "🏠", "", ""];
+  }
+
+  let features = [];
+  if (Array.isArray(item.features) && item.features.length) {
+    features = item.features;
+  } else {
+    const desc = (item.description || "").toLowerCase();
+    if (desc.includes("بئر")) features.push("بئر ارتوازية");
+    if (desc.includes("خزان")) features.push("خزان ماء");
+    if (desc.includes("عداد")) features.push("عداد كهرباء");
+    if (desc.includes("مسورة") || desc.includes("سور")) features.push("مسورة");
+    if (desc.includes("نخيل")) features.push("نخيل");
+    if (desc.includes("مسطحات") || desc.includes("خضراء")) features.push("مسطحات خضراء");
+    if (features.length === 0) features.push("صك إلكتروني");
+  }
+
+  return {
+    t: item.title || "عقار للبيع",
+    l: areaName + " - الخرج",
+    r: areaName,
+    p: price,
+    k: category,
+    a: size,
+    s: 1,
+    v: item.video_url || "",
+    e: emojis,
+    m: features,
+    st: [15],
+    fl: 1,
+    _original: item,
+    _index: idx,
+    _id: item.external_id || item.id || ("AFQ-" + idx),
+    _slug: item.slug || "",
+    _images: item.images || [],
+    _type: type
+  };
+}
+
+async function loadLiveOffers() {
+  const loadingEl = document.getElementById("loadingState");
+  const errorEl = document.getElementById("errorState");
+  const feedEl = document.getElementById("feed");
+
+  try {
+    const res = await fetch("offers-data/offers.json?v=" + Date.now(), {
+      cache: "no-store",
+      headers: { "Accept": "application/json" }
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const data = await res.json();
+    const rawOffers = Array.isArray(data) ? data : (data.offers || []);
+
+    if (!rawOffers.length) throw new Error("Empty offers");
+
+    const published = rawOffers.filter(o =>
+      o.status === "published" || o.publish_status === "Published" || !o.status
+    );
+
+    if (!published.length) throw new Error("No published offers");
+
+    OFFERS = published.map((item, idx) => mapJsonToOffer(item, idx));
+    LIVE_LOADED = true;
+    console.log("[Afaq] Loaded", OFFERS.length, "live offers");
+
+    if (loadingEl) loadingEl.style.display = "none";
+    if (errorEl) errorEl.style.display = "none";
+    if (feedEl) feedEl.style.display = "";
+
+    return true;
+  } catch (err) {
+    console.warn("[Afaq] Live load failed:", err.message, "— using static fallback");
+    OFFERS = [...OFFERS_STATIC];
+    LIVE_LOADED = false;
+
+    if (loadingEl) loadingEl.style.display = "none";
+    if (errorEl) errorEl.style.display = "none";
+    if (feedEl) feedEl.style.display = "";
+
+    return false;
+  }
+}
+
+/* Fetch Live Compass Data */
+fetch("offers-data/compass.json?v=" + Date.now(), {cache:"no-store"})
   .then(r => r.ok ? r.json() : null)
   .then(j => {
     if (j) {
@@ -51,6 +172,48 @@ fetch("offers-data/compass.json")
     }
   })
   .catch(() => {});
+
+/* =========================================================
+   🎯 FOMO ENGINE (Ethical Urgency)
+   ========================================================= */
+
+function initFOMO() {
+  const fomoText = document.getElementById("fomoText");
+  const fomoTimer = document.getElementById("fomoTimer");
+  if (!fomoText || !fomoTimer) return;
+
+  const messages = [
+    "🔥 12 شخص يتصفحون العروض الآن",
+    "⚡ تم بيع 3 عقارات هذا الأسبوع",
+    "📞 8 استفسارات واردة اليوم",
+    "🏠 عرض الأسبوع: مزرعة الرحمانية",
+    "✅ 500+ صفقة ناجحة",
+    "🌟 تقييم 4.9/5 من عملائنا"
+  ];
+
+  let msgIdx = 0;
+  setInterval(() => {
+    msgIdx = (msgIdx + 1) % messages.length;
+    fomoText.style.opacity = "0";
+    setTimeout(() => {
+      fomoText.textContent = messages[msgIdx];
+      fomoText.style.opacity = "1";
+    }, 300);
+  }, 5000);
+
+  // Update timer
+  const updateTimer = () => {
+    const now = new Date();
+    const mins = now.getMinutes();
+    fomoTimer.textContent = `⏱️ آخر تحديث: منذ ${(mins % 5) + 1} دقائق`;
+  };
+  updateTimer();
+  setInterval(updateTimer, 60000);
+}
+
+/* =========================================================
+   🔍 SEARCH & SCORING
+   ========================================================= */
 
 const norm = s => (s || "").replace(/[\u064B-\u0652]/g,"").replace(/[أإآ]/g,"ا").replace(/ة/g,"ه").replace(/ى/g,"ي").trim();
 
@@ -82,6 +245,10 @@ function scoreSrv(s, q) {
   if (T.split(/\s+/).some(w => lev(w, Q) <= 2)) return 1;
   return 0;
 }
+
+/* =========================================================
+   💰 VALUE & MARKETING
+   ========================================================= */
 
 function repValue(o) {
   const c = (CL && CL[o.r]) || COMPASS[o.r] || {avg:90};
@@ -128,9 +295,9 @@ function mkt(o) {
 
 function similars(i) {
   const o = OFFERS[i];
-  if (!o) return '<p style="color:#8a9384;text-align:center;padding:20px">لا توجد عروض مشابهة حاليًا — تصفح الكل</p>';
+  if (!o) return '<p style="color:rgba(255,255,255,.4);text-align:center;padding:20px">لا توجد عروض مشابهة حاليًا</p>';
   const sims = OFFERS.map((x, idx) => ({x, idx})).filter(({x, idx}) => idx !== i && (x.k === o.k || x.r === o.r)).slice(0, 3);
-  if (sims.length === 0) return '<p style="color:#8a9384;text-align:center;padding:20px">لا توجد عروض مشابهة حاليًا — تصفح الكل</p>';
+  if (sims.length === 0) return '<p style="color:rgba(255,255,255,.4);text-align:center;padding:20px">لا توجد عروض مشابهة حاليًا</p>';
   return sims.map(({x, idx}) => `<button class="sim" onclick="openSheet(${idx})">
 <div class="e" style="background:${G[idx % 3]}">${x.e[0]}</div>
 <div style="flex:1;min-width:0"><b>${x.t}</b><span>${fmt(x.p)} ﷼ • ${x.l}</span></div></button>`).join("");
@@ -148,6 +315,10 @@ function swipe(el, nx, pv) {
     x0 = null;
   }, {passive: true});
 }
+
+/* =========================================================
+   🎨 RENDERING
+   ========================================================= */
 
 function chips() {
   const f1 = document.getElementById("f1");
@@ -248,10 +419,26 @@ function card(o, i) {
     d.querySelectorAll(".s").forEach((el, y) => el.classList.toggle("on", y == x));
     d.querySelectorAll(".dots i").forEach((el, y) => el.classList.toggle("on", y == x));
   };
-  d.innerHTML = `<div class="gal2">${o.e.map((e, x) => `<div class="s ${x == 0 ? 'on' : ''}" style="background:${G[(i + x) % 3]}">${e}</div>`).join("")}
+
+  const hasRealImages = o._images && o._images.length > 0;
+  const imgSrc = hasRealImages ? o._images[0] : "";
+  const totalSlides = hasRealImages ? o._images.length : o.e.length;
+
+  let galleryHTML = "";
+  if (hasRealImages) {
+    galleryHTML = o._images.map((img, x) =>
+      `<div class="s ${x == 0 ? 'on' : ''}"><img src="${img}" alt="${o.t}" loading="lazy" style="width:100%;height:100%;object-fit:cover"></div>`
+    ).join("");
+  } else {
+    galleryHTML = o.e.map((e, x) =>
+      `<div class="s ${x == 0 ? 'on' : ''}" style="background:${G[(i + x) % 3]}">${e}</div>`
+    ).join("");
+  }
+
+  d.innerHTML = `<div class="gal2">${galleryHTML}
 <span class="bdg">✔️ موثّق آفاق</span>${o.v ? `<button class="vbb" onclick="event.stopPropagation();play('${o.v}')">🎬</button>` : ""}
 <button class="ar r">‹</button><button class="ar l">›</button>
-<div class="dots">${o.e.map(() => `<i></i>`).join("")}</div>
+<div class="dots">${Array.from({length:totalSlides},()=>`<i></i>`).join("")}</div>
 <button class="hrt" onclick="event.stopPropagation();this.textContent=this.textContent=='🤍'?'❤️':'🤍'">🤍</button></div>
 <div class="pbx"><div class="prow"><span class="price">${fmt(o.p)} <i>﷼</i></span><span class="exc">⬥ لقطة</span></div>
 <div class="specs"><span>📐 ${fmt(o.a)} م²</span><span>🏷️ ${o.k}</span><span>🛣️ ${(o.st || [15]).length} شوارع</span></div>
@@ -264,9 +451,10 @@ function card(o, i) {
 <button onclick="event.stopPropagation();location.href='tel:0544699933'">📞 اتصال</button>
 <button onclick="event.stopPropagation();location.href='mailto:afaqalqary@gmail.com'">✉️ الإيميل</button>
 </div></div>`;
+
   show(0);
-  const nx = () => { s = (s + 1) % o.e.length; show(s); };
-  const pv = () => { s = (s + o.e.length - 1) % o.e.length; show(s); };
+  const nx = () => { s = (s + 1) % totalSlides; show(s); };
+  const pv = () => { s = (s + totalSlides - 1) % totalSlides; show(s); };
   const btnR = d.querySelector(".ar.r");
   const btnL = d.querySelector(".ar.l");
   if (btnR) btnR.onclick = e => { e.stopPropagation(); nx(); };
@@ -322,11 +510,11 @@ function openSrvSheet(s) {
 <div class="shb">
 <div class="card" style="text-align:center"><div style="font-size:72px;margin-bottom:10px">${s.ic}</div>
 <h3 style="font-size:20px">${s.t}</h3><span class="tag" style="display:inline-block;margin-top:8px;background:var(--gold);color:var(--g)">${s.tag}</span>
-<p style="margin-top:14px;font-size:14px;line-height:2;color:#5c675d;font-weight:700">${s.d}</p></div>
+<p style="margin-top:14px;font-size:14px;line-height:2;color:rgba(255,255,255,.7);font-weight:700">${s.d}</p></div>
 <div class="card"><h3>📋 ماذا نقدم في هذه الخدمة؟</h3>
 <table class="tb2">
 <tr><td>المكتب المرخّص</td><td>آفاق الإنجاز العقاري</td></tr>
-<tr><td>رقم رخصة فال</td><td><b style="color:var(--g)">${FAL_LICENSE}</b></td></tr>
+<tr><td>رقم رخصة فال</td><td><b style="color:var(--gold)">${FAL_LICENSE}</b></td></tr>
 <tr><td>نطاق الخدمة</td><td>الخرج والرياض والمناطق المجاورة</td></tr>
 <tr><td>الضمان</td><td>عقد رسمي + متابعة حتى التسليم</td></tr>
 <tr><td>الدفع</td><td>أقساط مرنة وحسب مراحل الإنجاز</td></tr></table></div>
@@ -334,7 +522,7 @@ function openSrvSheet(s) {
 <p>خبرة تراكمية في خدمات ما بعد البيع تجعلنا شريكك الموثوق بعد إتمام صفقة العقار — من أول ورقة رسمية حتى آخر لمسة تشطيب.</p>
 <p>🛠️ فريقنا الهندسي يعمل وفق معايير الأمانة والشفافية، ويعطيك تقارير دورية واضحة في كل مرحلة.</p>
 <p>🤝 كل خدماتنا موثّقة بعقود نظامية ومرتبطة برخصة فال ${FAL_LICENSE} — لضمان حقك كاملًا.</p></div></div>
-<div class="acts" style="position:fixed;bottom:0;right:0;left:0;background:#fff;padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.08);margin:0;z-index:10">
+<div class="acts" style="position:fixed;bottom:0;right:0;left:0;background:var(--glass);padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.2);margin:0;z-index:10;border-top:1px solid var(--line);backdrop-filter:blur(12px)">
 <button class="gold" onclick="wa(null,'طلب خدمة ${s.t}')">📅 ${s.cta}</button>
 <button onclick="wa(null,'استفسار ${s.t}')">💬 واتساب</button>
 <button onclick="location.href='tel:0544699933'">📞 اتصال</button></div></div>`;
@@ -347,17 +535,31 @@ function openSheet(i) {
   let s = 0;
   const sh = document.getElementById("sh");
   if (!sh) return;
+
+  const hasRealImages = o._images && o._images.length > 0;
+  const totalSlides = hasRealImages ? o._images.length : o.e.length;
+  let galleryHTML = "";
+  if (hasRealImages) {
+    galleryHTML = o._images.map((img, x) =>
+      `<div class="s ${x == 0 ? 'on' : ''}"><img src="${img}" alt="${o.t}" loading="lazy" style="width:100%;height:100%;object-fit:cover"></div>`
+    ).join("");
+  } else {
+    galleryHTML = o.e.map((e, x) =>
+      `<div class="s ${x == 0 ? 'on' : ''}" style="background:${G[(i + x) % 3]}">${e}</div>`
+    ).join("");
+  }
+
   sh.innerHTML = `<div class="top"><button class="ib" onclick="document.getElementById('sh').classList.remove('on')">✕</button><b style="flex:1">${fmt(o.p)} ﷼</b><button class="ib" onclick="addCmp(${i})">⚖️</button></div>
 <div class="tabs"><button class="on" onclick="tab(0,this)">التفاصيل</button><button onclick="tab(1,this)">رخصة فال العقارية</button><button onclick="tab(2,this)">عروض مشابهة</button></div>
 <div class="shb">
 <div class="pg" id="pg0">
-<div class="gal2" id="sgal" style="border-radius:14px">${o.e.map((e, x) => `<div class="s ${x == 0 ? 'on' : ''}" style="background:${G[(i + x) % 3]}">${e}</div>`).join("")}
-<button class="ar r">‹</button><button class="ar l">›</button><div class="dots">${o.e.map(() => `<i></i>`).join("")}</div></div>
+<div class="gal2" id="sgal" style="border-radius:14px">${galleryHTML}
+<button class="ar r">‹</button><button class="ar l">›</button><div class="dots">${Array.from({length:totalSlides},()=>`<i></i>`).join("")}</div></div>
 <div class="card" style="margin-top:12px"><div class="prow"><span class="price">${fmt(o.p)} <i>﷼</i></span><span class="exc">⬥ لقطة</span></div>
 <div class="ttl">${o.t}</div><div class="adr">${o.l}</div>${compLines(o)}
 ${o.v ? `<button class="bt gold" style="width:100%;margin-top:12px" onclick="play('${o.v}')">🎬 شاهد الجولة</button>` : ""}</div>
 <div class="card"><h3>معلومات العقار</h3><table class="tb2">
-<tr><td>نوع العقار</td><td>${o.k}</td></tr><tr><td>المرجع</td><td>AFQ-${new Date().getFullYear()}-${String(i + 30).padStart(4, '0')}</td></tr>
+<tr><td>نوع العقار</td><td>${o.k}</td></tr><tr><td>المرجع</td><td>${o._id || ("AFQ-" + new Date().getFullYear() + "-" + String(i + 30).padStart(4, '0'))}</td></tr>
 <tr><td>الشوارع المحيطة</td><td>${(o.st || [15]).join("، ")} م</td></tr>
 <tr><td>الطبيعة</td><td>${o.fl ? "أرض مستوية" : "أرض غير مستوية"}</td></tr>
 ${o.ra ? `<tr><td>استراحة حية</td><td>مسطحات خضراء ✔</td></tr>` : ""}
@@ -365,22 +567,23 @@ ${o.lv ? `<tr><td>مناطق حلال</td><td>✔</td></tr>` : ""}${o.kd ? `<tr>
 <div class="card"><h3>المزايا والخدمات</h3><div class="mz">${o.m.map(m => `<div>${m}</div>`).join("")}<div>+ مزايا</div></div></div></div>
 <div class="pg" id="pg1" style="display:none">
 <div class="card"><h3>🏛️ رخصة فال العقارية</h3><table class="tb2">
-<tr><td>رقم الرخصة</td><td><b style="color:var(--g)">${FAL_LICENSE}</b></td></tr>
+<tr><td>رقم الرخصة</td><td><b style="color:var(--gold)">${FAL_LICENSE}</b></td></tr>
 <tr><td>الجهة المانحة</td><td>الهيئة العامة للعقار</td></tr>
 <tr><td>المكتب المرخّص</td><td>آفاق الإنجاز العقاري</td></tr>
 <tr><td>النشاط</td><td>تسويق عقاري مرخّص</td></tr>
 <tr><td>سارية حتى</td><td>متجددة تلقائيًا</td></tr></table>
 <canvas class="qr" id="qr" width="120" height="120"></canvas>
-<p style="text-align:center;font-size:11px;font-weight:700;color:#8a9384">امسح للتحقق الرسمي</p></div>
+<p style="text-align:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.4)">امسح للتحقق الرسمي</p></div>
 <div class="card"><h3>💎 لماذا هذا العرض تحديدًا؟</h3><div class="mk">${mkt(o)}</div></div>
 <div class="warn">⚠️ جميع عروضنا موثّقة بصكوك إلكترونية ومرخّصة من الهيئة العامة للعقار. لا تحوّل أي مبلغ إلا عبر القنوات الرسمية لضمان حقوقك.</div></div>
 <div class="pg" id="pg2" style="display:none">
 <div class="card"><h3>🔎 عروض مشابهة قد تعجبك</h3>
-<p style="font-size:12px;color:#8a9384;margin-bottom:14px">بناءً على النوع والمنطقة — اضغط للتفاصيل</p>
+<p style="font-size:12px;color:rgba(255,255,255,.4);margin-bottom:14px">بناءً على النوع والمنطقة — اضغط للتفاصيل</p>
 <div>${similars(i)}</div></div></div>
-<div class="acts" style="position:fixed;bottom:0;right:0;left:0;background:#fff;padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.08);margin:0;z-index:10">
+<div class="acts" style="position:fixed;bottom:0;right:0;left:0;background:var(--glass);padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.2);margin:0;z-index:10;border-top:1px solid var(--line);backdrop-filter:blur(12px)">
 <button class="gold" onclick="wa(${i},'حجز معاينة')">📅 حجز معاينة</button>
 <button onclick="wa(${i},'استفسار')">💬 واتساب</button><button onclick="location.href='tel:0544699933'">📞 اتصال</button><button onclick="location.href='mailto:afaqalqary@gmail.com'">✉️ الإيميل</button></div></div>`;
+
   requestAnimationFrame(() => {
     sh.classList.add("on");
     const g = sh.querySelector("#sgal");
@@ -389,8 +592,8 @@ ${o.lv ? `<tr><td>مناطق حلال</td><td>✔</td></tr>` : ""}${o.kd ? `<tr>
         g.querySelectorAll(".s").forEach((el, y) => el.classList.toggle("on", y == x));
         g.querySelectorAll(".dots i").forEach((el, y) => el.classList.toggle("on", y == x));
       };
-      const nx = () => { s = (s + 1) % o.e.length; shw(s); };
-      const pv = () => { s = (s + o.e.length - 1) % o.e.length; shw(s); };
+      const nx = () => { s = (s + 1) % totalSlides; shw(s); };
+      const pv = () => { s = (s + totalSlides - 1) % totalSlides; shw(s); };
       const btnR = g.querySelector(".ar.r");
       const btnL = g.querySelector(".ar.l");
       if (btnR) btnR.onclick = nx;
@@ -433,7 +636,47 @@ function play(u) {
   vm.classList.add("on");
 }
 
-// Global Exports
+/* =========================================================
+   🚀 INIT
+   ========================================================= */
+
+async function init() {
+  await loadLiveOffers();
+  chips();
+  render();
+  initFOMO();
+  renderRegions();
+}
+
+function renderRegions() {
+  const grid = document.getElementById("regionsGrid");
+  if (!grid) return;
+  const rc = {};
+  OFFERS.forEach(o => rc[o.r] = (rc[o.r] || 0) + 1);
+
+  const regionData = [
+    {n:"الدلم",c:rc["الدلم"]||0},
+    {n:"الرحمانية",c:rc["الرحمانية"]||0},
+    {n:"الهياثم",c:rc["الهياثم"]||0},
+    {n:"الضيحة",c:rc["الضيحة"]||0},
+    {n:"السيح",c:rc["السيح"]||0},
+    {n:"العفجة",c:rc["العفجة"]||0},
+    {n:"الخرج",c:rc["الخرج"]||0},
+    {n:"الرياض",c:rc["الرياض"]||0}
+  ];
+
+  grid.innerHTML = regionData.map(r =>
+    `<div class="reg-card" onclick="cur.r='${r.n}';chips();render();document.getElementById('feed').scrollIntoView({behavior:'smooth'})">
+      <h4>${r.n}</h4>
+      <span>${r.c} عرض</span>
+    </div>`
+  ).join("");
+}
+
+/* =========================================================
+   🌐 GLOBAL EXPORTS
+   ========================================================= */
+
 window.OFFERS = OFFERS;
 window.SERVICES = SERVICES;
 window.REGIONS = REGIONS;
@@ -465,7 +708,6 @@ window.tab = tab;
 window.qrDraw = qrDraw;
 window.play = play;
 
-// Compatibility aliases for existing system callers
 window.createOfferCardHTML = function(offer, index) {
   const i = typeof index === 'number' ? index : 0;
   const o = offer || OFFERS[i] || OFFERS[0];
@@ -477,7 +719,10 @@ window.openInspectionModal = function(id, title) {
   wa(null, 'حجز معاينة' + (title ? ': ' + title : ''));
 };
 
-// Populate initial Services horizontal list if element exists
+/* =========================================================
+   📱 DOM READY
+   ========================================================= */
+
 document.addEventListener("DOMContentLoaded", () => {
   const srv = document.getElementById("srv");
   if (srv && srv.children.length === 0) {
@@ -496,6 +741,5 @@ document.addEventListener("DOMContentLoaded", () => {
   if (cmpTxt && !cmpTxt.textContent) {
     cmpTxt.textContent = Object.entries(COMPASS).slice(0, 4).map(([r, c]) => `${r} ${c.avg}﷼/م²`).join(" • ");
   }
-  chips();
-  render();
+  init();
 });
