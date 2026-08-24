@@ -194,12 +194,23 @@
     </section>
 
 
+    <!-- Wizard Property Submission System -->
+    <section class="form-section" style="padding: 40px 0;">
+        <div class="container">
+            <div style="text-align:center;margin-bottom:30px;">
+                <h2 style="color:#2A5050;font-size:2rem;margin-bottom:10px;"><i class="fas fa-magic"></i> المعالج الذكي لرفع عقارك</h2>
+                <p style="color:#666;">اتبع الخطوات لإدخال تفاصيل عقارك بكل دقة ومرونة</p>
+            </div>
+            <div id="form-wizard"></div>
+        </div>
+    </section>
+
     <section class="form-section">
         <div class="container">
             <div class="form-container">
                 <div class="form-header">
                     <i class="fas fa-clipboard-list"></i>
-                    <h2>نموذج عرض العقار</h2>
+                    <h2>نموذج عرض العقار المباشر</h2>
                     <p>أدخل بيانات عقارك وسنتولى التسويق والبيع باحترافية. سيتم تحويلك إلى واتساب لتأكيد الطلب.</p>
                 </div>
                 <form onsubmit="submitPropertyForm(event)" class="property-form">
@@ -479,5 +490,14 @@
     <script src="js/video.js?v=4"></script>
     <script src="js/main.js?v=4"></script>
     <script src="js/silo.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/form-wizard.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.PropertyFormWizard) {
+                new window.PropertyFormWizard();
+            }
+        });
+    </script>
 </body>
 </html>
