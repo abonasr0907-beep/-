@@ -129,6 +129,7 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
+    ConversationHandler,
     ContextTypes,
     filters,
 )
@@ -1349,7 +1350,448 @@ async def set_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("الـ ID يجب أن يكون رقم.")
 
 # ============================================================
-#  إضافة عرض جديد — العملية التفاعلية
+#  نظام رفع العروض الذكي v2.0 (المعالج بالأزرار - ConversationHandler)
+# ============================================================
+
+(
+    CHOOSING_TYPE,      # اختيار نوع العرض
+    ASKING_QUESTION,    # طرح السؤال الحالي
+    ASKING_PRICE,       # طلب السعر
+    ASKING_LOCATION,    # طلب الموقع/المنطقة
+    ASKING_CONTACT,     # طلب رقم التواصل
+    ASKING_PHOTOS,      # طلب الصور
+    CONFIRMING,         # تأكيد ونشر
+) = range(7)
+
+# ── أسئلة المزارع ──
+FARM_QUESTIONS = [
+    {"key": "area",          "text": "📐 اختر مساحة المزرعة (م²):",              "type": "range",  "min": 5000,  "max": 150000, "step": 10000},
+    {"key": "tanks",         "text": "🚰 هل توجد خزانات علوية؟",                 "type": "yesno"},
+    {"key": "tanks_count",   "text": "🔢 عدد الخزانات العلوية:",                 "type": "range",  "min": 1,     "max": 10,     "step": 1,    "condition": lambda d: d.get("tanks") == True},
+    {"key": "wells",         "text": "💧 عدد الآبار المتوفرة:",                  "type": "range",  "min": 0,     "max": 5,      "step": 1},
+    {"key": "greenhouses",   "text": "🏠 عدد البيوت المحمية:",                   "type": "range",  "min": 10,    "max": 150,    "step": 10},
+    {"key": "paved",         "text": "🛣️ هل المزرعة مسفلتة من الداخل؟",         "type": "yesno"},
+    {"key": "fruit_trees",   "text": "🌳 عدد الأشجار المثمرة:",                  "type": "range",  "min": 0,     "max": 50,     "step": 1},
+    {"key": "palms",         "text": "🌴 عدد النخيل:",                           "type": "range",  "min": 10,    "max": 200,    "step": 10},
+    {"key": "building_type", "text": "🏗️ نوع المباني:",                          "type": "choices", "options": ["طوب أحمر", "بلوك", "خرسانة", "حديد", "خشب", "مختلطة"]},
+    {"key": "rooms",         "text": "🛏️ عدد الغرف:",                           "type": "range",  "min": 0,     "max": 20,     "step": 1},
+    {"key": "rest_areas",    "text": "🪑 عدد الاستراحات:",                       "type": "range",  "min": 0,     "max": 10,     "step": 1},
+    {"key": "streets",       "text": "🛤️ عدد الشوارع المحيطة:",                  "type": "choices", "options": ["1", "2", "3", "4"]},
+    {"key": "facade",        "text": "🧭 الواجهة:",                              "type": "choices", "options": ["شرقية", "غربية", "جنوبية", "شمالية", "جنوبية شرقية", "شمالية غربية", "شمالية شرقية", "جنوبية غربية"]},
+    {"key": "vip_design",    "text": "✨ هل التصميم VIP؟",                       "type": "yesno"},
+    {"key": "sprinkler",     "text": "💦 هل يوجد رشاش (سبرينكلر)؟",              "type": "yesno"},
+    {"key": "machines",      "text": "⚙️ عدد الماكينات المتوفرة:",               "type": "range",  "min": 0,     "max": 10,     "step": 1},
+    {"key": "all_crops",     "text": "🌾 هل تصلح لجميع أنواع الزراعات؟",         "type": "yesno"},
+]
+
+# ── أسئلة الاستراحات ──
+REST_QUESTIONS = [
+    {"key": "area",         "text": "📐 اختر مساحة الاستراحة (م²):",            "type": "range",  "min": 250,   "max": 25000,  "step": 500},
+    {"key": "streets",      "text": "🛤️ عدد الشوارع المحيطة:",                  "type": "choices", "options": ["1", "2", "3", "4"]},
+    {"key": "green_areas",  "text": "🌿 هل توجد مسطحات خضراء؟",                 "type": "yesno"},
+    {"key": "livestock",    "text": "🐑 هل يوجد مكان مخصص للحلال؟",            "type": "yesno"},
+    {"key": "palms",        "text": "🌴 هل يوجد نخيل مثمر؟",                   "type": "yesno"},
+    {"key": "palms_count",  "text": "🔢 عدد النخيل التقريبي:",                  "type": "range",  "min": 10,    "max": 100,    "step": 10,   "condition": lambda d: d.get("palms") == True},
+    {"key": "spacious",     "text": "🏞️ هل توجد مساحات واسعة؟",                "type": "yesno"},
+    {"key": "parking",      "text": "🚗 هل يوجد موقف خاص للسيارات؟",           "type": "yesno"},
+    {"key": "majlis",       "text": "🛋️ عدد المجالس:",                         "type": "range",  "min": 0,     "max": 10,     "step": 1},
+    {"key": "bedrooms",     "text": "🛏️ عدد غرف النوم:",                       "type": "range",  "min": 0,     "max": 20,     "step": 1},
+    {"key": "halls",        "text": "🛋️ عدد الصالات:",                         "type": "range",  "min": 0,     "max": 10,     "step": 1},
+    {"key": "maqat",        "text": "🍽️ عدد المقالط:",                         "type": "range",  "min": 0,     "max": 5,      "step": 1},
+    {"key": "tents",        "text": "⛺ عدد الخيام:",                          "type": "range",  "min": 0,     "max": 10,     "step": 1},
+    {"key": "wells",        "text": "💧 عدد الآبار:",                          "type": "range",  "min": 0,     "max": 5,      "step": 1},
+    {"key": "tank",         "text": "🚰 هل يوجد خزان علوي؟",                   "type": "yesno"},
+]
+
+# ── أسئلة الأراضي ──
+LAND_QUESTIONS = [
+    {"key": "area",            "text": "📐 اختر مساحة الأرض (م²):",                "type": "range",  "min": 500,   "max": 1000,   "step": 100},
+    {"key": "fenced",          "text": "🧱 هل الأرض مسورة؟",                       "type": "yesno"},
+    {"key": "well",            "text": "💧 هل يوجد بئر؟",                         "type": "yesno",  "condition": lambda d: d.get("fenced") == True},
+    {"key": "well_count",      "text": "🔢 عدد الآبار:",                          "type": "choices", "options": ["1", "2"], "condition": lambda d: d.get("fenced") == True and d.get("well") == True},
+    {"key": "tank",            "text": "🚰 هل يوجد خزان علوي؟",                   "type": "yesno",  "condition": lambda d: d.get("fenced") == True},
+    {"key": "tank_count",      "text": "🔢 عدد الخزانات:",                        "type": "choices", "options": ["1", "2"], "condition": lambda d: d.get("fenced") == True and d.get("tank") == True},
+    {"key": "electric_meter",  "text": "⚡ هل يوجد عداد كهرباء؟",                  "type": "yesno",  "condition": lambda d: d.get("fenced") == True},
+    {"key": "meter_count",     "text": "🔢 عدد العدادات:",                        "type": "choices", "options": ["1", "2"], "condition": lambda d: d.get("fenced") == True and d.get("electric_meter") == True},
+    {"key": "guard_room",      "text": "👮 هل يوجد غرف حارس؟",                    "type": "yesno",  "condition": lambda d: d.get("fenced") == True},
+    {"key": "fertile_soil",    "text": "🌾 هل التربة صالحة للزراعة (خصبة)؟",      "type": "yesno",  "condition": lambda d: d.get("fenced") == True},
+]
+
+def build_range_keyboard(min_val: int, max_val: int, step: int, prefix: str = "ans") -> list:
+    values = list(range(min_val, max_val + 1, step))
+    buttons = []
+    row = []
+    for v in values:
+        row.append(InlineKeyboardButton(str(v), callback_data=f"{prefix}:{v}"))
+        if len(row) == 3:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([
+        InlineKeyboardButton("◀️ رجوع", callback_data="nav:back"),
+        InlineKeyboardButton("❌ إلغاء", callback_data="nav:cancel"),
+    ])
+    return buttons
+
+def build_yesno_keyboard(prefix: str = "ans") -> list:
+    return [
+        [InlineKeyboardButton("✅ نعم", callback_data=f"{prefix}:yes"),
+         InlineKeyboardButton("❌ لا",  callback_data=f"{prefix}:no")],
+        [InlineKeyboardButton("◀️ رجوع", callback_data="nav:back"),
+         InlineKeyboardButton("❌ إلغاء", callback_data="nav:cancel")],
+    ]
+
+def build_choices_keyboard(options: list, prefix: str = "ans") -> list:
+    buttons = []
+    row = []
+    for opt in options:
+        row.append(InlineKeyboardButton(opt, callback_data=f"{prefix}:{opt}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    buttons.append([
+        InlineKeyboardButton("◀️ رجوع", callback_data="nav:back"),
+        InlineKeyboardButton("❌ إلغاء", callback_data="nav:cancel"),
+    ])
+    return buttons
+
+def get_next_question_index(data: dict) -> int:
+    questions = data["questions"]
+    idx = data.get("current_q", 0)
+    while idx < len(questions):
+        q = questions[idx]
+        cond = q.get("condition")
+        if cond is None or cond(data.get("answers", {})):
+            return idx
+        data.setdefault("answers", {})[q["key"]] = None
+        idx += 1
+    return idx
+
+def format_offer_card(data: dict) -> str:
+    offer_type = data.get("type", "")
+    answers = data.get("answers", {})
+    type_names = {"farm": "🌾 مزرعة", "rest": "🏡 استراحة", "land": "🌄 أرض سكنية"}
+    divider = "═" * 28
+    lines = [
+        divider,
+        f"🏷️ <b>عرض جديد — {type_names.get(offer_type, offer_type)}</b>",
+        divider,
+        "",
+    ]
+    area = answers.get("area")
+    if area:
+        lines.append(f"📐 <b>المساحة:</b> {area:,} م²")
+    feature_order = {
+        "farm": ["tanks", "tanks_count", "wells", "greenhouses", "paved",
+                 "fruit_trees", "palms", "building_type", "rooms", "rest_areas",
+                 "streets", "facade", "vip_design", "sprinkler", "machines", "all_crops"],
+        "rest": ["streets", "green_areas", "livestock", "palms", "palms_count",
+                 "spacious", "parking", "majlis", "bedrooms", "halls", "maqat",
+                 "tents", "wells", "tank"],
+        "land": ["fenced", "well", "well_count", "tank", "tank_count",
+                 "electric_meter", "meter_count", "guard_room", "fertile_soil"],
+    }
+    feature_icons = {
+        "tanks": "🚰", "tanks_count": "🔢", "wells": "💧", "greenhouses": "🏠",
+        "paved": "🛣️", "fruit_trees": "🌳", "palms": "🌴", "building_type": "🏗️",
+        "rooms": "🛏️", "rest_areas": "🪑", "streets": "🛤️", "facade": "🧭",
+        "vip_design": "✨", "sprinkler": "💦", "machines": "⚙️", "all_crops": "🌾",
+        "green_areas": "🌿", "livestock": "🐑", "spacious": "🏞️", "parking": "🚗",
+        "majlis": "🛋️", "bedrooms": "🛏️", "halls": "🛋️", "maqat": "🍽️",
+        "tents": "⛺", "tank": "🚰", "fenced": "🧱", "well": "💧",
+        "well_count": "🔢", "tank_count": "🔢", "electric_meter": "⚡",
+        "meter_count": "🔢", "guard_room": "👮", "fertile_soil": "🌾",
+        "palms_count": "🌴",
+    }
+    feature_labels = {
+        "tanks": "خزانات علوية", "tanks_count": "عدد الخزانات", "wells": "آبار",
+        "greenhouses": "بيوت محمية", "paved": "مسفلتة داخلياً", "fruit_trees": "أشجار مثمرة",
+        "palms": "نخيل", "building_type": "نوع المباني", "rooms": "غرف",
+        "rest_areas": "استراحات", "streets": "شوارع محيطة", "facade": "واجهة",
+        "vip_design": "تصميم VIP", "sprinkler": "رشاش", "machines": "ماكينات",
+        "all_crops": "صالحة لجميع الزراعات", "green_areas": "مسطحات خضراء",
+        "livestock": "مكان للحلال", "spacious": "مساحات واسعة", "parking": "موقف سيارات",
+        "majlis": "مجالس", "bedrooms": "غرف نوم", "halls": "صالات",
+        "maqat": "مقالط", "tents": "خيام", "tank": "خزان علوي",
+        "fenced": "مسورة", "well": "بئر", "well_count": "عدد الآبار",
+        "tank_count": "عدد الخزانات", "electric_meter": "عداد كهرباء",
+        "meter_count": "عدادات", "guard_room": "غرف حارس", "fertile_soil": "تربة خصبة",
+        "palms_count": "عدد النخيل",
+    }
+    for key in feature_order.get(offer_type, []):
+        val = answers.get(key)
+        if val is None or val is False:
+            continue
+        icon = feature_icons.get(key, "•")
+        label = feature_labels.get(key, key)
+        if val is True:
+            lines.append(f"{icon} <b>{label}</b>")
+        else:
+            lines.append(f"{icon} <b>{label}:</b> {val}")
+    price = data.get("price")
+    if price:
+        lines.append(f"\n💰 <b>السعر:</b> {price:,} ريال")
+    location = data.get("location")
+    if location:
+        lines.append(f"📍 <b>الموقع:</b> {location}")
+    contact = data.get("contact")
+    if contact:
+        lines.append(f"📞 <b>التواصل:</b> {contact}")
+    lines.extend(["", f"📅 {datetime.now().strftime('%Y-%m-%d')}", divider])
+    return "\n".join(lines)
+
+async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """بدء معالج رفع عرض جديد بالأزرار v2.0"""
+    user = update.effective_user
+    if not can_publish_offers(user.id):
+        await update.message.reply_text("⛔ هذا الأمر مخصص للمدراء فقط.")
+        return ConversationHandler.END
+
+    keyboard = [
+        [InlineKeyboardButton("🌾 مزرعة", callback_data="type:farm")],
+        [InlineKeyboardButton("🏡 استراحة", callback_data="type:rest")],
+        [InlineKeyboardButton("🌄 أرض سكنية", callback_data="type:land")],
+        [InlineKeyboardButton("❌ إلغاء", callback_data="nav:cancel")],
+    ]
+
+    await update.message.reply_text(
+        "🏷️ <b>رفع عرض جديد</b>\n\nاختر نوع العقار:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML",
+    )
+    return CHOOSING_TYPE
+
+async def on_choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    if data == "nav:cancel":
+        await query.edit_message_text("❌ تم إلغاء العملية.")
+        return ConversationHandler.END
+
+    offer_type = data.replace("type:", "")
+    context.user_data.clear()
+    context.user_data["type"] = offer_type
+    context.user_data["answers"] = {}
+    context.user_data["current_q"] = 0
+
+    if offer_type == "farm":
+        context.user_data["questions"] = FARM_QUESTIONS
+    elif offer_type == "rest":
+        context.user_data["questions"] = REST_QUESTIONS
+    elif offer_type == "land":
+        context.user_data["questions"] = LAND_QUESTIONS
+    else:
+        await query.edit_message_text("❌ نوع غير معروف.")
+        return ConversationHandler.END
+
+    return await ask_current_question(update, context)
+
+async def ask_current_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user_data = context.user_data
+    questions = user_data["questions"]
+    idx = get_next_question_index(user_data)
+    user_data["current_q"] = idx
+
+    if idx >= len(questions):
+        await query.edit_message_text(
+            "✅ <b>تم جمع المميزات!</b>\n\n💰 أرسل السعر الآن (رقماً فقط):",
+            parse_mode="HTML",
+        )
+        return ASKING_PRICE
+
+    q = questions[idx]
+    qtype = q["type"]
+    text = f"<b>السؤال {idx + 1} من {len(questions)}</b>\n\n{q['text']}"
+
+    if qtype == "range":
+        keyboard = build_range_keyboard(q["min"], q["max"], q["step"])
+    elif qtype == "yesno":
+        keyboard = build_yesno_keyboard()
+    elif qtype == "choices":
+        keyboard = build_choices_keyboard(q["options"])
+    else:
+        keyboard = [[InlineKeyboardButton("❌ إلغاء", callback_data="nav:cancel")]]
+
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    return ASKING_QUESTION
+
+async def on_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    user_data = context.user_data
+
+    if data == "nav:cancel":
+        await query.edit_message_text("❌ تم إلغاء العملية.")
+        return ConversationHandler.END
+
+    if data == "nav:back":
+        current = user_data.get("current_q", 0)
+        questions = user_data.get("questions", [])
+        answers = user_data.get("answers", {})
+        target_idx = current - 1
+        while target_idx >= 0:
+            q = questions[target_idx]
+            cond = q.get("condition")
+            if cond is None or cond(answers):
+                answers.pop(q["key"], None)
+                user_data["current_q"] = target_idx
+                break
+            answers.pop(q["key"], None)
+            target_idx -= 1
+        if target_idx < 0:
+            user_data["current_q"] = 0
+        return await ask_current_question(update, context)
+
+    if data.startswith("ans:"):
+        raw = data.replace("ans:", "")
+        if raw == "yes":
+            answer = True
+        elif raw == "no":
+            answer = False
+        else:
+            try:
+                answer = int(raw)
+            except ValueError:
+                answer = raw
+        idx = user_data["current_q"]
+        q = user_data["questions"][idx]
+        user_data["answers"][q["key"]] = answer
+        user_data["current_q"] = idx + 1
+        return await ask_current_question(update, context)
+
+    return ASKING_QUESTION
+
+async def on_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip().replace(",", "").replace(" ", "")
+    try:
+        price = int(text)
+        context.user_data["price"] = price
+        await update.message.reply_text(
+            "📍 <b>أرسل موقع العقار</b> (مثال: الخرج — حي الرحمانية):",
+            parse_mode="HTML",
+        )
+        return ASKING_LOCATION
+    except ValueError:
+        await update.message.reply_text("⚠️ الرجاء إدخال رقم صحيح فقط.")
+        return ASKING_PRICE
+
+async def on_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["location"] = update.message.text.strip()
+    await update.message.reply_text(
+        "📞 <b>أرسل رقم التواصل</b> (مثال: 0545888931):",
+        parse_mode="HTML",
+    )
+    return ASKING_CONTACT
+
+async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["contact"] = update.message.text.strip()
+    preview = format_offer_card(context.user_data)
+    keyboard = [
+        [InlineKeyboardButton("📸 إضافة صور", callback_data="next:photos")],
+        [InlineKeyboardButton("✅ نشر بدون صور", callback_data="next:publish")],
+        [InlineKeyboardButton("❌ إلغاء", callback_data="nav:cancel")],
+    ]
+    await update.message.reply_text(
+        f"📋 <b>معاينة العرض:</b>\n\n{preview}\n\nهل تريد إضافة صور أم نشر مباشرة؟",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML",
+    )
+    return CONFIRMING
+
+async def on_confirm_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    if data == "nav:cancel":
+        await query.edit_message_text("❌ تم إلغاء العملية.")
+        return ConversationHandler.END
+    if data == "next:photos":
+        await query.edit_message_text(
+            "📸 <b>أرسل الصور الآن</b>\nيمكنك إرسال حتى 10 صور. اضغط /done عند الانتهاء.",
+            parse_mode="HTML",
+        )
+        context.user_data["photos"] = []
+        return ASKING_PHOTOS
+    if data == "next:publish":
+        return await publish_offer_v2(update, context)
+    return CONFIRMING
+
+async def on_photo_v2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    photos = context.user_data.setdefault("photos", [])
+    if len(photos) >= 10:
+        await update.message.reply_text("⚠️ الحد الأقصى 10 صور. اضغط /done للمتابعة.")
+        return ASKING_PHOTOS
+    photo = update.message.photo[-1]
+    photos.append(photo.file_id)
+    await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/10). أرسل المزيد أو اضغط /done")
+    return ASKING_PHOTOS
+
+async def cmd_done_v2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    return await publish_offer_v2(update, context)
+
+async def publish_offer_v2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_data = context.user_data
+    card = format_offer_card(user_data)
+    offer_id = f"OFFER_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    offer_data = {
+        "id": offer_id,
+        "type": user_data.get("type"),
+        "answers": user_data.get("answers", {}),
+        "price": user_data.get("price"),
+        "location": user_data.get("location"),
+        "contact": user_data.get("contact"),
+        "photos": user_data.get("photos", []),
+        "created_at": datetime.now().isoformat(),
+    }
+
+    # Save to site offers as well
+    try:
+        site_data = load_offers_json()
+        category_map = {"farm": "مزرعة", "rest": "استراحة", "land": "أرض سكنية"}
+        site_offer = {
+            "id": offer_id,
+            "type": user_data.get("type"),
+            "category": category_map.get(user_data.get("type"), "عقار"),
+            "title": f"{category_map.get(user_data.get('type'), 'عقار')} في {user_data.get('location', '')}",
+            "area": user_data.get("location", ""),
+            "price": user_data.get("price", 0),
+            "price_text": f"{user_data.get('price', 0):,} ريال" if user_data.get("price") else "على السوم",
+            "description": card,
+            "contact": user_data.get("contact", ""),
+            "date_added": datetime.now().strftime("%Y-%m-%d"),
+            "answers": user_data.get("answers", {}),
+        }
+        site_data.setdefault("offers", []).append(site_offer)
+        save_offers_json(site_data)
+    except Exception as e:
+        logger.error(f"Error saving offer v2 to offers.json: {e}")
+
+    os.makedirs("offers-data", exist_ok=True)
+    with open(f"offers-data/{offer_id}.json", "w", encoding="utf-8") as f:
+        json.dump(offer_data, f, ensure_ascii=False, indent=2)
+
+    msg_text = f"✅ <b>تم نشر العرض بنجاح!</b>\n\n🆔 رقم العرض: <code>{offer_id}</code>\n\n{card}"
+    if update.callback_query:
+        await update.callback_query.edit_message_text(msg_text, parse_mode="HTML")
+    else:
+        await update.message.reply_text(msg_text, parse_mode="HTML")
+
+    context.user_data.clear()
+    return ConversationHandler.END
+
+async def cmd_cancel_v2(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❌ تم إلغاء العملية.")
+    context.user_data.clear()
+    return ConversationHandler.END
+
+# ============================================================
+#  إضافة عرض جديد — العملية التفاعلية القديمة
 # ============================================================
 async def add_offer_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not can_publish_offers(update.effective_user.id):
@@ -7633,6 +8075,25 @@ async def auto_seo_report(context):
 
 def _setup_handlers(app):
     """تسجيل جميع معالجات البوت — مشترك بين وضعي polling و webhook."""
+    # معالج رفع العروض الجديد v2.0 (Inline Keyboard Conversation)
+    new_offer_conv = ConversationHandler(
+        entry_points=[CommandHandler("new", cmd_new)],
+        states={
+            CHOOSING_TYPE: [CallbackQueryHandler(on_choose_type, pattern="^(type:|nav:)")],
+            ASKING_QUESTION: [CallbackQueryHandler(on_answer)],
+            ASKING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_price)],
+            ASKING_LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_location)],
+            ASKING_CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, on_contact)],
+            ASKING_PHOTOS: [
+                MessageHandler(filters.PHOTO, on_photo_v2),
+                CommandHandler("done", cmd_done_v2),
+            ],
+            CONFIRMING: [CallbackQueryHandler(on_confirm_choice, pattern="^(next:|nav:)")],
+        },
+        fallbacks=[CommandHandler("cancel", cmd_cancel_v2)],
+    )
+    app.add_handler(new_offer_conv)
+
     # الأوامر
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
