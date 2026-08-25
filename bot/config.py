@@ -18,6 +18,8 @@ INDEX_PATH = REPO_ROOT / "offers-index.json"
 
 OWNER_ID = 7746757675
 SITE_BASE_URL = "https://urldra.cloud.huawei.com/BExUoXngu4"
+VAL_LICENSE = "1100004208"
+EST_LICENSE = "1100004208"
 
 
 def is_owner(user_id) -> bool:
