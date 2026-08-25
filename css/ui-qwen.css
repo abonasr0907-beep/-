@@ -41,18 +41,36 @@ body{
 body::before{
   content:"";
   position:fixed;inset:0;z-index:0;
-  background:linear-gradient(180deg,rgba(232,238,245,.3) 0%,rgba(200,212,224,.5) 100%);
+  background:
+    linear-gradient(180deg,rgba(8,20,34,.85) 0%,rgba(8,20,34,.95) 100%),
+    linear-gradient(135deg,rgba(10,30,50,.9) 0%,rgba(8,20,34,.95) 50%,
+    rgba(15,35,55,.9) 100%);
   pointer-events:none;
 }
 
+/* Gold architectural grid overlay */
 body::after{
   content:"";
   position:fixed;inset:0;z-index:0;
   background-image:
-    linear-gradient(rgba(201,162,79,.08) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(201,162,79,.08) 1px,transparent 1px);
-  background-size:80px 80px;
+    linear-gradient(rgba(201,162,79,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(201,162,79,.06) 1px,transparent 1px),
+    linear-gradient(45deg,transparent 48%,rgba(201,162,79,.03) 49%,
+    rgba(201,162,79,.03) 51%,transparent 52%),
+    linear-gradient(-45deg,transparent 48%,rgba(201,162,79,.03) 49%,
+    rgba(201,162,79,.03) 51%,transparent 52%);
+  background-size:60px 60px,60px 60px,120px 120px,120px 120px;
   pointer-events:none;
+}
+
+/* Architectural structural lines */
+.arch-lines{
+  position:fixed;inset:0;z-index:0;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse at 20% 80%,rgba(201,162,79,.08) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 20%,rgba(201,162,79,.05) 0%,transparent 40%),
+    radial-gradient(ellipse at 50% 50%,rgba(10,58,92,.15) 0%,transparent 70%);
 }
 
 .wm{
@@ -454,18 +472,85 @@ footer{
   padding-top:16px;border-top:1px solid var(--line2);
 }
 
+/* ===== FAB (Horizontal Bottom Bar) ===== */
 .fab{
-  position:fixed;bottom:20px;left:20px;z-index:100;
-  display:flex;flex-direction:column;gap:8px;
+  position:fixed;
+  bottom:calc(12px + env(safe-area-inset-bottom));
+  right:0;left:0;display:flex;justify-content:center;
+  gap:10px;z-index:45;pointer-events:none;
+  padding:0 16px;
+}
+.fab .in{
+  pointer-events:auto;display:flex;
+  background:var(--glass);
+  border-radius:99px;
+  box-shadow:var(--shadow),0 4px 20px rgba(0,0,0,.4);
+  overflow:hidden;border:1.5px solid var(--gold);
+  backdrop-filter:blur(24px) saturate(1.3);
+  -webkit-backdrop-filter:blur(24px) saturate(1.3);
 }
 .fab button{
-  width:56px;height:56px;border-radius:50%;border:0;
-  background:var(--glass);color:var(--ink);font-size:22px;
-  cursor:pointer;backdrop-filter:blur(16px);
-  border:1px solid var(--line);box-shadow:var(--shadow);
-  transition:all .25s;display:grid;place-items:center;
+  border:0;background:none;font-family:inherit;
+  padding:13px 22px;font-size:13px;font-weight:800;
+  color:#fff;cursor:pointer;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:6px;
+  transition:all .25s ease;
 }
-.fab button:hover{transform:scale(1.1);background:var(--gold);color:var(--night)}
+.fab button+button{border-right:1px solid var(--line)}
+.fab button:hover{color:var(--gold2);background:rgba(201,162,79,.1)}
+
+/* WhatsApp FAB button */
+.fab .fab-wa{
+  background:linear-gradient(135deg,#25D366,#128C7E);
+  color:#fff;
+}
+.fab .fab-wa:hover{
+  background:linear-gradient(135deg,#128C7E,#075E54);
+  color:#fff;
+  transform:translateY(-2px);
+  box-shadow:0 4px 15px rgba(37,211,102,.4);
+}
+
+/* List Property FAB button */
+.fab .fab-list{
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:var(--night);
+}
+.fab .fab-list:hover{
+  background:linear-gradient(135deg,var(--gold2),var(--gold3));
+  color:var(--night);
+  transform:translateY(-2px);
+  box-shadow:var(--shadow-gold);
+}
+
+/* AI Assistant FAB button */
+.fab .fab-ai{
+  background:linear-gradient(135deg,#1B365D,#2A5050);
+  color:var(--gold2);
+  border-right:1px solid var(--line);
+}
+.fab .fab-ai:hover{
+  background:linear-gradient(135deg,#2A5050,#1B365D);
+  color:var(--gold);
+  transform:translateY(-2px);
+  box-shadow:0 4px 15px rgba(27,54,93,.4);
+}
+
+#tray{
+  pointer-events:auto;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:var(--night);border:0;border-radius:99px;
+  padding:14px 24px;font-family:inherit;
+  font-size:13px;font-weight:800;
+  box-shadow:var(--shadow-gold);
+  display:none;cursor:pointer;
+}
+
+/* Mobile FAB adjustments */
+@media(max-width:480px){
+  .fab .in{flex:1;justify-content:center}
+  .fab button{padding:12px 16px;font-size:12px}
+}
 
 .sh{
   position:fixed;inset:0;z-index:200;
