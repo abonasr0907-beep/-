@@ -33,6 +33,34 @@ const NEWS = [
   {d:"٢٢ أغسطس",t:"موسم التمور يرفع الطلب",p:"معاينات نشطة على مزارع الضيحة."},
   {d:"٢٠ أغسطس",t:"مزاد أراضٍ سكنية شمال الخرج",p:"١٢ قطعة بصكوك إلكترونية."}
 ];
+
+/* ── AI Assistant Data (for future implementation) ── */
+const AI_ASSISTANT = {
+  name: "مساعد آفاق الذكي",
+  avatar: "images/logo.jpg",
+  status: "متصل الآن",
+  welcomeMessage: "أهلاً بك في آفاق الإنجاز! أنا مساعدك الذكي للعقارات. كيف يمكنني مساعدتك اليوم؟",
+  quickReplies: [
+    "عقارات للبيع",
+    "خدمات ما بعد البيع",
+    "حجز معاينة",
+    "استفسار عن سعر"
+  ],
+  contactInfo: {
+    whatsapp: "966545888931",
+    phone: "0544699933",
+    email: "afaqalqary@gmail.com"
+  },
+  features: [
+    "البحث عن العقارات",
+    "مقارنة الأسعار",
+    "حجز المعاينات",
+    "الإجابة على الاستفسارات",
+    "تقديم النصائح العقارية"
+  ]
+};
+
+window.AI_ASSISTANT = AI_ASSISTANT;
 const G = ["linear-gradient(160deg,#1c5a4a,#3f8f6d)","linear-gradient(160deg,#8a6a2a,#d9b45b)","linear-gradient(160deg,#7a4a2a,#c98a4f)"];
 const TYPE_EMOJI = {"farm":"🌾","resthouse":"🏡","land":"🗺️"};
 
