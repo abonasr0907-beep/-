@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch(e) { /* ignore */ }
 
     // 1. Initialize utilities & settings
+    if (window.injectSidebarSocialLinks) window.injectSidebarSocialLinks();
     if (window.initWhatsappChannel) window.initWhatsappChannel();
     if (window.initDarkMode) window.initDarkMode();
     if (window.setupMobileSidebar) window.setupMobileSidebar();

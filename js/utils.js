@@ -11,8 +11,8 @@ window.exchangeRate = 3.75; // 1 USD = 3.75 SAR
 window.OFFICE_DATA = {
     name: "آفاق الإنجاز العقارية",
     city: "الخرج",
-    license: "1200021340",
-    val_number: "7200034185",
+    license: "1100004208",
+    val_number: "1100004208",
     phone: "0544699933",
     whatsapp: "0545888931",
     combo: "0561610748"
@@ -406,3 +406,24 @@ function getMapApiUrl() {
     return '/api/properties/map';
 }
 window.getMapApiUrl = getMapApiUrl;
+
+// ===== Glass Sidebar Social Links Injection =====
+function injectSidebarSocialLinks() {
+    var navs = document.querySelectorAll('.nav-menu, .nav-links');
+    navs.forEach(function(nav) {
+        if (nav.querySelector('.sidebar-social-section')) return;
+        var socialSection = document.createElement('div');
+        socialSection.className = 'sidebar-social-section';
+        socialSection.innerHTML =
+            '<div class="sidebar-social-title">تابعنا على</div>' +
+            '<div class="sidebar-social-links">' +
+                '<a href="https://www.instagram.com/afaqalanqaz" target="_blank" rel="noopener noreferrer" class="social-insta" title="إنستقرام"><i class="fab fa-instagram"></i></a>' +
+                '<a href="https://www.tiktok.com/@whatyouarelookingforisw3" target="_blank" rel="noopener noreferrer" class="social-tiktok" title="تيك توك"><i class="fab fa-tiktok"></i></a>' +
+                '<a href="https://www.snapchat.com/add/mmnf2278" target="_blank" rel="noopener noreferrer" class="social-snap" title="سناب شات"><i class="fab fa-snapchat"></i></a>' +
+                '<a href="https://whatsapp.com/channel/0029VaG931b60hBNX2E32R1q" target="_blank" rel="noopener noreferrer" class="social-wa" title="قناة واتساب"><i class="fab fa-whatsapp"></i></a>' +
+                '<a href="https://x.com/afaqalanqaz" target="_blank" rel="noopener noreferrer" class="social-x" title="X تويتر"><i class="fab fa-x-twitter"></i></a>' +
+            '</div>';
+        nav.appendChild(socialSection);
+    });
+}
+window.injectSidebarSocialLinks = injectSidebarSocialLinks;
