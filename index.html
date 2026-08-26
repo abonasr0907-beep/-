@@ -11,6 +11,11 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <link rel="canonical" href="https://abonasr0907-beep.github.io/-/">
 <link rel="icon" type="image/jpeg" href="images/logo.jpg">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#C9A24F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="آفاق الإنجاز">
 
 <!-- Open Graph -->
 <meta property="og:title" content="مكتب آفاق الإنجاز العقاري | مزارع واستراحات وأراضي بالخرج">
@@ -70,6 +75,9 @@
 </head>
 <body>
 
+<!-- Reading Progress Bar -->
+<div class="read-progress" id="readProgress"></div>
+
 <!-- Watermark Logo -->
 <div class="wm">
   <img src="images/logo.jpg" alt="آفاق الإنجاز" loading="lazy">
@@ -110,7 +118,7 @@
 
   <!-- FOMO Bar -->
   <div class="fomo-bar" id="fomoBar">
-    <span id="fomoText">🔥 <span id="live-visitor-count">14</span> شخص يتصفحون العروض الآن</span>
+    <span id="fomoText">🔥 <span class="live-pulse"></span> <span id="live-visitor-count">14</span> شخص يتصفحون العروض الآن</span>
     <span id="fomoTimer">⏱️ آخر تحديث: منذ دقيقتين</span>
   </div>
 </section>
@@ -310,6 +318,27 @@
   </div>
 </div>
 
+<!-- ===== PWA INSTALL BANNER ===== -->
+<div class="pwa-banner" id="pwaBanner">
+  <div class="pwa-content">
+    <img src="images/logo.jpg" alt="آفاق الإنجاز" class="pwa-icon">
+    <div class="pwa-text">
+      <b>تثبيت تطبيق آفاق الإنجاز</b>
+      <span>تصفّح العروض أسرع وبدون إنترنت</span>
+    </div>
+  </div>
+  <div class="pwa-actions">
+    <button class="pwa-install" onclick="installPWA()">تثبيت</button>
+    <button class="pwa-dismiss" onclick="dismissPWA()">✕</button>
+  </div>
+</div>
+
+<!-- ===== TOAST NOTIFICATIONS CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== BACK TO TOP BUTTON ===== -->
+<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="العودة للأعلى">⬆️</button>
+
 <!-- ===== BOTTOM SHEET ===== -->
 <div class="sh" id="sh"></div>
 
@@ -328,6 +357,102 @@ function toggleAI() {
 </script>
 
 <!-- ===== SCRIPTS ===== -->
+<script>
+/* ── Service Worker Registration ── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/-/sw.js').catch(()=>{});
+}
+
+/* ── PWA Install Banner Engine ── */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!localStorage.getItem('pwa_dismissed')) {
+    setTimeout(() => {
+      const b = document.getElementById('pwaBanner');
+      if (b) b.classList.add('show');
+    }, 3000);
+  }
+});
+
+function installPWA() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      dismissPWA();
+    });
+  }
+}
+
+function dismissPWA() {
+  const b = document.getElementById('pwaBanner');
+  if (b) b.classList.remove('show');
+  localStorage.setItem('pwa_dismissed', '1');
+}
+
+/* ── Toast Notifications ── */
+function showToast(title, body, icon='🔔') {
+  const c = document.getElementById('toastContainer');
+  if (!c) return;
+  const t = document.createElement('div');
+  t.className = 'toast-msg';
+  t.innerHTML = `<span class="toast-icon">${icon}</span><div class="toast-body"><b>${title}</b><span>${body}</span></div>`;
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('toast-in'));
+  setTimeout(() => {
+    t.classList.remove('toast-in');
+    t.classList.add('toast-out');
+    setTimeout(() => t.remove(), 400);
+  }, 5000);
+}
+
+/* ── عرض toast عروض جديدة عشوائي كل 20-40 ثانية ── */
+const TOAST_OFFERS = [
+  {t:'مزرعة جديدة بالرحمانية',b:'مساحة 8000م² — سعر مميز',i:'🌾'},
+  {t:'استراحة فاخرة بالهياثم',b:'تصميم VIP مع مسبح',i:'🏡'},
+  {t:'أرض سكنية بالدلم',b:'صك إلكتروني جاهز',i:'🗺️'},
+  {t:'مزرعة تمور بالضيحة',b:'150 نخلة مثمرة',i:'🌴'},
+];
+
+setInterval(() => {
+  if (Math.random() > 0.6) {
+    const o = TOAST_OFFERS[Math.floor(Math.random()*TOAST_OFFERS.length)];
+    showToast(o.t, o.b, o.i);
+  }
+}, 25000);
+
+/* ── Reading Progress Bar + Back-to-Top ── */
+window.addEventListener('scroll', () => {
+  const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  const pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+  const readProgress = document.getElementById('readProgress');
+  if (readProgress) readProgress.style.width = pct + '%';
+  const backToTop = document.getElementById('backToTop');
+  if (backToTop) backToTop.classList.toggle('show', scrollTop > 400);
+});
+
+/* ── Live Visitor Counter (عداد زوار حي) ── */
+(function initLiveCounter() {
+  const el = document.getElementById('live-visitor-count');
+  if (!el) return;
+  let count = parseInt(el.textContent) || 12;
+  function tick() {
+    const change = Math.random() > 0.5 ? 1 : -1;
+    const next = Math.max(5, Math.min(45, count + change));
+    if (next !== count) {
+      count = next;
+      el.textContent = count;
+      el.classList.add('changed');
+      setTimeout(() => el.classList.remove('changed'), 400);
+    }
+    setTimeout(tick, 8000 + Math.random() * 12000);
+  }
+  setTimeout(tick, 5000);
+})();
+</script>
 <script src="js/analytics-dashboard.js"></script>
 <script src="js/cards.js?v=17"></script>
 </body>
