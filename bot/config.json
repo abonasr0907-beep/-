@@ -1,33 +1,8 @@
 {
-  "owner_id": 7746757675,
-  "val_license": "1100004208",
-  "est_license": "1100004208",
-  "admin_ids": [
-    7746757675
-  ],
-  "office_location": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
-  "website_url": "https://abonasr0907-beep.github.io/-/",
-  "offers_file": "../offers-data/offers.json",
-  "auto_renew": true,
-  "max_images": 5,
-  "weekly_report": true,
-  "seo_monitoring": true,
-  "auto_prices_update": true,
-  "offer_id_prefix": "AFQ",
-  "image_format": "webp",
-  "image_quality": 88,
-  "max_image_width": 3840,
-  "thumbnail_width": 400,
-  "enable_drafts": true,
-  "enable_backups": true,
-  "max_backups": 20,
-  "enable_audit_log": true,
-  "multi_user": true,
-  "SITE_BASE_URL": "https://urldra.cloud.huawei.com/BExUoXngu4",
-  "ingest_secret": "afaq_ingest_2026_secure",
-  "social_links": {
-    "instagram": "https://www.instagram.com/afaqalanqaz",
-    "tiktok": "https://www.tiktok.com/@whatyouarelookingforisw3",
-    "snapchat": "https://www.snapchat.com/add/mmnf2278"
-  }
+    "admin_ids": [],
+    "office_location": "https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw",
+    "website_url": "https://afaqalqary.pages.dev/",
+    "offers_file": "../afaq-website/offers-data/offers.json",
+    "auto_renew": true,
+    "max_images": 5
 }
