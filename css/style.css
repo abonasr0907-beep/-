@@ -101,6 +101,17 @@ body::before {
     justify-content: space-between;
 }
 
+.top-bar {
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  color: white;
+  padding: 12px 20px;
+  text-align: center;
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
 .logo-section {
     display: flex;
     align-items: center;
@@ -110,8 +121,8 @@ body::before {
 }
 
 .logo-icon {
-    width: 44px;
-    height: 44px;
+    width: 32px !important;
+    height: 32px !important;
     color: var(--primary-gold);
     display: flex;
     align-items: center;
@@ -125,7 +136,7 @@ body::before {
 
 .logo-text h1 {
     font-family: 'Cairo', sans-serif;
-    font-size: 20px;
+    font-size: 16px !important;
     font-weight: 800;
     color: var(--white);
     line-height: 1.2;
@@ -133,7 +144,7 @@ body::before {
 }
 
 .logo-text span {
-    font-size: 12px;
+    font-size: 10px !important;
     color: var(--primary-gold);
     font-weight: 600;
 }
@@ -1630,6 +1641,24 @@ body::before {
 }
 
 @media (max-width: 768px) {
+  .top-bar {
+    font-size: 12px;
+    padding: 10px 15px;
+  }
+
+    .logo-icon {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .logo-text h1 {
+        font-size: 14px !important;
+    }
+
+    .logo-text span {
+        font-size: 9px !important;
+    }
+
     .nav-menu {
         display: none;
         position: absolute;
