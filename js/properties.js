@@ -50,30 +50,35 @@ function renderDynamicOffers(typeFilter = 'all', areaFilter = 'all') {
     }
 
     grid.innerHTML = items.map(prop => {
-        const title = prop.title || `${prop.type || 'عقار'} مميز في ${prop.location || prop.area || 'الخرج'}`;
+        const typeLabel = (prop.type === 'farms' || prop.type === 'مزرعة') ? 'مزرعة' : ((prop.type === 'resthouses' || prop.type === 'استراحة') ? 'استراحة' : 'أرض سكنية');
+        const title = prop.title || `${typeLabel} مميزة في ${prop.location || prop.area || 'الخرج'}`;
         const areaName = prop.location || prop.area || 'الخرج';
-        const size = prop.size_sqm || prop.size || 'غير محدد';
+        const size = prop.area || prop.size_sqm || prop.size || 'غير محدد';
         const price = prop.price ? `${Number(prop.price).toLocaleString('ar-SA')} ريال` : (prop.price_text || 'عند الاتصال');
         const features = prop.features || [];
         const featuresHtml = features.slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
-        const img = (prop.images && prop.images.length > 0 && prop.images[0] && !prop.images[0].startsWith('AgAC'))
-            ? prop.images[0]
-            : (prop.type === 'مزرعة' ? 'images/cat-farms.jpg' : (prop.type === 'استراحة' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg'));
+        const img = (prop.photos && prop.photos.length > 0)
+            ? prop.photos[0]
+            : ((prop.images && prop.images.length > 0 && prop.images[0] && !prop.images[0].startsWith('AgAC'))
+                ? prop.images[0]
+                : (typeLabel === 'مزرعة' ? 'images/cat-farms.jpg' : (typeLabel === 'استراحة' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg')));
 
         const whatsappNumber = typeof getWhatsappNumber === 'function' ? getWhatsappNumber() : '966545888931';
         const mapLink = prop.map_link || 'https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw';
 
         return `
             <div class="offer-card">
-                <img src="${img}" alt="${title}" class="offer-card-img" loading="lazy">
-                <span class="offer-badge">${prop.type || 'عقار'}</span>
+                <div class="offer-card-img-wrapper">
+                    <img src="${img}" alt="${title}" loading="lazy">
+                    <span class="offer-badge">${typeLabel}</span>
+                </div>
                 <div class="offer-card-body">
                     <h3>${title}</h3>
                     <div class="offer-location">
                         <i class="fas fa-map-marker-alt"></i> ${areaName} - الخرج
                     </div>
                     <div class="offer-details">
-                        <span><i class="fas fa-ruler-combined"></i> ${size} م²</span>
+                        <span><i class="fas fa-ruler-combined"></i> ${typeof size === 'number' ? size.toLocaleString('ar-SA') : size} م²</span>
                         <span><i class="fas fa-road"></i> ${prop.streets ? prop.streets + ' شوارع' : 'شارع واحد'}</span>
                     </div>
                     <div class="offer-price">${price}</div>

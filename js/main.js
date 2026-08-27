@@ -92,14 +92,18 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
     grid.innerHTML = filtered.map(offer => {
         const bouslaPrice = getBouslaPrice(offer.area, offer.type);
         const featuresHtml = (offer.features || []).slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
-        const featuredBadge = offer.featured ? '<span class="offer-badge featured">مميز ⭐</span>' : `<span class="offer-badge">${offer.category}</span>`;
+        const featuredBadge = offer.featured ? '<span class="offer-badge-featured">مميز ⭐</span>' : '';
+        const categoryBadge = `<span class="offer-badge">${offer.category}</span>`;
         const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
         const mapLink = offer.map_link || getDefaultMap();
 
         return `
             <div class="offer-card">
-                <img src="${img}" alt="${offer.title}" class="offer-card-img" loading="lazy">
-                ${featuredBadge}
+                <div class="offer-card-img-wrapper">
+                    <img src="${img}" alt="${offer.title}" loading="lazy">
+                    ${categoryBadge}
+                    ${featuredBadge}
+                </div>
                 <div class="offer-card-body">
                     <h3>${offer.title}</h3>
                     <div class="offer-location">
@@ -122,7 +126,7 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
                     </div>
                     <div class="offer-actions">
                         <a href="${mapLink}" target="_blank" class="offer-btn offer-btn-map">
-                            <i class="fas fa-map-marked-alt"></i> الموقع على الخريطة
+                            <i class="fas fa-map-marked-alt"></i> الخريطة
                         </a>
                         <a href="https://wa.me/${getWhatsappNumber()}?text=استفسار عن ${encodeURIComponent(offer.title)}" target="_blank" class="offer-btn offer-btn-contact">
                             <i class="fas fa-comments"></i> استفسار
