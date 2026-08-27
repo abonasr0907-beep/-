@@ -98,15 +98,17 @@
     }
     </script>
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="css/style.css?v=2">
+    <!-- CSS الرئيسية -->
+    <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
 
-    <!-- الهيدر -->
-    <header class="header main-header">
+    <!-- ==========================================================================
+         الهيدر وشريط التنقل (Navbar)
+         ========================================================================== -->
+    <header class="header">
         <div class="header-container">
-            <div class="logo-section" onclick="window.location.href='index.html'">
+            <a href="index.html" class="logo-section">
                 <div class="logo-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 21h18"/>
@@ -120,7 +122,7 @@
                     <h1>آفاق الإنجاز</h1>
                     <span>للخدمات العقارية</span>
                 </div>
-            </div>
+            </a>
 
             <nav>
                 <ul class="nav-menu" id="nav-menu">
@@ -146,39 +148,62 @@
         </div>
     </header>
 
-    <!-- القسم الرئيسي (Hero) -->
-    <section class="homepage-hero">
-        <div class="hero-bg-image"></div>
-        <div class="hero-overlay"></div>
+    <!-- ==========================================================================
+         1️⃣ القسم الأول: "من نحن" (آفاق الإنجاز العقاري) مباشرة بعد الـ Navbar
+         ========================================================================== -->
+    <section class="about-section" id="about-us">
+        <div class="about-glass-card">
+            <div class="about-heading">
+                <div class="about-icon"><i class="fas fa-building"></i></div>
+                <div>
+                    <h3>من نحن - آفاق الإنجاز العقاري</h3>
+                    <p>خبرة عقارية متكاملة تمتد لأكثر من 20 عاماً تضع تطلعاتك واحتياجك في المقدمة.</p>
+                </div>
+            </div>
+            <div class="about-grid">
+                <div class="about-line-item"><i class="fas fa-check-circle"></i> <span>مكتب عقاري مرخص ومثبت تخصصنا في المزارع والاستراحات والأراضي السكنية.</span></div>
+                <div class="about-line-item"><i class="fas fa-check-circle"></i> <span>نغطي أميز وأفضل المخططات في الخرج والرياض (الرحمانية، الهياثم، الدلم، الضبيعة، العفجة).</span></div>
+                <div class="about-line-item"><i class="fas fa-check-circle"></i> <span>مساعدة العميل في الوصول إلى الخيار العقاري الأمثل المتوافق مع ميزانيته وطموحه.</span></div>
+                <div class="about-line-item"><i class="fas fa-check-circle"></i> <span>تقديم بيانات ودقيقة وشفافة عن المساحات والمواقع والأسعار مع ربطها بخرائط جوجل.</span></div>
+                <div class="about-line-item"><i class="fas fa-check-circle"></i> <span>تقديم كافة خدمات ما بعد البيع (رخص البناء، المقاولات، التشطيب، حفر الآبار، إدارة الأملاك).</span></div>
+                <div class="about-line-item"><i class="fas fa-check-circle"></i> <span>فريق عمل محترف يضمن لك صفقة عقارية آمنة وتجربة مريحة وموثوقة من البداية حتى النهاية.</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+         2️⃣ القسم الثاني: الهيرو سيكشن مع نموذج البحث
+         ========================================================================== -->
+    <section class="hero-section" id="hero">
         <div class="hero-main-grid">
             <!-- البطاقة اليسرى: المميزات -->
-            <div class="hero-features-card glass-panel">
+            <div class="hero-features-card">
                 <div class="feature-item">
                     <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
-                    <h4>موثوقية</h4>
-                    <p>معاملات آمنة<br>وفريق محترف</p>
+                    <h4>موثوقية وتراخيص</h4>
+                    <p>معاملات عقارية آمنة<br>وتوثيق معتمد</p>
                 </div>
                 <div class="feature-item">
                     <div class="feature-icon"><i class="fas fa-location-dot"></i></div>
                     <h4>أفضل المواقع</h4>
-                    <p>في أميز مخططات<br>الخرج</p>
+                    <p>في أميز مخططات<br>الخرج والرياض</p>
                 </div>
                 <div class="feature-item">
                     <div class="feature-icon"><i class="fas fa-file-contract"></i></div>
-                    <h4>خدمات متكاملة</h4>
-                    <p>استشارات عقارية<br>وحلول متكاملة</p>
+                    <h4>خدمات شاملة</h4>
+                    <p>استشارات وتطوير<br>ما بعد البيع</p>
                 </div>
                 <div class="feature-item">
                     <div class="feature-icon"><i class="fas fa-handshake"></i></div>
-                    <h4>خبرة واسعة</h4>
-                    <p>سنوات من الخبرة<br>في السوق العقاري</p>
+                    <h4>خبرة 20 عاماً</h4>
+                    <p>معرفة عميقة بالسوق<br>والفرص العقارية</p>
                 </div>
             </div>
 
-            <!-- البطاقة اليمنى: البحث -->
-            <div class="hero-search-card glass-panel">
-                <h1>خيارات عقارية<br><span class="accent-text">تلاءم طموحك</span></h1>
-                <p>مزارع فاخرة، استراحات مميزة، وأراضي سكنية<br>في أفضل مخططات الخرج</p>
+            <!-- البطاقة اليمنى: البحث والفلترة -->
+            <div class="hero-search-card">
+                <h1>خيارات عقارية<br><span class="accent-text">تلاءم طموحك واحتياجك</span></h1>
+                <p>ابحث عن المزارع الفاخرة، الاستراحات المميزة، والأراضي السكنية في أفضل المخططات</p>
 
                 <div class="search-filter-bar">
                     <div class="filter-group">
@@ -187,7 +212,7 @@
                             <option value="all">الكل</option>
                             <option value="farms">مزارع</option>
                             <option value="resthouses">استراحات</option>
-                            <option value="lands">أراضي</option>
+                            <option value="lands">أراضي سكنية</option>
                         </select>
                     </div>
                     <div class="filter-group">
@@ -202,7 +227,7 @@
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label>النوع</label>
+                        <label>نوع العملية</label>
                         <select id="filter-category">
                             <option value="all">الكل</option>
                             <option value="sale">للبيع</option>
@@ -210,16 +235,25 @@
                         </select>
                     </div>
                     <button class="search-btn" onclick="applyHeroFilters()">
-                        <i class="fas fa-search"></i> بحث
+                        <i class="fas fa-search"></i> بحث الآن
                     </button>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- قسم البطاقات التصنيفية -->
-    <section class="categories-section">
+    <!-- ==========================================================================
+         3️⃣ القسم الثالث: بطاقات الخدمات (أراضي، استراحات، مزارع)
+         ========================================================================== -->
+    <section class="categories-section" id="categories">
+        <div class="section-title">
+            <span class="eyebrow">التصنيفات الرئيسية</span>
+            <h2>تصفح عقاراتنا حسب النوع</h2>
+            <p>اختر التصنيف العقاري المناسب لاستكشاف العروض والفرص المتاحة</p>
+        </div>
+
         <div class="categories-container">
+            <!-- بطاقات الأراضي السكنية -->
             <a href="lands.html" class="cat-card">
                 <div class="cat-bg" style="background-image: url('images/cat-lands.jpg')"></div>
                 <div class="cat-overlay"></div>
@@ -227,145 +261,129 @@
                     <div class="cat-icon"><i class="fas fa-map"></i></div>
                     <div class="cat-text">
                         <h3>أراضي سكنية</h3>
-                        <p>أراضي في أميز مخططات الخرج<br>بمساحات واستخدامات متعددة</p>
-                        <span class="cat-btn">عرض الأراضي</span>
+                        <p>أراضي في أميز مخططات الخرج بمساحات واستخدامات متنوعة</p>
+                        <span class="cat-btn">استعرض الأراضي</span>
                     </div>
                 </div>
             </a>
 
+            <!-- بطاقات الاستراحات -->
             <a href="resthouses.html" class="cat-card">
                 <div class="cat-bg" style="background-image: url('images/cat-rest.jpg')"></div>
                 <div class="cat-overlay"></div>
                 <div class="cat-content">
                     <div class="cat-icon"><i class="fas fa-umbrella-beach"></i></div>
                     <div class="cat-text">
-                        <h3>استراحات</h3>
-                        <p>استراحات فاخرة بتصاميم<br>عصرية ومواقع مميزة</p>
-                        <span class="cat-btn">عرض الاستراحات</span>
+                        <h3>استراحات فاخرة</h3>
+                        <p>استراحات بتصاميم عصرية ومرافق متكاملة ومواقع مميزة</p>
+                        <span class="cat-btn">استعرض الاستراحات</span>
                     </div>
                 </div>
             </a>
 
+            <!-- بطاقات المزارع -->
             <a href="farms.html" class="cat-card">
                 <div class="cat-bg" style="background-image: url('images/cat-farms.jpg')"></div>
                 <div class="cat-overlay"></div>
                 <div class="cat-content">
-                    <div class="cat-icon"><i class="fas fa-tractor"></i></div>
+                    <div class="cat-icon"><i class="fas fa-seedling"></i></div>
                     <div class="cat-text">
-                        <h3>مزارع</h3>
-                        <p>مزارع متنوعة بمساحات مختلفة<br>ومرافق متكاملة</p>
-                        <span class="cat-btn">عرض المزارع</span>
+                        <h3>مزارع ومنتجعات</h3>
+                        <p>مزارع منتجة ومساحات واسعة ومجهزة بالآبار والمرافق</p>
+                        <span class="cat-btn">استعرض المزارع</span>
                     </div>
                 </div>
             </a>
         </div>
     </section>
 
-    <!-- شريط الإحصائيات -->
-    <div class="stats-bar">
-        <div class="stats-bar-container">
-            <a href="#offers" class="stats-cta">
-                <i class="fas fa-th-large"></i> تصفح جميع العروض
-            </a>
-
-            <div class="stat-divider"></div>
-
-            <div class="stat-box">
-                <div class="stat-icon"><i class="fas fa-award"></i></div>
-                <div class="stat-info">
-                    <span class="stat-num" data-target="500">+0</span>
-                    <span class="stat-label">عقار تم بيعه</span>
-                </div>
+    <!-- ==========================================================================
+         4️⃣ القسم الرابع: الإحصائيات (500+ عقار، 1000+ عميل، إلخ)
+         ========================================================================== -->
+    <section class="stats-section" id="stats">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-building-circle-check"></i></div>
+                <div class="stat-num" data-target="500">+500</div>
+                <div class="stat-label">عقار تم بيعه وإدارته</div>
             </div>
 
-            <div class="stat-divider"></div>
-
-            <div class="stat-box">
+            <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
-                <div class="stat-info">
-                    <span class="stat-num" data-target="1000">+0</span>
-                    <span class="stat-label">عميل سعيد</span>
-                </div>
+                <div class="stat-num" data-target="1000">+1000</div>
+                <div class="stat-label">عميل سعيد وموثوق</div>
             </div>
 
-            <div class="stat-divider"></div>
-
-            <div class="stat-box">
-                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
-                <div class="stat-info">
-                    <span class="stat-num" data-target="8">+0</span>
-                    <span class="stat-label">سنوات خبرة</span>
-                </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-award"></i></div>
+                <div class="stat-num" data-target="20">+20</div>
+                <div class="stat-label">عام من الخبرة والتميّز</div>
             </div>
 
-            <div class="stat-divider"></div>
-
-            <div class="stat-box location-box">
+            <div class="stat-card">
                 <div class="stat-icon"><i class="fas fa-location-dot"></i></div>
-                <div class="stat-info">
-                    <span class="stat-num">الخرج</span>
-                    <span class="stat-label">أميز المخططات</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- نبذة عن المكتب -->
-    <section class="about-office-section" id="about-office">
-        <div class="content-container">
-            <div class="section-title">
-                <span class="eyebrow">من نحن</span>
-                <h2>آفاق الإنجاز العقاري</h2>
-                <p>خبرة عقارية تضع احتياجك في المقدمة</p>
-            </div>
-            <div class="about-glass-card">
-                <div class="about-heading">
-                    <div class="about-icon"><i class="fas fa-building"></i></div>
-                    <div>
-                        <h3>نبذة عن مكتب آفاق الإنجاز</h3>
-                        <p>منذ 2005 نعمل بخبرة متراكمة في السوق العقاري بالخرج والرياض.</p>
-                    </div>
-                </div>
-                <div class="about-lines">
-                    <p>1. مكتب آفاق الإنجاز العقاري متخصص في المزارع والاستراحات والأراضي السكنية.</p>
-                    <p>2. نعمل في الخرج والرياض مع تركيز على المواقع التي يعرفها عملاؤنا ويبحثون عنها.</p>
-                    <p>3. نساعدك على الوصول إلى خيارات عقارية مناسبة لاحتياجك وميزانيتك.</p>
-                    <p>4. نعرض عقارات متنوعة في الرحمانية والهياثم والدلم والضبيعة والعفجة.</p>
-                    <p>5. نحرص على تقديم معلومات واضحة عن الموقع والمساحة والسعر ومزايا العقار.</p>
-                    <p>6. خبرتنا الممتدة لـ20 سنة تمنحك فهمًا أعمق للسوق وفرصه العقارية.</p>
-                    <p>7. نربط بين الباحث عن العقار المناسب وصاحب العقار الراغب في الوصول إلى المشتري.</p>
-                    <p>8. لا تنتهي علاقتنا عند إتمام الصفقة؛ بل نواصل دعمك بخدمات ما بعد البيع.</p>
-                    <p>9. نوفر خدمات مساندة تشمل الرخص والمقاولات والتشطيب وإدارة الأملاك وحفر الآبار.</p>
-                    <p>10. هدفنا أن تكون تجربتك العقارية أوضح وأسهل وأكثر اطمئنانًا من أول تواصل حتى ما بعد البيع.</p>
-                </div>
+                <div class="stat-num">5 مناطق</div>
+                <div class="stat-label">الرحمانية، الهياثم، الدلم، الضبيعة، العفجة</div>
             </div>
         </div>
     </section>
 
-    <!-- لماذا تختار آفاق الإنجاز -->
-    <section class="why-afaq-section">
-        <div class="content-container">
-            <div class="section-title light-title">
-                <span class="eyebrow">لماذا نحن؟</span>
-                <h2>لماذا تختار آفاق الإنجاز؟</h2>
-                <p>لأن اختيار العقار يستحق شريكًا يفهم احتياجك ويهتم بتفاصيل تجربتك.</p>
-            </div>
-            <div class="why-grid">
-                <article class="why-card"><span>01</span><h3>خبرة طويلة</h3><p>20 سنة من الخبرة في المجال العقاري تمنحك رؤية أوسع عند الاختيار.</p></article>
-                <article class="why-card"><span>02</span><h3>تخصص واضح</h3><p>تركيزنا على المزارع والاستراحات والأراضي السكنية يجعل خياراتنا أكثر ملاءمة لاحتياجك.</p></article>
-                <article class="why-card"><span>03</span><h3>مواقع مختارة</h3><p>نغطي مواقع رئيسية في الخرج والمناطق المحيطة للوصول إلى خيارات متعددة.</p></article>
-                <article class="why-card"><span>04</span><h3>وضوح في العرض</h3><p>نعرض بيانات العقار الأساسية بصورة واضحة لتتخذ قرارك بثقة أكبر.</p></article>
-                <article class="why-card"><span>05</span><h3>دعم بعد البيع</h3><p>نواصل خدمتك بعد الصفقة عبر مجموعة من الخدمات العقارية المساندة.</p></article>
-            </div>
-        </div>
-    </section>
-
-    <!-- أحدث العروض -->
-    <section class="section homepage-glass-section" id="offers">
+    <!-- ==========================================================================
+         5️⃣ القسم الخامس: "لماذا تختار آفاق الإنجاز"
+         ========================================================================== -->
+    <section class="why-section" id="why-us">
         <div class="section-title">
-            <span class="eyebrow">فرصك تبدأ هنا</span>
+            <span class="eyebrow">مزايا التعامل معنا</span>
+            <h2>لماذا تختار آفاق الإنجاز؟</h2>
+            <p>لأن اختيار العقار يستحق شريكاً عقارياً يمتلك الخبرة والأمانة والدعم الدائم</p>
+        </div>
+
+        <div class="why-grid">
+            <div class="why-card">
+                <span class="why-num">01</span>
+                <div class="why-icon"><i class="fas fa-business-time"></i></div>
+                <h3>خبرة عقارية واسعة</h3>
+                <p>أكثر من 20 عاماً في سوق عقارات الخرج والرياض تمنحك استشارة دقيقة وفرصاً مضمونة.</p>
+            </div>
+
+            <div class="why-card">
+                <span class="why-num">02</span>
+                <div class="why-icon"><i class="fas fa-bullseye"></i></div>
+                <h3>تخصص واحترافية</h3>
+                <p>تركيز تام على المزارع والأراضي السكنية والاستراحات يضمن لك أعلى جودة وأفضل خيار.</p>
+            </div>
+
+            <div class="why-card">
+                <span class="why-num">03</span>
+                <div class="why-icon"><i class="fas fa-map-location-dot"></i></div>
+                <h3>مواقع استراتيجية</h3>
+                <p>نعطي الأولوية لأميز المخططات ذات المستطبات الاستثمارية والسكنية المستقبليّة.</p>
+            </div>
+
+            <div class="why-card">
+                <span class="why-num">04</span>
+                <div class="why-icon"><i class="fas fa-scale-balanced"></i></div>
+                <h3>شفافية ووضوح</h3>
+                <p>بيانات دقيقة، أسعار واضحة، ومعلومات موثوقة تساعدك في اتخاذ القرار بثقة تامة.</p>
+            </div>
+
+            <div class="why-card">
+                <span class="why-num">05</span>
+                <div class="why-icon"><i class="fas fa-headset"></i></div>
+                <h3>خدمات ما بعد البيع</h3>
+                <p>نرافقك بعد الشراء بخدمات تراخيص البناء، المقاولات، التشطيب، حفر الآبار وإدارة أملاكك.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+         6️⃣ القسم السادس: أحدث العروض العقارية
+         ========================================================================== -->
+    <section class="offers-section" id="offers">
+        <div class="section-title">
+            <span class="eyebrow">فرص استثمارية وحصرية</span>
             <h2>أحدث العروض العقارية</h2>
-            <p>استعرض العقارات المتاحة واختر الفرصة التي تناسبك.</p>
+            <p>استعرض قائمة العقارات المتاحة واختر الفرصة المناسبة لك</p>
         </div>
 
         <!-- فلتر المناطق -->
@@ -386,65 +404,99 @@
             <button class="filter-btn" data-filter="land" onclick="filterOffers('land')"><i class="fas fa-map"></i> أراضي سكنية</button>
         </div>
 
+        <!-- شبكة بطاقات العروض (Rendered dynamically via js/main.js) -->
         <div class="offers-grid" id="offers-grid">
-            <p style="text-align:center; grid-column:1/-1; padding:40px; color:#555;">جاري تحميل العروض...</p>
+            <p style="text-align:center; grid-column:1/-1; padding:40px; color:rgba(255,255,255,0.8);">جاري تحميل أحدث العروض العقارية...</p>
         </div>
 
-        <div style="text-align: center; margin-top: 30px;">
+        <div style="text-align: center; margin-top: 35px;">
             <a href="inquiry.html" class="btn btn-primary">
-                <i class="fas fa-search"></i> لم تجد ما تبحث عنه؟ اطلبه الآن
+                <i class="fas fa-search"></i> لم تجد ما تبحث عنه؟ قدم طلبك العقاري الخاص
             </a>
         </div>
     </section>
 
-    <!-- خدمات ما بعد البيع -->
-    <section class="services-section homepage-services" id="post-sale-services">
-        <div class="content-container">
-            <div class="section-title">
-                <span class="eyebrow">نستمر معك</span>
-                <h2>خدمات ما بعد البيع</h2>
-                <p>نساعدك في الخطوات التالية للصفقة لتتحول عملية الشراء إلى تجربة متكاملة.</p>
-            </div>
-            <div class="services-grid">
-                <article class="service-card"><i class="fas fa-file-signature"></i><h3>استخراج رخص البناء</h3><p>إنجاز معاملات رخص البناء بكفاءة وسرعة.</p></article>
-                <article class="service-card"><i class="fas fa-helmet-safety"></i><h3>المقاولات</h3><p>تنفيذ المشاريع الإنشائية وفق احتياجك.</p></article>
-                <article class="service-card"><i class="fas fa-paint-roller"></i><h3>التشطيب</h3><p>تشطيبات داخلية وخارجية بتصاميم عصرية.</p></article>
-                <article class="service-card"><i class="fas fa-building-circle-check"></i><h3>إدارة الأملاك</h3><p>إدارة العقار من التأجير والصيانة والمتابعة.</p></article>
-                <article class="service-card"><i class="fas fa-water"></i><h3>حفر الآبار</h3><p>حفر الآبار وتحديد مواقعها وتصويرها.</p></article>
-                <article class="service-card"><i class="fas fa-camera"></i><h3>تصوير العقارات</h3><p>تصوير احترافي للعقارات لأغراض التسويق.</p></article>
-            </div>
-            <div class="service-cta">
-                <a href="services.html" class="btn btn-primary"><i class="fas fa-arrow-left"></i> اكتشف جميع الخدمات</a>
-            </div>
+    <!-- ==========================================================================
+         قسم خدمات ما بعد البيع المساندة (Post-Sale Services)
+         ========================================================================== -->
+    <section class="services-section" id="post-sale">
+        <div class="section-title">
+            <span class="eyebrow">دعم متكامل</span>
+            <h2>خدمات ما بعد البيع</h2>
+            <p>نستمر معك في جميع المراحل التنفيذية لتحويل ملكيتك إلى تجربة ناجحة ومكتملة</p>
+        </div>
+
+        <div class="services-grid">
+            <article class="service-card">
+                <i class="fas fa-file-signature"></i>
+                <h3>استخراج رخص البناء</h3>
+                <p>إنهاء كافة المعاملات الإدارية والهندسية لاستخراج رخص البناء بسلاسة.</p>
+            </article>
+
+            <article class="service-card">
+                <i class="fas fa-helmet-safety"></i>
+                <h3>المقاولات والإنشاءات</h3>
+                <p>تنفيذ المشاريع الإنشائية والمعمارية بأعلى المعايير والمواصفات.</p>
+            </article>
+
+            <article class="service-card">
+                <i class="fas fa-paint-roller"></i>
+                <h3>التشطيبات والديكور</h3>
+                <p>تشطيبات داخلية وخارجية راقية تناسب كافة الأذواق والميزانيات.</p>
+            </article>
+
+            <article class="service-card">
+                <i class="fas fa-building-circle-check"></i>
+                <h3>إدارة الأملاك والتشغيل</h3>
+                <p>متابعة وتأجير وصيانة العقارات لضمان أعلى عائد استثماري للمالك.</p>
+            </article>
+
+            <article class="service-card">
+                <i class="fas fa-water"></i>
+                <h3>حفر الآبار وتجهيزها</h3>
+                <p>حفر وتحديد موقع المياه وتصوير الآبار المائية بأحدث التقنيات.</p>
+            </article>
+
+            <article class="service-card">
+                <i class="fas fa-camera-retro"></i>
+                <h3>التصوير والتسويق الاحترافي</h3>
+                <p>إنتاج واستعراض صور وفيديوهات احترافية للعقارات لرفع قيمتها التسويقية.</p>
+            </article>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="services.html" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i> اكتشف تفاصيل جميع خدماتنا
+            </a>
         </div>
     </section>
 
-    <!-- النشرة الأخبارية -->
-    <section class="news-section homepage-news">
+    <!-- ==========================================================================
+         قسم البوصلة العقارية والأخبار الخريطة (Bousla, News & Map)
+         ========================================================================== -->
+    <section class="bousla-section" id="bousla">
         <div class="section-title">
-            <span class="eyebrow">تابع السوق</span>
+            <span class="eyebrow">مؤشرات السوق</span>
+            <h2>البوصلة العقارية بالخرج</h2>
+            <p>متوسط أسعار العقارات - مصدر البيانات: منصة المؤشرات العقارية (الهيئة العامة للعقار)</p>
+        </div>
+        <div class="bousla-grid" id="bousla-grid"></div>
+    </section>
+
+    <section class="news-section" id="news">
+        <div class="section-title">
+            <span class="eyebrow">تحديثات واقتصاد</span>
             <h2>الأخبار العقارية</h2>
-            <p>أخبار وتحديثات عقارية تساعدك على متابعة السوق والفرص الجديدة.</p>
+            <p>أحدث المستجدات في السوق العقاري بالمملكة والخرج</p>
         </div>
         <div class="news-grid" id="news-grid"></div>
     </section>
 
-    <!-- البوصلة العقارية -->
-    <section class="bousla-section" id="bousla">
-        <div class="bousla-container">
-            <div class="bousla-title">
-                <h2><i class="fas fa-compass"></i> البوصلة <span>العقارية</span></h2>
-                <p>متوسط أسعار العقارات في مناطق الخرج — مصدر البيانات: منصة المؤشرات العقارية (الهيئة العامة للعقار)</p>
-            </div>
-            <div class="bousla-grid" id="bousla-grid"></div>
-        </div>
-    </section>
-
-    <!-- الخريطة ثلاثية الأبعاد -->
-    <section class="map-section">
+    <section class="map-section" id="location-map">
         <div class="section-title">
-            <h2>موقعنا على الخريطة ثلاثية الأبعاد</h2>
-            <p>مكتب آفاق الإنجاز العقاري — الخرج، الرياض</p>
+            <span class="eyebrow">زيارتك تسعدنا</span>
+            <h2>موقعنا على الخريطة</h2>
+            <p>مكتب آفاق الإنجاز العقاري - الخرج، الرياض</p>
         </div>
         <div class="map-container">
             <iframe
@@ -456,36 +508,38 @@
         </div>
         <div style="text-align: center; margin-top: 20px;">
             <a href="https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw" target="_blank" class="btn btn-primary">
-                <i class="fas fa-map-marked-alt"></i> افتح في خرائط Google
+                <i class="fas fa-map-marked-alt"></i> فتح الموقع في خرائط Google
             </a>
         </div>
     </section>
 
-    <!-- قسم التواصل السريع -->
-    <section class="contact-section">
+    <!-- ==========================================================================
+         قسم التواصل المباشر (Contact Section)
+         ========================================================================== -->
+    <section class="contact-section" id="contact">
         <div class="contact-container">
             <div class="contact-info">
-                <h2>تواصل معنا</h2>
-                <p>نحن هنا لخدمتك. تواصل معنا عبر أي من القنوات التالية:</p>
+                <h2>تواصل مع فريقنا المباشر</h2>
+                <p>سعداء بخدمتك والرد على استفساراتك عبر القنوات الرسمية التالية:</p>
                 <div class="contact-items">
                     <a href="https://wa.me/966545888931" target="_blank" class="contact-item">
                         <div class="contact-item-icon whatsapp"><i class="fab fa-whatsapp"></i></div>
                         <div class="contact-item-text">
-                            <h4>واتساب</h4>
+                            <h4>واتساب الاستفسارات</h4>
                             <span>0545888931</span>
                         </div>
                     </a>
                     <a href="tel:0544699933" class="contact-item">
                         <div class="contact-item-icon phone"><i class="fas fa-phone"></i></div>
                         <div class="contact-item-text">
-                            <h4>مكالمات</h4>
+                            <h4>المكالمات المباشرة</h4>
                             <span>0544699933</span>
                         </div>
                     </a>
                     <a href="https://wa.me/966561610748" target="_blank" class="contact-item">
                         <div class="contact-item-icon whatsapp"><i class="fab fa-whatsapp"></i></div>
                         <div class="contact-item-text">
-                            <h4>واتساب ومكالمات</h4>
+                            <h4>المبيعات وخدمة العملاء</h4>
                             <span>0561610748</span>
                         </div>
                     </a>
@@ -514,30 +568,32 @@
             </div>
 
             <div class="contact-info">
-                <h2>اعرض عقارك أو قدم استفسار</h2>
-                <p>هل لديك عقار تريد عرضه في موقعنا؟ أو تبحث عن عقار ولم تجده؟ نحن هنا لمساعدتك.</p>
+                <h2>اعرض عقارك أو اطلب استفساراً</h2>
+                <p>هل ترغب في تسويق عقارك الخاص؟ أو تبحث عن عقار في الخرج ولم تجده حتى الآن؟</p>
                 <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-                    <a href="list-property.html" class="btn btn-primary" style="justify-content: center;">
-                        <i class="fas fa-plus-circle"></i> اعرض عقارك
+                    <a href="list-property.html" class="btn btn-primary">
+                        <i class="fas fa-plus-circle"></i> قدم طلب عرض عقارك الآن
                     </a>
-                    <a href="inquiry.html" class="btn btn-outline" style="justify-content: center; color: #2A5050; border-color: #2A5050;">
-                        <i class="fas fa-search"></i> قدم طلب استفسار
+                    <a href="inquiry.html" class="btn btn-outline">
+                        <i class="fas fa-search"></i> قدم طلب استفسار عقاري خاص
                     </a>
-                    <a href="https://wa.me/966545888931?text=مرحباً، أريد الاستفسار عن خدماتكم" target="_blank" class="btn btn-outline" style="justify-content: center; color: #25D366; border-color: #25D366;">
-                        <i class="fab fa-whatsapp"></i> تواصل عبر واتساب
+                    <a href="https://wa.me/966545888931?text=مرحباً، أريد الاستفسار عن عقارات الخرج" target="_blank" class="btn btn-outline" style="color: #25D366; border-color: #25D366;">
+                        <i class="fab fa-whatsapp"></i> محادثة واتساب فورية
                     </a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- الفوتر -->
+    <!-- ==========================================================================
+         الفوتر والشعارات والروابط الرسمية (Footer)
+         ========================================================================== -->
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-col">
                 <img src="images/logo.jpg" alt="آفاق الإنجاز" class="footer-logo">
                 <h3>مكتب آفاق الإنجاز العقاري</h3>
-                <p>مكتب عقاري متخصص في المزارع والاستراحات والأراضي السكنية في الخرج والرياض. خبرة 20 سنة في خدمة عملائنا بأعلى معايير الجودة والاحترافية.</p>
+                <p>مكتب عقاري متكامل متخصص في المزارع والاستراحات والأراضي السكنية في الخرج والرياض. خبرة طويلة تعتمد على الأمانة والجودة والاحترافية.</p>
                 <div class="footer-social">
                     <a href="https://wa.me/966545888931" target="_blank" title="واتساب"><i class="fab fa-whatsapp"></i></a>
                     <a href="https://www.snapchat.com/add/mmnf2278" target="_blank" title="سناب شات"><i class="fab fa-snapchat"></i></a>
@@ -547,7 +603,7 @@
             </div>
 
             <div class="footer-col">
-                <h3>روابط سريعة</h3>
+                <h3>روابط التنقل</h3>
                 <ul>
                     <li><a href="index.html"><i class="fas fa-chevron-left"></i> الرئيسية</a></li>
                     <li><a href="farms.html"><i class="fas fa-chevron-left"></i> المزارع</a></li>
@@ -558,7 +614,7 @@
             </div>
 
             <div class="footer-col">
-                <h3>مناطق العمل</h3>
+                <h3>نطاق التغطية</h3>
                 <ul>
                     <li><a href="farms.html"><i class="fas fa-map-marker-alt"></i> مخطط الرحمانية</a></li>
                     <li><a href="farms.html"><i class="fas fa-map-marker-alt"></i> الهياثم</a></li>
@@ -569,13 +625,12 @@
             </div>
 
             <div class="footer-col">
-                <h3>تواصل معنا</h3>
+                <h3>اتصل بنا</h3>
                 <ul>
                     <li><a href="https://wa.me/966545888931" target="_blank"><i class="fab fa-whatsapp"></i> 0545888931</a></li>
                     <li><a href="tel:0544699933"><i class="fas fa-phone"></i> 0544699933</a></li>
                     <li><a href="https://wa.me/966561610748" target="_blank"><i class="fab fa-whatsapp"></i> 0561610748</a></li>
                     <li><a href="mailto:afaqalqary@gmail.com"><i class="fas fa-envelope"></i> afaqalqary@gmail.com</a></li>
-                    <li><a href="https://maps.app.goo.gl/SQhqCtgpeLNLb56w8?g_st=aw" target="_blank"><i class="fas fa-map-marked-alt"></i> الموقع على الخريطة</a></li>
                 </ul>
             </div>
         </div>
@@ -584,7 +639,7 @@
         </div>
     </footer>
 
-    <!-- زر واتساب عائم -->
+    <!-- زر الواتساب العائم -->
     <div class="floating-whatsapp">
         <a href="https://wa.me/966545888931?text=مرحباً، أريد الاستفسار عن عقاراتكم" target="_blank" title="تواصل عبر واتساب">
             <i class="fab fa-whatsapp"></i>
@@ -614,7 +669,7 @@
         </div>
     </div>
 
-    <!-- JavaScript -->
-    <script src="js/main.js?v=2"></script>
+    <!-- JavaScript الرئيسي -->
+    <script src="js/main.js?v=3"></script>
 </body>
 </html>
