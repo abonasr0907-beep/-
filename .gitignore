@@ -1,8 +1,19 @@
 # Local safety backups (never committed)
 backups/
 
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.log
+node_modules/
+.env
+.env.local
 __pycache__/
 *.pyc
+.pytest_cache/
+.vscode/
+.idea/
 bot/data/__pycache__/
 .DS_Store
 todo.md
