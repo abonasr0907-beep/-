@@ -52,15 +52,63 @@ let OFFERS = [];
 // تحميل العروض من المصدر الوحيد للموقع.
 // لا يتم تخزين نسخة دائمة في localStorage حتى لا تظهر بيانات قديمة للمستخدم.
 async function loadOffers(defaultFilter = 'all') {
+    let offersFromJson = [];
+    let propsFromJson = [];
+
+    // المصدر 1: offers-data/offers.json
     try {
-        const response = await fetch('offers-data/offers.json', { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        OFFERS = Array.isArray(data.offers) ? data.offers : [];
+        const response1 = await fetch('offers-data/offers.json', { cache: 'no-store' });
+        if (response1.ok) {
+            const data1 = await response1.json();
+            offersFromJson = Array.isArray(data1.offers) ? data1.offers : [];
+        }
     } catch (error) {
-        console.error('تعذر تحميل العروض:', error);
-        OFFERS = [];
+        console.error('تعذر تحميل offers-data/offers.json:', error);
     }
+
+    // المصدر 2: data/properties.json (دمج البيانات لتجنب تضارب الملفين)
+    try {
+        const response2 = await fetch('data/properties.json', { cache: 'no-store' });
+        if (response2.ok) {
+            const data2 = await response2.json();
+            const props = Array.isArray(data2.properties) ? data2.properties : (Array.isArray(data2) ? data2 : []);
+            propsFromJson = props.map(p => {
+                const typeVal = (p.type === 'مزرعة' || p.type === 'farm' || p.type === 'farms') ? 'farm' : ((p.type === 'استراحة' || p.type === 'resthouse' || p.type === 'resthouses') ? 'resthouse' : 'land');
+                const catVal = typeVal === 'farm' ? 'مزرعة' : (typeVal === 'resthouse' ? 'استراحة' : 'أرض سكنية');
+                const img = (p.photos && p.photos.length > 0)
+                    ? p.photos[0]
+                    : ((p.images && p.images.length > 0 && p.images[0] && !p.images[0].startsWith('AgAC'))
+                        ? p.images[0]
+                        : (typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg')));
+                return {
+                    id: p.id || `PROP-${Math.random()}`,
+                    type: typeVal,
+                    category: catVal,
+                    title: p.title || `${catVal} في ${p.location || p.area || 'الخرج'}`,
+                    area: p.location || p.area || 'الخرج',
+                    size_sqm: p.size_sqm || p.size || p.area || 0,
+                    price: p.price,
+                    price_text: p.price ? `${Number(p.price).toLocaleString('ar-SA')} ريال` : (p.price_text || 'عند الاتصال'),
+                    description: p.description || '',
+                    features: p.features || [],
+                    images: [img],
+                    map_link: p.map_link,
+                    date_added: p.date || p.date_added,
+                    featured: false
+                };
+            });
+        }
+    } catch (error) {
+        console.error('تعذر تحميل data/properties.json:', error);
+    }
+
+    const seen = new Set();
+    OFFERS = [...offersFromJson, ...propsFromJson].filter(o => {
+        if (!o.id || seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+    });
+
     renderOffers(defaultFilter);
     updateStats();
 }
@@ -136,6 +184,20 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
             </div>
         `;
     }).join('');
+
+    // إضافة تحريك بطاقات العروض بعد الإنشاء لتجنب تضارب IntersectionObserver
+    setTimeout(() => {
+        const cards = grid.querySelectorAll('.offer-card');
+        cards.forEach((el, i) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(24px)';
+            el.style.transition = `opacity 0.6s ease ${i * 0.08}s, transform 0.6s ease ${i * 0.08}s`;
+            setTimeout(() => {
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, 50);
+        });
+    }, 100);
 }
 
 // ===== الفلاتر =====
@@ -529,21 +591,27 @@ const url = 'offers.html' + (params.toString() ? '?' + params.toString() : '');
 window.location.href = url;
 }
 function initScrollAnimations() {
-const animatedElements = document.querySelectorAll('.feature-item, .cat-card, .why-item, .service-card, .offer-card');
-const observer = new IntersectionObserver((entries) => {
-entries.forEach(entry => {
-if (entry.isIntersecting) {
-entry.target.style.opacity = '1';
-entry.target.style.transform = 'translateY(0)';
-observer.unobserve(entry.target);
-}
-});
-}, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
-animatedElements.forEach(el => {
-el.style.opacity = '0'; el.style.transform = 'translateY(24px)';
-el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-observer.observe(el);
-});
+    if (window._scrollObserver) {
+        window._scrollObserver.disconnect();
+    }
+    // عدم تتبع .offer-card هنا لتجنب الحلقة المفرغة عند التحديث الديناميكي
+    const animatedElements = document.querySelectorAll('.feature-item, .cat-card, .why-item, .service-card, .why-card');
+    window._scrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+                window._scrollObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
+
+    animatedElements.forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(24px)';
+        el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        window._scrollObserver.observe(el);
+    });
 }
 function initHeaderScroll() {
 const header = document.querySelector('.main-header');

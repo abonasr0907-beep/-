@@ -2,6 +2,10 @@ import os
 import json
 import asyncio
 from datetime import datetime
+from contextlib import asynccontextmanager
+from typing import Optional, List
+from pydantic import BaseModel
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -553,8 +557,79 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ تم إلغاء إضافة العقار.")
     return ConversationHandler.END
 
-# ============ FastAPI App ============
-app = FastAPI(title="Afaq Al-Injaz Real Estate Bot")
+# ============ FastAPI App models & Lifespan ============
+class PropertyMapRequest(BaseModel):
+    area: Optional[str] = "all"
+    type: Optional[str] = "all"
+    min_price: Optional[int] = None
+    max_price: Optional[int] = None
+
+telegram_app = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global telegram_app
+    add_demo_properties()
+    if BOT_TOKEN:
+        telegram_app = Application.builder().token(BOT_TOKEN).build()
+
+        conv_handler = ConversationHandler(
+            entry_points=[CallbackQueryHandler(start_add_property, pattern="^add_property$")],
+            states={
+                SELECTING_TYPE: [CallbackQueryHandler(select_location, pattern="^type_")],
+                SELECTING_LOCATION: [CallbackQueryHandler(enter_area, pattern="^loc_")],
+                ENTERING_AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, validate_area)],
+                ENTERING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, validate_price)],
+                SELECTING_STREETS: [CallbackQueryHandler(select_facade, pattern="^streets_")],
+                SELECTING_FACADE: [CallbackQueryHandler(select_features, pattern="^facade_")],
+                SELECTING_FEATURES: [CallbackQueryHandler(toggle_feature, pattern="^feat_")],
+                ENTERING_DESCRIPTION: [
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, save_description),
+                    CommandHandler("skip", skip_description)
+                ],
+                UPLOADING_PHOTOS: [
+                    MessageHandler(filters.PHOTO, receive_photo),
+                    CommandHandler("done", finish_photos)
+                ],
+                ENTERING_VIDEO: [
+                    MessageHandler(filters.VIDEO, receive_video),
+                    CommandHandler("skip", skip_video)
+                ],
+            },
+            fallbacks=[CommandHandler("cancel", cancel)],
+            per_message=True,
+            per_chat=True,
+            per_user=True,
+        )
+
+        telegram_app.add_handler(conv_handler)
+        telegram_app.add_handler(CommandHandler("start", start))
+        telegram_app.add_handler(CallbackQueryHandler(list_properties, pattern="^list_properties$"))
+        telegram_app.add_handler(CallbackQueryHandler(reset_data_handler, pattern="^reset_data$"))
+        telegram_app.add_handler(CallbackQueryHandler(confirm_reset, pattern="^confirm_reset$"))
+        telegram_app.add_handler(CallbackQueryHandler(cancel_reset, pattern="^cancel_reset$"))
+        telegram_app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back_to_menu$"))
+
+        await telegram_app.initialize()
+        await telegram_app.start()
+
+        if WEBHOOK_URL:
+            webhook_path = f"/bot/{BOT_TOKEN}"
+            full_url = f"{WEBHOOK_URL.rstrip('/')}{webhook_path}"
+            await telegram_app.bot.set_webhook(
+                url=full_url,
+                allowed_updates=["message", "callback_query", "inline_query"]
+            )
+            print(f"✅ Webhook set: {full_url}")
+            print(f"📊 Properties: {len(load_properties())}")
+
+    yield
+
+    if telegram_app:
+        await telegram_app.stop()
+        await telegram_app.shutdown()
+
+app = FastAPI(title="Afaq Al-Injaz Real Estate Bot", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -564,72 +639,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-telegram_app = None
-
-@app.on_event("startup")
-async def startup():
-    global telegram_app
-    add_demo_properties()
-    telegram_app = Application.builder().token(BOT_TOKEN).build()
-
-    # Conversation Handler
-    conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_add_property, pattern="^add_property$")],
-        states={
-            SELECTING_TYPE: [CallbackQueryHandler(select_location, pattern="^type_")],
-            SELECTING_LOCATION: [CallbackQueryHandler(enter_area, pattern="^loc_")],
-            ENTERING_AREA: [MessageHandler(filters.TEXT & ~filters.COMMAND, validate_area)],
-            ENTERING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, validate_price)],
-            SELECTING_STREETS: [CallbackQueryHandler(select_facade, pattern="^streets_")],
-            SELECTING_FACADE: [CallbackQueryHandler(select_features, pattern="^facade_")],
-            SELECTING_FEATURES: [CallbackQueryHandler(toggle_feature, pattern="^feat_")],
-            ENTERING_DESCRIPTION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, save_description),
-                CommandHandler("skip", skip_description)
-            ],
-            UPLOADING_PHOTOS: [
-                MessageHandler(filters.PHOTO, receive_photo),
-                CommandHandler("done", finish_photos)
-            ],
-            ENTERING_VIDEO: [
-                MessageHandler(filters.VIDEO, receive_video),
-                CommandHandler("skip", skip_video)
-            ],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-    )
-
-    telegram_app.add_handler(CommandHandler("start", start))
-    telegram_app.add_handler(conv_handler)
-    telegram_app.add_handler(CallbackQueryHandler(list_properties, pattern="^list_properties$"))
-    telegram_app.add_handler(CallbackQueryHandler(reset_data_handler, pattern="^reset_data$"))
-    telegram_app.add_handler(CallbackQueryHandler(confirm_reset, pattern="^confirm_reset$"))
-    telegram_app.add_handler(CallbackQueryHandler(cancel_reset, pattern="^cancel_reset$"))
-    telegram_app.add_handler(CallbackQueryHandler(back_to_menu, pattern="^back_to_menu$"))
-
-    await telegram_app.initialize()
-    await telegram_app.start()
-
-    if WEBHOOK_URL:
-        webhook_path = f"/bot/{BOT_TOKEN}"
-        full_url = f"{WEBHOOK_URL.rstrip('/')}{webhook_path}"
-        await telegram_app.bot.set_webhook(url=full_url)
-        print(f"✅ Webhook set: {full_url}")
-        print(f"📊 Properties: {len(load_properties())}")
-
-@app.on_event("shutdown")
-async def shutdown():
-    if telegram_app:
-        await telegram_app.stop()
-        await telegram_app.shutdown()
-
 @app.post("/bot/{token}")
 async def webhook(token: str, request: Request):
     if token != BOT_TOKEN:
         return JSONResponse(status_code=403, content={"error": "Invalid token"})
     data = await request.json()
-    update = Update.de_json(data, telegram_app.bot)
-    await telegram_app.process_update(update)
+    if telegram_app:
+        update = Update.de_json(data, telegram_app.bot)
+        await telegram_app.process_update(update)
     return {"status": "ok"}
 
 @app.get("/")
@@ -643,6 +660,30 @@ async def root():
 @app.get("/api/properties")
 async def get_properties():
     return load_properties()
+
+@app.post("/api/properties/map")
+async def get_properties_map_post(request: Optional[PropertyMapRequest] = None):
+    props = load_properties()
+    if request:
+        if request.area and request.area != "all":
+            props = [p for p in props if p.get("location") == request.area or p.get("area") == request.area]
+        if request.type and request.type != "all":
+            props = [p for p in props if p.get("type") == request.type]
+        if request.min_price is not None:
+            props = [p for p in props if p.get("price", 0) >= request.min_price]
+        if request.max_price is not None:
+            props = [p for p in props if p.get("price", 0) <= request.max_price]
+    return {"properties": props}
+
+@app.get("/api/properties/map")
+async def get_properties_map_get(
+    area: Optional[str] = "all",
+    type: Optional[str] = "all",
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None
+):
+    req = PropertyMapRequest(area=area, type=type, min_price=min_price, max_price=max_price)
+    return await get_properties_map_post(req)
 
 @app.get("/api/properties/{property_id}")
 async def get_property(property_id: int):
