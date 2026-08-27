@@ -1,0 +1,61 @@
+{
+  "properties": [
+    {
+      "id": "PROP-1700000001",
+      "type": "مزرعة",
+      "location": "الرحمانية",
+      "size_sqm": 10000,
+      "price": 1200000,
+      "streets": 2,
+      "facing": "شمالي شرقي",
+      "features": [
+        "ماء",
+        "كهرباء",
+        "بئر"
+      ],
+      "description": "مزرعة مثالية متكاملة بمخطط الرحمانية مع بئر وماء وكهرباء واصلة.",
+      "images": [
+        "images/cat-farms.jpg"
+      ],
+      "date_added": "2025-08-01 10:00:00"
+    },
+    {
+      "id": "PROP-1700000002",
+      "type": "استراحة",
+      "location": "الهياثم",
+      "size_sqm": 1500,
+      "price": 450000,
+      "streets": 1,
+      "facing": "جنوب",
+      "features": [
+        "ماء",
+        "كهرباء",
+        "مسجد"
+      ],
+      "description": "استراحة عصرية فاخرة بالهياثم قريب من المسجد والخدمات.",
+      "images": [
+        "images/cat-rest.jpg"
+      ],
+      "date_added": "2025-08-02 12:00:00"
+    },
+    {
+      "id": "PROP-1700000003",
+      "type": "أرض",
+      "location": "الدلم",
+      "size_sqm": 600,
+      "price": 360000,
+      "streets": 2,
+      "facing": "شرق",
+      "features": [
+        "كهرباء",
+        "مدرسة",
+        "سوق"
+      ],
+      "description": "أرض سكنية ممتازة بالدلم على شارعين قريبة من مدارس وأسواق.",
+      "images": [
+        "images/cat-lands.jpg"
+      ],
+      "date_added": "2025-08-03 15:00:00"
+    }
+  ]
+}

@@ -547,11 +547,9 @@ if (!header) return;
 window.addEventListener('scroll', () => {
 const currentScroll = window.pageYOffset;
 if (currentScroll > 80) {
-header.style.background = 'rgba(20, 32, 43, 0.88)';
-header.style.boxShadow = '0 4px 30px rgba(0,0,0,0.15)';
+header.classList.add('scrolled');
 } else {
-header.style.background = 'rgba(20, 32, 43, 0.42)';
-header.style.boxShadow = 'none';
+header.classList.remove('scrolled');
 }
 }, { passive: true });
 }
