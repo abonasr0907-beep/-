@@ -110,8 +110,8 @@ body::before {
 }
 
 .logo-icon {
-    width: 44px;
-    height: 44px;
+    width: 32px !important;
+    height: 32px !important;
     color: var(--primary-gold);
     display: flex;
     align-items: center;
@@ -125,7 +125,7 @@ body::before {
 
 .logo-text h1 {
     font-family: 'Cairo', sans-serif;
-    font-size: 20px;
+    font-size: 16px !important;
     font-weight: 800;
     color: var(--white);
     line-height: 1.2;
@@ -133,7 +133,7 @@ body::before {
 }
 
 .logo-text span {
-    font-size: 12px;
+    font-size: 10px !important;
     color: var(--primary-gold);
     font-weight: 600;
 }
@@ -1630,6 +1630,19 @@ body::before {
 }
 
 @media (max-width: 768px) {
+    .logo-icon {
+        width: 28px !important;
+        height: 28px !important;
+    }
+
+    .logo-text h1 {
+        font-size: 14px !important;
+    }
+
+    .logo-text span {
+        font-size: 9px !important;
+    }
+
     .nav-menu {
         display: none;
         position: absolute;
