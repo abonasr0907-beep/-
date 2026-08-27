@@ -25,6 +25,10 @@
     --border-radius: 12px;
     --whatsapp: #25D366;
     --phone: #2A5050;
+    --deep-ink: #14202b;
+    --accent-sage: #c7d9b5;
+    --radius-lg: 24px;
+    --shadow-md: 0 10px 30px rgba(20, 32, 43, 0.1);
 }
 
 * {
@@ -412,17 +416,21 @@ body {
 }
 
 .offer-card {
-    background: var(--white);
-    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-lg, 24px);
     overflow: hidden;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-md, 0 10px 30px rgba(20, 32, 43, 0.1));
     transition: var(--transition);
     position: relative;
 }
 
 .offer-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-hover);
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(20, 32, 43, 0.18);
+    border-color: rgba(199, 217, 181, 0.8);
 }
 
 .offer-card-img {
@@ -642,18 +650,22 @@ body {
 }
 
 .service-card {
-    background: var(--cream);
-    border-radius: var(--border-radius);
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-lg, 24px);
     padding: 30px 20px;
     text-align: center;
     transition: var(--transition);
-    border-bottom: 4px solid var(--gold);
+    box-shadow: var(--shadow-md, 0 10px 30px rgba(20, 32, 43, 0.1));
+    border-bottom: 4px solid var(--accent-sage, #c7d9b5);
 }
 
 .service-card:hover {
     transform: translateY(-5px);
-    box-shadow: var(--shadow);
-    background: var(--white);
+    box-shadow: 0 16px 40px rgba(20, 32, 43, 0.18);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .service-card i {
@@ -1918,15 +1930,21 @@ select.form-control {
 .welcome-banner { display: none; }
 /* الهيدر الجديد — شفاف فوق الـ Hero */
 .header.main-header {
-position: absolute;
+position: fixed;
 top: 0; right: 0; left: 0;
-background: rgba(20, 32, 43, 0.42);
-backdrop-filter: blur(18px) saturate(125%);
--webkit-backdrop-filter: blur(18px) saturate(125%);
+background: rgba(20, 32, 43, 0.25);
+backdrop-filter: blur(24px) saturate(140%);
+-webkit-backdrop-filter: blur(24px) saturate(140%);
 border-bottom: 1px solid rgba(255,255,255,0.12);
 box-shadow: none;
 z-index: 1000;
 padding: 6px 0;
+transition: background 0.3s ease, backdrop-filter 0.3s ease, box-shadow 0.3s ease;
+}
+
+.header.main-header.scrolled {
+background: rgba(20, 32, 43, 0.88);
+box-shadow: 0 4px 30px rgba(0,0,0,0.25);
 }
 .header-container {
 max-width: 1400px;
@@ -1989,13 +2007,17 @@ align-items: center; justify-content: center;
 }
 /* ====== Hero Section ====== */
 .homepage-hero {
-position: relative; min-height: 100vh;
+position: relative;
+height: 100vh;
+min-height: 100vh;
 display: flex; align-items: center; justify-content: center;
 padding: 120px 30px 40px; overflow: hidden; isolation: isolate; margin-top: 0;
 }
 .hero-bg-image {
 position: absolute; inset: 0;
-background: url('../images/hero-villa.jpg') center/cover no-repeat;
+background: url('../images/hero-villa.jpg'), url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+background-size: cover;
+background-position: center;
 z-index: -2;
 }
 .hero-overlay {
@@ -2170,9 +2192,10 @@ gap: 25px; max-width: 1200px; margin: 0 auto;
 }
 .why-item {
 text-align: center; padding: 30px 20px;
-background: rgba(255,255,255,0.06);
-border: 1px solid rgba(255,255,255,0.10);
-border-radius: 20px; backdrop-filter: blur(8px);
+background: rgba(255,255,255,0.08);
+border: 1px solid rgba(255,255,255,0.15);
+border-radius: var(--radius-lg, 24px); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+box-shadow: var(--shadow-md, 0 10px 30px rgba(20, 32, 43, 0.1));
 transition: all 0.3s ease;
 }
 .why-item:hover { background: rgba(255,255,255,0.10); transform: translateY(-5px); }
