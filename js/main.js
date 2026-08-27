@@ -483,8 +483,85 @@ function toggleMenu() {
     document.getElementById('nav-menu').classList.toggle('show');
 }
 
+/* ============================================
+دوال الصفحة الرئيسية الجديدة
+============================================ */
+function initStatsCounter() {
+const statNumbers = document.querySelectorAll('.stat-num[data-target]');
+if (!statNumbers.length) return;
+const observer = new IntersectionObserver((entries) => {
+entries.forEach(entry => {
+if (entry.isIntersecting) {
+const el = entry.target;
+const target = parseInt(el.dataset.target);
+const duration = 2000;
+const start = performance.now();
+const prefix = el.textContent.includes('+') ? '+' : '';
+function update(currentTime) {
+const elapsed = currentTime - start;
+const progress = Math.min(elapsed / duration, 1);
+const easeOut = 1 - Math.pow(1 - progress, 3);
+const current = Math.floor(easeOut * target);
+el.textContent = prefix + current.toLocaleString('ar-SA');
+if (progress < 1) requestAnimationFrame(update);
+else el.textContent = prefix + target.toLocaleString('ar-SA');
+}
+requestAnimationFrame(update);
+observer.unobserve(el);
+}
+});
+}, { threshold: 0.5 });
+statNumbers.forEach(el => observer.observe(el));
+}
+function applyHeroFilters() {
+const type = document.getElementById('filter-type')?.value || 'all';
+const location = document.getElementById('filter-location')?.value || 'all';
+const category = document.getElementById('filter-category')?.value || 'all';
+const params = new URLSearchParams();
+if (type !== 'all') params.set('type', type);
+if (location !== 'all') params.set('area', location);
+if (category !== 'all') params.set('category', category);
+const url = 'offers.html' + (params.toString() ? '?' + params.toString() : '');
+window.location.href = url;
+}
+function initScrollAnimations() {
+const animatedElements = document.querySelectorAll('.feature-item, .cat-card, .why-item, .service-card, .offer-card');
+const observer = new IntersectionObserver((entries) => {
+entries.forEach(entry => {
+if (entry.isIntersecting) {
+entry.target.style.opacity = '1';
+entry.target.style.transform = 'translateY(0)';
+observer.unobserve(entry.target);
+}
+});
+}, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
+animatedElements.forEach(el => {
+el.style.opacity = '0'; el.style.transform = 'translateY(24px)';
+el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+observer.observe(el);
+});
+}
+function initHeaderScroll() {
+const header = document.querySelector('.main-header');
+if (!header) return;
+window.addEventListener('scroll', () => {
+const currentScroll = window.pageYOffset;
+if (currentScroll > 80) {
+header.style.background = 'rgba(20, 32, 43, 0.88)';
+header.style.boxShadow = '0 4px 30px rgba(0,0,0,0.15)';
+} else {
+header.style.background = 'rgba(20, 32, 43, 0.42)';
+header.style.boxShadow = 'none';
+}
+}, { passive: true });
+}
+
 // ===== تهيئة الصفحة =====
 document.addEventListener('DOMContentLoaded', async function() {
+    initStatsCounter();
+    initScrollAnimations();
+    initHeaderScroll();
+
     // اكتشاف نوع الصفحة لتحديد الفلتر الافتراضي
     const pagePath = window.location.pathname.toLowerCase();
     let defaultFilter = 'all';
