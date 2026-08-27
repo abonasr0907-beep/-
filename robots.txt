@@ -1,4 +1,37 @@
 User-agent: *
 Allow: /
+Allow: /index.html
+Allow: /farms.html
+Allow: /resthouses.html
+Allow: /lands.html
+Allow: /services.html
+Allow: /list-property.html
+Allow: /inquiry.html
+Allow: /contact.html
+Allow: /css/
+Allow: /js/
+Allow: /images/
+Allow: /offers-data/
 
-Sitemap: https://abonasr0907-beep.github.io/-/sitemap-index.xml
+Disallow: /bot/
+Disallow: /docs/
+Disallow: /gen_pages.py
+Disallow: /gen_pages2.py
+
+# Google
+User-agent: Googlebot
+Allow: /
+
+# Safari/Apple
+User-agent: Applebot
+Allow: /
+
+# Bing
+User-agent: Bingbot
+Allow: /
+
+# Yandex
+User-agent: YandexBot
+Allow: /
+
+Sitemap: https://afaqalqary.pages.dev/sitemap.xml
