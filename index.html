@@ -32,7 +32,6 @@
     <link rel="canonical" href="https://afaqalqary.pages.dev/">
     <link rel="manifest" href="site.webmanifest">
 
-
     <!-- Favicon -->
     <link rel="icon" type="image/jpeg" href="images/logo.jpg">
 
@@ -96,20 +95,22 @@
 
     <!-- CSS -->
     <link rel="stylesheet" href="css/style.css">
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
 </head>
 <body>
 
-    <!-- رسالة ترحيبية -->
-    <div class="welcome-banner">
-        <i class="fas fa-handshake"></i> مرحباً بك في مكتب آفاق الإنجاز العقاري — خبرة 20 سنة في خدمتك بالخرج والرياض
-    </div>
-
     <!-- الهيدر -->
-    <header class="header">
+    <header class="header main-header">
         <div class="header-container">
             <div class="logo-section" onclick="window.location.href='index.html'">
-                <img src="images/logo.jpg" alt="شعار مكتب آفاق الإنجاز العقاري" class="logo-img">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 21h18"/>
+                        <path d="M5 21V7l7-4 7 4v14"/>
+                        <path d="M9 18v-3h6v3"/>
+                        <path d="M9 10h.01"/>
+                        <path d="M15 10h.01"/>
+                    </svg>
+                </div>
                 <div class="logo-text">
                     <h1>آفاق الإنجاز</h1>
                     <span>للخدمات العقارية</span>
@@ -118,24 +119,22 @@
 
             <nav>
                 <ul class="nav-menu" id="nav-menu">
-                    <li><a href="index.html" class="active"><i class="fas fa-home"></i> الرئيسية</a></li>
-                    <li><a href="farms.html"><i class="fas fa-seedling"></i> المزارع</a></li>
-                    <li><a href="resthouses.html"><i class="fas fa-home"></i> الاستراحات</a></li>
-                    <li><a href="lands.html"><i class="fas fa-map"></i> الأراضي السكنية</a></li>
-                    <li><a href="services.html"><i class="fas fa-tools"></i> الخدمات</a></li>
-                    <li><a href="list-property.html"><i class="fas fa-plus-circle"></i> اعرض عقارك</a></li>
-                    <li><a href="contact.html"><i class="fas fa-phone"></i> تواصل معنا</a></li>
+                    <li><a href="index.html" class="active">الرئيسية</a></li>
+                    <li><a href="farms.html">المزارع</a></li>
+                    <li><a href="resthouses.html">الاستراحات</a></li>
+                    <li><a href="lands.html">الأراضي</a></li>
+                    <li><a href="services.html">الخدمات</a></li>
+                    <li><a href="about.html">عن المكتب</a></li>
+                    <li><a href="contact.html">تواصل معنا</a></li>
                 </ul>
             </nav>
 
-            <div class="header-buttons">
-                <a href="https://wa.me/966545888931" target="_blank" class="contact-icon-btn btn-whatsapp" title="واتساب">
-                    <i class="fab fa-whatsapp"></i>
+            <div class="header-actions">
+                <a href="tel:0544699933" class="header-phone">0544699933</a>
+                <a href="https://wa.me/966544699933" target="_blank" class="header-whatsapp-btn">
+                    <i class="fab fa-whatsapp"></i> تواصل الآن
                 </a>
-                <a href="tel:0544699933" class="contact-icon-btn btn-phone" title="اتصال">
-                    <i class="fas fa-phone"></i>
-                </a>
-                <button class="btn-menu-toggle" onclick="toggleMenu()">
+                <button class="btn-menu-toggle" onclick="toggleMenu()" aria-label="القائمة">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
@@ -143,38 +142,168 @@
     </header>
 
     <!-- القسم الرئيسي (Hero) -->
-    <section class="hero homepage-hero">
+    <section class="homepage-hero">
+        <div class="hero-bg-image"></div>
         <div class="hero-overlay"></div>
-        <div class="hero-content hero-glass-panel">
-            <div class="hero-kicker"><i class="fas fa-location-dot"></i> الخرج والرياض</div>
-            <h1>خيارات عقارية <span>تلائم طموحك</span></h1>
-            <p>مزارع مميزة، استراحات راقية، وأراضٍ سكنية مختارة بعناية لتجد العقار المناسب بثقة.</p>
-
-            <div class="hero-features">
-                <div class="hero-feature"><i class="fas fa-seedling"></i> مزارع</div>
-                <div class="hero-feature"><i class="fas fa-house"></i> استراحات</div>
-                <div class="hero-feature"><i class="fas fa-map-location-dot"></i> أراضي سكنية</div>
-                <div class="hero-feature"><i class="fas fa-handshake"></i> خدمات ما بعد البيع</div>
+        <div class="hero-main-grid">
+            <!-- البطاقة اليسرى: المميزات -->
+            <div class="hero-features-card glass-panel">
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-shield-halved"></i></div>
+                    <h4>موثوقية</h4>
+                    <p>معاملات آمنة<br>وفريق محترف</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-location-dot"></i></div>
+                    <h4>أفضل المواقع</h4>
+                    <p>في أميز مخططات<br>الخرج</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-file-contract"></i></div>
+                    <h4>خدمات متكاملة</h4>
+                    <p>استشارات عقارية<br>وحلول متكاملة</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-handshake"></i></div>
+                    <h4>خبرة واسعة</h4>
+                    <p>سنوات من الخبرة<br>في السوق العقاري</p>
+                </div>
             </div>
 
-            <div class="hero-search-glass">
-                <div class="hero-search-field">
-                    <span>نوع العقار</span>
-                    <strong>مزارع • استراحات • أراضي</strong>
-                </div>
-                <div class="hero-search-field">
-                    <span>الموقع</span>
-                    <strong>الرحمانية • الهياثم • الدلم</strong>
-                </div>
-                <a href="#offers" class="hero-search-btn"><i class="fas fa-search"></i> تصفح العروض</a>
-            </div>
+            <!-- البطاقة اليمنى: البحث -->
+            <div class="hero-search-card glass-panel">
+                <h1>خيارات عقارية<br><span class="accent-text">تلاءم طموحك</span></h1>
+                <p>مزارع فاخرة، استراحات مميزة، وأراضي سكنية<br>في أفضل مخططات الخرج</p>
 
-            <div class="hero-buttons">
-                <a href="#about-office" class="btn btn-primary"><i class="fas fa-building"></i> تعرّف علينا</a>
-                <a href="list-property.html" class="btn btn-glass-outline"><i class="fas fa-plus-circle"></i> اعرض عقارك</a>
+                <div class="search-filter-bar">
+                    <div class="filter-group">
+                        <label>نوع العقار</label>
+                        <select id="filter-type">
+                            <option value="all">الكل</option>
+                            <option value="farms">مزارع</option>
+                            <option value="resthouses">استراحات</option>
+                            <option value="lands">أراضي</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>المدينة / المخطط</label>
+                        <select id="filter-location">
+                            <option value="all">الكل</option>
+                            <option value="alrahmaniyah">مخطط الرحمانية</option>
+                            <option value="alhayatham">الهياثم</option>
+                            <option value="aldilam">الدلم</option>
+                            <option value="aldabiah">الضبيعة</option>
+                            <option value="alafjah">العفجة</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>النوع</label>
+                        <select id="filter-category">
+                            <option value="all">الكل</option>
+                            <option value="sale">للبيع</option>
+                            <option value="rent">للإيجار</option>
+                        </select>
+                    </div>
+                    <button class="search-btn" onclick="applyHeroFilters()">
+                        <i class="fas fa-search"></i> بحث
+                    </button>
+                </div>
             </div>
         </div>
     </section>
+
+    <!-- قسم البطاقات التصنيفية -->
+    <section class="categories-section">
+        <div class="categories-container">
+            <a href="lands.html" class="cat-card">
+                <div class="cat-bg" style="background-image: url('images/cat-lands.jpg')"></div>
+                <div class="cat-overlay"></div>
+                <div class="cat-content">
+                    <div class="cat-icon"><i class="fas fa-map"></i></div>
+                    <div class="cat-text">
+                        <h3>أراضي سكنية</h3>
+                        <p>أراضي في أميز مخططات الخرج<br>بمساحات واستخدامات متعددة</p>
+                        <span class="cat-btn">عرض الأراضي</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="resthouses.html" class="cat-card">
+                <div class="cat-bg" style="background-image: url('images/cat-rest.jpg')"></div>
+                <div class="cat-overlay"></div>
+                <div class="cat-content">
+                    <div class="cat-icon"><i class="fas fa-umbrella-beach"></i></div>
+                    <div class="cat-text">
+                        <h3>استراحات</h3>
+                        <p>استراحات فاخرة بتصاميم<br>عصرية ومواقع مميزة</p>
+                        <span class="cat-btn">عرض الاستراحات</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="farms.html" class="cat-card">
+                <div class="cat-bg" style="background-image: url('images/cat-farms.jpg')"></div>
+                <div class="cat-overlay"></div>
+                <div class="cat-content">
+                    <div class="cat-icon"><i class="fas fa-tractor"></i></div>
+                    <div class="cat-text">
+                        <h3>مزارع</h3>
+                        <p>مزارع متنوعة بمساحات مختلفة<br>ومرافق متكاملة</p>
+                        <span class="cat-btn">عرض المزارع</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <!-- شريط الإحصائيات -->
+    <div class="stats-bar">
+        <div class="stats-bar-container">
+            <a href="#offers" class="stats-cta">
+                <i class="fas fa-th-large"></i> تصفح جميع العروض
+            </a>
+
+            <div class="stat-divider"></div>
+
+            <div class="stat-box">
+                <div class="stat-icon"><i class="fas fa-award"></i></div>
+                <div class="stat-info">
+                    <span class="stat-num" data-target="500">+0</span>
+                    <span class="stat-label">عقار تم بيعه</span>
+                </div>
+            </div>
+
+            <div class="stat-divider"></div>
+
+            <div class="stat-box">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-info">
+                    <span class="stat-num" data-target="1000">+0</span>
+                    <span class="stat-label">عميل سعيد</span>
+                </div>
+            </div>
+
+            <div class="stat-divider"></div>
+
+            <div class="stat-box">
+                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                <div class="stat-info">
+                    <span class="stat-num" data-target="8">+0</span>
+                    <span class="stat-label">سنوات خبرة</span>
+                </div>
+            </div>
+
+            <div class="stat-divider"></div>
+
+            <div class="stat-box location-box">
+                <div class="stat-icon"><i class="fas fa-location-dot"></i></div>
+                <div class="stat-info">
+                    <span class="stat-num">الخرج</span>
+                    <span class="stat-label">أميز المخططات</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- نبذة عن المكتب -->
     <section class="about-office-section" id="about-office">
