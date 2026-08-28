@@ -38,11 +38,16 @@ async def lifespan(app: FastAPI):
     logger.info("✅ Handlers registered")
 
     await telegram_app.initialize()
-    await telegram_app.set_webhook(webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}", allowed_updates=Update.ALL_TYPES)
+    await telegram_app.start()
+    await telegram_app.bot.set_webhook(
+        url=f"{WEBHOOK_URL}/{BOT_TOKEN}",
+        allowed_updates=Update.ALL_TYPES
+    )
     logger.info("✅ Webhook set")
     logger.info("✅ Bot started successfully")
     yield
     await telegram_app.stop()
+    await telegram_app.shutdown()
 
 app.router.lifespan_context = lifespan
 
