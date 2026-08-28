@@ -1,61 +1,67 @@
 {
   "properties": [
     {
-      "id": "PROP-1700000001",
-      "type": "مزرعة",
+      "id": 1700000001,
+      "type": "farms",
       "location": "الرحمانية",
-      "size_sqm": 10000,
+      "area": 10000,
       "price": 1200000,
-      "streets": 2,
-      "facing": "شمالي شرقي",
+      "streets": "2",
+      "facade": "شمالي شرقي",
       "features": [
         "ماء",
         "كهرباء",
         "بئر"
       ],
       "description": "مزرعة مثالية متكاملة بمخطط الرحمانية مع بئر وماء وكهرباء واصلة.",
-      "images": [
+      "photos": [
         "images/cat-farms.jpg"
       ],
-      "date_added": "2025-08-01 10:00:00"
+      "video": null,
+      "date": "2025-08-01 10:00:00",
+      "status": "active"
     },
     {
-      "id": "PROP-1700000002",
-      "type": "استراحة",
+      "id": 1700000002,
+      "type": "resthouses",
       "location": "الهياثم",
-      "size_sqm": 1500,
+      "area": 1500,
       "price": 450000,
-      "streets": 1,
-      "facing": "جنوب",
+      "streets": "1",
+      "facade": "جنوب",
       "features": [
         "ماء",
         "كهرباء",
         "مسجد"
       ],
       "description": "استراحة عصرية فاخرة بالهياثم قريب من المسجد والخدمات.",
-      "images": [
+      "photos": [
         "images/cat-rest.jpg"
       ],
-      "date_added": "2025-08-02 12:00:00"
+      "video": null,
+      "date": "2025-08-02 12:00:00",
+      "status": "active"
     },
     {
-      "id": "PROP-1700000003",
-      "type": "أرض",
+      "id": 1700000003,
+      "type": "lands",
       "location": "الدلم",
-      "size_sqm": 600,
+      "area": 600,
       "price": 360000,
-      "streets": 2,
-      "facing": "شرق",
+      "streets": "2",
+      "facade": "شرق",
       "features": [
         "كهرباء",
         "مدرسة",
         "سوق"
       ],
       "description": "أرض سكنية ممتازة بالدلم على شارعين قريبة من مدارس وأسواق.",
-      "images": [
+      "photos": [
         "images/cat-lands.jpg"
       ],
-      "date_added": "2025-08-03 15:00:00"
+      "video": null,
+      "date": "2025-08-03 15:00:00",
+      "status": "active"
     }
   ]
 }
