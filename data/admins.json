@@ -1,3 +1,9 @@
 {
-  "admins": []
+  "admins": [
+    {
+      "username": "admin",
+      "name": "المدير الرئيسي",
+      "role": "full"
+    }
+  ]
 }

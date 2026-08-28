@@ -1,67 +1,24 @@
 {
   "properties": [
     {
-      "id": 1700000001,
-      "type": "farms",
+      "type": "land",
+      "area": 500,
       "location": "الرحمانية",
-      "area": 10000,
-      "price": 1200000,
       "streets": "2",
-      "facade": "شمالي شرقي",
-      "features": [
-        "ماء",
-        "كهرباء",
-        "بئر"
-      ],
-      "description": "مزرعة مثالية متكاملة بمخطط الرحمانية مع بئر وماء وكهرباء واصلة.",
+      "price": 425000,
+      "features": {
+        "land_kind": "مصورة",
+        "electricity": "نعم"
+      },
       "photos": [
-        "images/cat-farms.jpg"
+        "file_id_123"
       ],
-      "video": null,
-      "date": "2025-08-01 10:00:00",
-      "status": "active"
-    },
-    {
-      "id": 1700000002,
-      "type": "resthouses",
-      "location": "الهياثم",
-      "area": 1500,
-      "price": 450000,
-      "streets": "1",
-      "facade": "جنوب",
-      "features": [
-        "ماء",
-        "كهرباء",
-        "مسجد"
-      ],
-      "description": "استراحة عصرية فاخرة بالهياثم قريب من المسجد والخدمات.",
-      "photos": [
-        "images/cat-rest.jpg"
-      ],
-      "video": null,
-      "date": "2025-08-02 12:00:00",
-      "status": "active"
-    },
-    {
-      "id": 1700000003,
-      "type": "lands",
-      "location": "الدلم",
-      "area": 600,
-      "price": 360000,
-      "streets": "2",
-      "facade": "شرق",
-      "features": [
-        "كهرباء",
-        "مدرسة",
-        "سوق"
-      ],
-      "description": "أرض سكنية ممتازة بالدلم على شارعين قريبة من مدارس وأسواق.",
-      "photos": [
-        "images/cat-lands.jpg"
-      ],
-      "video": null,
-      "date": "2025-08-03 15:00:00",
-      "status": "active"
+      "video_url": null,
+      "is_vip": false,
+      "status": "active",
+      "property_link": "https://abonasr0907-beep.github.io/-/properties/PROP-0000000001",
+      "id": "PROP-0000000001",
+      "created_at": "2026-08-28T13:50:45.837872"
     }
   ]
 }

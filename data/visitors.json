@@ -1,3 +1,10 @@
 {
-  "visitors": []
+  "visitors": [
+    {
+      "id": "VIS-001",
+      "name": "عميل تجريبي",
+      "phone": "0500000000",
+      "status": "new"
+    }
+  ]
 }
