@@ -10,16 +10,19 @@ SELECTING_FIELD, EDITING_VALUE = range(2)
 
 async def start_edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    prop_id = data.replace("editprop_", "").replace("edit_prop_", "")
+    if query:
+        await query.answer()
+        data = query.data
+        prop_id = data.replace("editprop_", "").replace("edit_prop_", "")
+    else:
+        prop_id = ""
 
     if not prop_id or prop_id == "edit_prop":
-        await query.edit_message_text(
-            "✏️ *تعديل عرض*\n\nيرجى اختيار عرض من قائمة العروض لتعديله.",
-            parse_mode="Markdown"
-        )
+        msg = "✏️ *تعديل عرض*\n\nيرجى اختيار عرض من قائمة العروض لتعديله."
+        if query:
+            await query.edit_message_text(msg, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(msg, parse_mode="Markdown")
         return ConversationHandler.END
 
     prop = get_property(prop_id)
@@ -118,7 +121,9 @@ async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_edit_property_handler():
     return ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(start_edit_property, pattern="^(editprop_|edit_prop)")
+            CallbackQueryHandler(start_edit_property, pattern="^(editprop_|edit_prop)"),
+            CommandHandler("edit_property", start_edit_property),
+            MessageHandler(filters.Regex("^✏️ تعديل عرض$"), start_edit_property)
         ],
         states={
             SELECTING_FIELD: [CallbackQueryHandler(select_edit_field, pattern="^editfield_")],

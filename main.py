@@ -13,11 +13,11 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT
-from bot.database import init_db, load_properties
+from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT, VISITORS_FILE, COMPASS_FILE
+from bot.database import init_db, load_properties, get_property, load_json, save_json
 from bot.modules.add_property import get_add_property_handler
 from bot.modules.list_properties import get_list_properties_handler
 from bot.modules.edit_property import get_edit_property_handler
@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
     telegram_app.add_handler(get_edit_property_handler())
     telegram_app.add_handler(get_delete_property_handler())
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
+    telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_persistent_menu))
     logger.info("✅ Handlers registered")
 
     await telegram_app.initialize()
@@ -78,8 +79,47 @@ async def root():
 async def get_properties_api():
     return load_properties()
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@app.get("/api/properties/{id}")
+async def get_single_property_api(id: str):
+    prop = get_property(id)
+    if not prop:
+        return JSONResponse(status_code=404, content={"error": "Property not found", "id": id})
+    return prop
+
+@app.get("/api/compass")
+async def get_compass_api():
+    compass_data = load_json(COMPASS_FILE, default={})
+    return compass_data
+
+@app.post("/api/visitors")
+async def create_visitor_request_api(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    visitors = load_json(VISITORS_FILE, default=[])
+    req_id = f"REQ-{int(datetime.now().timestamp() * 1000)}"
+    visitor_entry = {
+        "id": req_id,
+        "date": datetime.now().isoformat(),
+        "status": "pending",
+        **body
+    }
+    visitors.append(visitor_entry)
+    save_json(VISITORS_FILE, visitors, root_key="visitors")
+    return {"status": "ok", "id": req_id, "message": "Request saved successfully"}
+
+def get_main_reply_keyboard():
     keyboard = [
+        ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
+        ["✏️ تعديل عرض", "🗑️ حذف عرض"],
+        ["📦 الأرشيف", "🧭 البوصلة"]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    inline_keyboard = [
         [InlineKeyboardButton("📋 قائمة العروض", callback_data='list_props'),
          InlineKeyboardButton("➕ إضافة عرض جديد", callback_data='add_prop')],
         [InlineKeyboardButton("✏️ تعديل عرض", callback_data='edit_prop'),
@@ -97,8 +137,33 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text(
         "🏡 نظام إدارة العقارات - آفاق الإنجاز\n\nمرحباً بك في لوحة تحكم المدراء.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=get_main_reply_keyboard()
     )
+    await update.message.reply_text(
+        "اختر من القائمة أدناه أو من الأزرار التالية:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard)
+    )
+
+async def handle_persistent_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip() if update.message and update.message.text else ""
+    if text == "➕ إضافة عرض جديد":
+        from bot.modules.add_property import start_add_property
+        return await start_add_property(update, context)
+    elif text == "📋 قائمة العروض":
+        from bot.modules.list_properties import list_properties_callback
+        return await list_properties_callback(update, context)
+    elif text == "✏️ تعديل عرض":
+        from bot.modules.edit_property import start_edit_property
+        return await start_edit_property(update, context)
+    elif text == "🗑️ حذف عرض":
+        from bot.modules.delete_property import start_delete_property
+        return await start_delete_property(update, context)
+    elif text == "📦 الأرشيف":
+        await update.message.reply_text("📦 الأرشيف - قريباً", reply_markup=get_main_reply_keyboard())
+    elif text == "🧭 البوصلة":
+        await update.message.reply_text("🧭 البوصلة - قريباً", reply_markup=get_main_reply_keyboard())
+    else:
+        await update.message.reply_text("🏡 يمكنك استخدام القائمة الدائمة أسفل الشاشة للتحكم.", reply_markup=get_main_reply_keyboard())
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
