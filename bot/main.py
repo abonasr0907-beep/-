@@ -70,19 +70,114 @@ FEATURE_NAMES = {
 }
 
 # ============ دوال المساعدة ============
+def normalize_property(p, idx=1):
+    """توحيد هيكلية العقار لتحقيق التوافق التام"""
+    if not isinstance(p, dict):
+        return None
+
+    # تحويل ID إلى عدد صحيح أو رقم مميز
+    raw_id = p.get("id")
+    if isinstance(raw_id, str) and raw_id.startswith("PROP-"):
+        try:
+            prop_id = int(raw_id.replace("PROP-", ""))
+        except ValueError:
+            prop_id = idx
+    elif isinstance(raw_id, int):
+        prop_id = raw_id
+    else:
+        prop_id = idx
+
+    # توحيد النوع
+    ptype = p.get("type", "lands")
+    if ptype in ["مزرعة", "farm"]:
+        ptype = "farms"
+    elif ptype in ["استراحة", "resthouse"]:
+        ptype = "resthouses"
+    elif ptype in ["أرض", "land"]:
+        ptype = "lands"
+
+    # توحيد المساحة
+    area_val = p.get("area", p.get("size_sqm", 0))
+    try:
+        area = int(area_val)
+    except (ValueError, TypeError):
+        area = 0
+
+    # توحيد السعر
+    price_val = p.get("price", 0)
+    try:
+        price = int(price_val)
+    except (ValueError, TypeError):
+        price = 0
+
+    # توحيد باقي الحقول
+    streets = str(p.get("streets", "1"))
+    facade = p.get("facade", p.get("facing", "غير محدد"))
+    features = p.get("features", [])
+    if not isinstance(features, list):
+        features = []
+
+    description = p.get("description", "")
+    photos = p.get("photos", p.get("images", []))
+    if not isinstance(photos, list):
+        photos = []
+
+    video = p.get("video", None)
+    date_str = p.get("date", p.get("date_added", datetime.now().isoformat()))
+    status = p.get("status", "active")
+
+    return {
+        "id": prop_id,
+        "type": ptype,
+        "location": p.get("location", "غير محدد"),
+        "area": area,
+        "price": price,
+        "streets": streets,
+        "facade": facade,
+        "features": features,
+        "description": description,
+        "photos": photos,
+        "video": video,
+        "date": date_str,
+        "status": status
+    }
+
 def load_properties():
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            if isinstance(data, dict) and "properties" in data:
-                return data["properties"]
-            elif isinstance(data, list):
-                return data
+        try:
+            with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                raw_list = []
+                if isinstance(data, dict) and "properties" in data:
+                    raw_list = data["properties"]
+                elif isinstance(data, list):
+                    raw_list = data
+
+                normalized = []
+                for i, p in enumerate(raw_list, start=1):
+                    norm = normalize_property(p, i)
+                    if norm:
+                        normalized.append(norm)
+                return normalized
+        except Exception as e:
+            print(f"Error loading properties: {e}")
     return []
 
 def save_properties(properties):
+    normalized = []
+    for i, p in enumerate(properties, start=1):
+        norm = normalize_property(p, i)
+        if norm:
+            normalized.append(norm)
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(properties, f, ensure_ascii=False, indent=2)
+        json.dump({"properties": normalized}, f, ensure_ascii=False, indent=2)
+
+def migrate_properties():
+    """هجرة البيانات القديمة تلقائياً إلى الهيكل الموحد"""
+    props = load_properties()
+    if props:
+        save_properties(props)
+        print("✅ تم هجرة وتوحيد قاعدة البيانات بنجاح")
 
 def add_demo_properties():
     """إضافة عقارات تجريبية إذا كان الملف فارغاً"""
@@ -196,6 +291,13 @@ async def cancel_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     await query.edit_message_text("❌ تم الإلغاء.")
 
+def safe_fmt_int(val):
+    """تحويل وتنسيق الأرقام بأمان لتجنب استثناءات التنسيق"""
+    try:
+        return f"{int(val):,}"
+    except (ValueError, TypeError):
+        return str(val)
+
 async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض قائمة العقارات"""
     query = update.callback_query
@@ -212,11 +314,12 @@ async def list_properties(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = "📋 *قائمة العقارات:*\n\n"
     for p in properties[-10:]:
-        type_emoji = "🌾" if p['type'] == 'farms' else "🏠" if p['type'] == 'resthouses' else "🗺️"
-        text += (
-            f"#{p['id']} {type_emoji} *{p['location']}*\n"
-            f"   💰 {p['price']:,} ريال | 📏 {p['area']:,} م²\n\n"
-        )
+        ptype = p.get('type', '')
+        type_emoji = "🌾" if ptype == 'farms' else "🏠" if ptype == 'resthouses' else "🗺️"
+        loc = p.get('location', 'غير محدد')
+        price_str = safe_fmt_int(p.get('price', 0))
+        area_str = safe_fmt_int(p.get('area', 0))
+        text += f"#{p.get('id', '?')} {type_emoji} *{loc}*\n   💰 {price_str} ريال | 📏 {area_str} م²\n\n"
 
     keyboard = [[InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back_to_menu")]]
     await query.edit_message_text(
@@ -455,15 +558,22 @@ async def request_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return UPLOADING_PHOTOS
 
 async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """استقبال صورة"""
+    """استقبال صورة وحفظ file_id بدلاً من فتح ملفات محلية فقط"""
     photo = update.message.photo[-1]  # أعلى دقة
-    file = await photo.get_file()
-    filename = f"{PHOTOS_DIR}/prop_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{photo.file_id[:8]}.jpg"
-    await file.download_to_drive(filename)
+    file_id = photo.file_id
 
+    # تحسين الحفظ: تخزين file_id لدعم التخزين الدائم دون الاعتماد على الحاوية
     photos = context.user_data["property"].get("photos", [])
-    photos.append(filename)
+    photos.append(file_id)
     context.user_data["property"]["photos"] = photos
+
+    # تنزيل احتياطي محلي إن أمكن دون كسر البوت
+    try:
+        file = await photo.get_file()
+        filename = f"{PHOTOS_DIR}/prop_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{photo.file_id[:8]}.jpg"
+        await file.download_to_drive(filename)
+    except Exception as e:
+        logger.warning(f"Could not save local photo copy: {e}")
 
     await update.message.reply_text(
         f"✅ تم استلام الصورة ({len(photos)} صور)\n"
@@ -513,19 +623,23 @@ async def save_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_count = len(new_property.get("photos", []))
     video_status = "✅" if new_property.get("video") else "❌"
 
+    area_fmt = safe_fmt_int(new_property.get('area', 0))
+    price_fmt = safe_fmt_int(new_property.get('price', 0))
+    ptype_str = TYPE_NAMES.get(new_property.get('type'), new_property.get('type', ''))
+
     preview = (
         f"✅ *تم حفظ العقار بنجاح!*\n\n"
-        f"🏷️ النوع: {TYPE_NAMES.get(new_property['type'], new_property['type'])}\n"
-        f"📍 الموقع: {new_property['location']}\n"
-        f"📏 المساحة: {new_property['area']:,} م²\n"
-        f"💰 السعر: {new_property['price']:,} ريال\n"
-        f"🛣️ الشوارع: {new_property['streets']}\n"
-        f"🧭 الواجهة: {new_property['facade']}\n"
+        f"🏷️ النوع: {ptype_str}\n"
+        f"📍 الموقع: {new_property.get('location', 'غير محدد')}\n"
+        f"📏 المساحة: {area_fmt} م²\n"
+        f"💰 السعر: {price_fmt} ريال\n"
+        f"🛣️ الشوارع: {new_property.get('streets', '1')}\n"
+        f"🧭 الواجهة: {new_property.get('facade', 'غير محدد')}\n"
         f"✨ المميزات: {feature_list or 'لا يوجد'}\n"
         f"📝 الوصف: {new_property.get('description') or 'لا يوجد'}\n"
         f"📸 الصور: {photo_count} صور\n"
         f"🎥 الفيديو: {video_status}\n\n"
-        f"🆔 رقم العقار: #{new_property['id']}"
+        f"🆔 رقم العقار: #{new_property.get('id')}"
     )
 
     await update.message.reply_text(preview, parse_mode="Markdown")
@@ -534,21 +648,41 @@ async def save_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = new_property.get("photos", [])
     if photos:
         media = []
+        opened_files = []
         for p in photos[:10]:  # أقصى 10 صور
-            if os.path.exists(p):
-                media.append(InputMediaPhoto(media=open(p, 'rb')))
+            if isinstance(p, str) and (p.startswith("AgAC") or not os.path.exists(p)):
+                # استخدام Telegram file_id مباشرة
+                media.append(InputMediaPhoto(media=p))
+            elif isinstance(p, str) and os.path.exists(p):
+                f = open(p, 'rb')
+                opened_files.append(f)
+                media.append(InputMediaPhoto(media=f))
         if media:
             try:
                 await update.message.reply_media_group(media)
             except Exception as e:
-                print(f"Photo send error: {e}")
+                logger.error(f"Photo send error: {e}")
+            finally:
+                for f in opened_files:
+                    try:
+                        f.close()
+                    except Exception:
+                        pass
 
     # إرسال الفيديو إن وجد
-    if new_property.get("video") and os.path.exists(new_property["video"]):
-        try:
-            await update.message.reply_video(video=open(new_property["video"], 'rb'))
-        except Exception as e:
-            print(f"Video send error: {e}")
+    video_item = new_property.get("video")
+    if video_item:
+        if isinstance(video_item, str) and os.path.exists(video_item):
+            try:
+                with open(video_item, 'rb') as f:
+                    await update.message.reply_video(video=f)
+            except Exception as e:
+                logger.error(f"Video send error: {e}")
+        elif isinstance(video_item, str):
+            try:
+                await update.message.reply_video(video=video_item)
+            except Exception as e:
+                logger.error(f"Video send error: {e}")
 
     return ConversationHandler.END
 
@@ -564,14 +698,35 @@ class PropertyMapRequest(BaseModel):
     min_price: Optional[int] = None
     max_price: Optional[int] = None
 
+import logging
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """معالج الأخطاء العام للبوت لمنع انهيار الخدمة"""
+    logger.error("Exception while handling an update:", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                "⚠️ حدث خطأ غير متوقع أثناء معالجة الطلب، ولكن البوت ما زال يعمل بنجاح."
+            )
+        except Exception:
+            pass
+
 telegram_app = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global telegram_app
+    migrate_properties()
     add_demo_properties()
     if BOT_TOKEN:
         telegram_app = Application.builder().token(BOT_TOKEN).build()
+        telegram_app.add_error_handler(global_error_handler)
 
         conv_handler = ConversationHandler(
             entry_points=[CallbackQueryHandler(start_add_property, pattern="^add_property$")],
