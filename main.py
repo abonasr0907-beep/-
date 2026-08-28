@@ -20,6 +20,26 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT
 from bot.database import init_db, load_properties
 
+from bot.modules.add_property import get_add_property_handler
+from bot.modules.list_properties import get_list_properties_handler
+from bot.modules.edit_property import get_edit_property_handler
+from bot.modules.delete_property import get_delete_property_handler
+from bot.modules.visitors import get_visitors_handler
+from bot.modules.archive import get_archive_handler
+from bot.modules.stats import get_stats_handler
+from bot.modules.compass import get_compass_handler
+from bot.modules.tour import get_tour_handler
+from bot.modules.admins import get_admins_handler
+from bot.modules.assistant import get_assistant_handler
+from bot.modules.marketing import get_marketing_handler
+from bot.modules.notifications import get_notifications_handler
+from bot.modules.follow_up import get_follow_up_handler
+from bot.modules.pricing import get_pricing_handler
+from bot.modules.reports import get_reports_handler
+from bot.modules.security import get_security_handler
+from bot.modules.backup import get_backup_handler
+from bot.modules.site_sync import get_site_sync_handler
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -36,9 +56,30 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("✅ Database initialized")
     telegram_app = Application.builder().token(BOT_TOKEN).build()
+
+    telegram_app.add_handler(get_add_property_handler())
+    telegram_app.add_handler(get_list_properties_handler())
+    telegram_app.add_handler(get_edit_property_handler())
+    telegram_app.add_handler(get_delete_property_handler())
+    telegram_app.add_handler(get_visitors_handler())
+    telegram_app.add_handler(get_archive_handler())
+    telegram_app.add_handler(get_stats_handler())
+    telegram_app.add_handler(get_compass_handler())
+    telegram_app.add_handler(get_tour_handler())
+    telegram_app.add_handler(get_admins_handler())
+    telegram_app.add_handler(get_assistant_handler())
+    telegram_app.add_handler(get_marketing_handler())
+    telegram_app.add_handler(get_notifications_handler())
+    telegram_app.add_handler(get_follow_up_handler())
+    telegram_app.add_handler(get_pricing_handler())
+    telegram_app.add_handler(get_reports_handler())
+    telegram_app.add_handler(get_security_handler())
+    telegram_app.add_handler(get_backup_handler())
+    telegram_app.add_handler(get_site_sync_handler())
+
     telegram_app.add_handler(CommandHandler("start", start))
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
-    logger.info("✅ Basic handlers registered")
+    logger.info("✅ Basic and module handlers registered")
     webhook_url = f"{WEBHOOK_URL}/{BOT_TOKEN}"
     await telegram_app.initialize()
     await telegram_app.set_webhook(webhook_url=webhook_url, allowed_updates=Update.ALL_TYPES)
