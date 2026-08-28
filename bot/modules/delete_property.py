@@ -6,16 +6,19 @@ CONFIRM_DELETE = range(1)
 
 async def start_delete_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
-
-    data = query.data
-    prop_id = data.replace("delprop_", "").replace("delete_prop_", "")
+    if query:
+        await query.answer()
+        data = query.data
+        prop_id = data.replace("delprop_", "").replace("delete_prop_", "")
+    else:
+        prop_id = ""
 
     if not prop_id or prop_id == "delete_prop":
-        await query.edit_message_text(
-            "🗑️ *حذف عرض*\n\nيرجى اختيار عرض من قائمة العروض لحذفه.",
-            parse_mode="Markdown"
-        )
+        msg = "🗑️ *حذف عرض*\n\nيرجى اختيار عرض من قائمة العروض لحذفه."
+        if query:
+            await query.edit_message_text(msg, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(msg, parse_mode="Markdown")
         return ConversationHandler.END
 
     prop = get_property(prop_id)
@@ -63,7 +66,9 @@ async def cancel_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_delete_property_handler():
     return ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(start_delete_property, pattern="^(delprop_|delete_prop)")
+            CallbackQueryHandler(start_delete_property, pattern="^(delprop_|delete_prop)"),
+            CommandHandler("delete_property", start_delete_property),
+            MessageHandler(filters.Regex("^🗑️ حذف عرض$"), start_delete_property)
         ],
         states={
             CONFIRM_DELETE: [CallbackQueryHandler(handle_delete_confirmation, pattern="^confirm_delete_")]

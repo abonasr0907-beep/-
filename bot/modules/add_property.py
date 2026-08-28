@@ -362,7 +362,8 @@ def get_add_property_handler():
     return ConversationHandler(
         entry_points=[
             CallbackQueryHandler(start_add_property, pattern="^(add_prop|add_property)$"),
-            CommandHandler("add_property", start_add_property)
+            CommandHandler("add_property", start_add_property),
+            MessageHandler(filters.Regex("^➕ إضافة عرض جديد$"), start_add_property)
         ],
         states={
             SELECTING_TYPE: [CallbackQueryHandler(select_type, pattern="^type_")],

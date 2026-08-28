@@ -7,8 +7,8 @@ def format_number(num):
 
 def generate_property_link(property_id):
     """توليد رابط حقيقي للعرض في الموقع"""
-    base_url = "https://abonasr0907-beep.github.io/-"
-    return f"{base_url}/properties/{property_id}"
+    base_url = "https://abonasr0907-beep.github.io"
+    return f"{base_url}/?property={property_id}"
 
 def format_currency(amount):
     """تنسيق العملة"""
