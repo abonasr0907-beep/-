@@ -1,9 +1,11 @@
 import os
 
+# Telegram Bot
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 PORT = int(os.environ.get("PORT", "8080"))
 
+# Database
 DATA_DIR = "data"
 PROPERTIES_FILE = os.path.join(DATA_DIR, "properties.json")
 VISITORS_FILE = os.path.join(DATA_DIR, "visitors.json")
@@ -12,17 +14,10 @@ COMPASS_FILE = os.path.join(DATA_DIR, "compass_data.json")
 BACKUPS_DIR = os.path.join(DATA_DIR, "backups")
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-LOCATIONS = [
-    "الرحمانية",
-    "الخريج",
-    "الهياثم",
-    "العفجة",
-    "الشديدة",
-    "الدلم",
-    "الضبيعة",
-    "أخرى"
-]
+# Locations
+LOCATIONS = ["الرحمانية", "الخريج", "الهياثم", "العفجة", "الشديدة", "الدلم", "الضبيعة", "أخرى"]
 
+# Property Types
 PROPERTY_TYPES = {
     "land": "🏡 أرض سكنية",
     "resthouse": "🏠 استراحة",

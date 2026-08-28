@@ -4,11 +4,12 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMe
 from telegram.ext import (
     ConversationHandler, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 )
+from bot.config import LOCATIONS
 from bot.database import load_properties, save_properties
-from utils.helpers import format_number
-from utils.validators import validate_positive_int
+from utils.helpers import format_number, generate_property_link
+from utils.validators import validate_price
 
-# Conversation States
+# Conversation States (8 steps)
 (
     SELECTING_TYPE,
     SELECTING_AREA,
@@ -20,11 +21,9 @@ from utils.validators import validate_positive_int
     PREVIEW
 ) = range(8)
 
-LOCATIONS = ["الرحمانية", "الخريج", "الهياثم", "العفجة", "الشديدة", "الدلم", "الضبيعة", "أخرى"]
-
 def get_area_ranges(prop_type):
     if prop_type == "land":
-        res = list(range(250, 10000, 100))
+        res = list(range(200, 10000, 100))
         if 10000 not in res:
             res.append(10000)
         return res
@@ -34,7 +33,7 @@ def get_area_ranges(prop_type):
             res.append(25000)
         return res
     elif prop_type == "farm":
-        res = list(range(10000, 190001, 100))
+        res = list(range(10000, 190000, 100))
         if 190000 not in res:
             res.append(190000)
         return res
@@ -118,7 +117,16 @@ async def handle_area_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         area = int(data.replace("area_val_", ""))
         context.user_data["property"]["area"] = area
 
-        keyboard = [[InlineKeyboardButton(loc, callback_data=f"loc_{loc}")] for loc in LOCATIONS]
+        keyboard = []
+        row = []
+        for loc in LOCATIONS:
+            row.append(InlineKeyboardButton(loc, callback_data=f"loc_{loc}"))
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("📍 *الخطوة 3: اختر المنطقة*", reply_markup=reply_markup, parse_mode="Markdown")
         return SELECTING_LOCATION
@@ -134,7 +142,7 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("شارع واحد", callback_data="streets_1")],
         [InlineKeyboardButton("شارعين", callback_data="streets_2")],
-        [InlineKeyboardButton("أكثر", callback_data="streets_3+")]
+        [InlineKeyboardButton("أكثر من شارعين", callback_data="streets_3+")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text("🛣️ *الخطوة 4: اختر عدد الشوارع*", reply_markup=reply_markup, parse_mode="Markdown")
@@ -150,11 +158,7 @@ async def select_streets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return await render_feature_step(query, context)
 
-async def render_feature_step(query, context):
-    prop_type = context.user_data["property"].get("type")
-    step = context.user_data.get("feature_step", 0)
-    features = context.user_data["property"].get("features", {})
-
+def get_feature_steps(prop_type, features):
     if prop_type == "land":
         steps = [
             ("land_kind", "نوع الأرض", [("فضاء", "فضاء"), ("مصورة", "مصورة")]),
@@ -166,8 +170,9 @@ async def render_feature_step(query, context):
                 ("water_tank", "خزان مياه", [("نعم ✅", "نعم"), ("لا ❌", "لا")]),
                 ("well", "بئر", [("نعم ✅", "نعم"), ("لا ❌", "لا")])
             ])
+        return steps
     elif prop_type == "resthouse":
-        steps = [
+        return [
             ("pool", "مسبح", [("نعم ✅", "نعم"), ("لا ❌", "لا")]),
             ("green_areas", "مسطحات خضراء", [("نعم ✅", "نعم"), ("لا ❌", "لا")]),
             ("fruit_trees", "أشجار مثمرة", [("نعم ✅", "نعم"), ("لا ❌", "لا")]),
@@ -181,7 +186,7 @@ async def render_feature_step(query, context):
             ("kitchens_count", "عدد المطابخ", [(str(i), str(i)) for i in range(1, 6)])
         ]
     elif prop_type == "farm":
-        steps = [
+        return [
             ("trees_count", "عدد الأشجار", [(str(i), str(i)) for i in range(50, 301, 10)]),
             ("facade", "الواجهة", [("شرقية", "شرقية"), ("شمالية", "شمالية"), ("جنوبية", "جنوبية"), ("غربية", "غربية")]),
             ("fenced", "مسيفة", [("نعم ✅", "نعم"), ("لا ❌", "لا")]),
@@ -195,13 +200,18 @@ async def render_feature_step(query, context):
             ("internal_resthouses", "استراحات داخلية", [(str(i), str(i)) for i in range(1, 6)]),
             ("majlis_count", "مجالس", [(str(i), str(i)) for i in range(1, 6)])
         ]
-    else:
-        steps = []
+    return []
+
+async def render_feature_step(query, context):
+    prop_type = context.user_data["property"].get("type")
+    step = context.user_data.get("feature_step", 0)
+    features = context.user_data["property"].get("features", {})
+
+    steps = get_feature_steps(prop_type, features)
 
     if step >= len(steps):
-        # Feature selection complete -> Move to Price step
         await query.edit_message_text(
-            "💰 *الخطوة 6: أدخل السعر بالريال*\n\n(مثال: 450000)",
+            "💰 *الخطوة 6: أدخل السعر بالريال*\n\n(مثال: 425000)",
             parse_mode="Markdown"
         )
         return ENTERING_PRICE
@@ -218,7 +228,7 @@ async def render_feature_step(query, context):
         keyboard.append(row)
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await query.edit_message_text(f"✨ *المميزات - {title}*", reply_markup=reply_markup, parse_mode="Markdown")
+    await query.edit_message_text(f"✨ *الخطوة 5: المميزات - {title}*", reply_markup=reply_markup, parse_mode="Markdown")
     return SELECTING_FEATURES
 
 async def handle_feature_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -235,14 +245,14 @@ async def handle_feature_callback(update: Update, context: ContextTypes.DEFAULT_
     return await render_feature_step(query, context)
 
 async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    is_valid, price = validate_positive_int(update.message.text)
-    if not is_valid:
-        await update.message.reply_text("❌ سعر غير صحيح. الرجاء إدخال رقم موجب (مثال: 500000):")
+    price = validate_price(update.message.text)
+    if not price:
+        await update.message.reply_text("❌ سعر غير صحيح. الرجاء إدخال رقم موجب (مثال: 425000):")
         return ENTERING_PRICE
 
     context.user_data["property"]["price"] = price
     await update.message.reply_text(
-        "📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم اضغط /done عند الانتهاء.",
+        "📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم اكتب /done عند الانتهاء.",
         parse_mode="Markdown"
     )
     return UPLOADING_PHOTOS
@@ -250,7 +260,7 @@ async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
     if len(photos) >= 5:
-        await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اضغط /done للمتابعة.")
+        await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done للمتابعة.")
         return UPLOADING_PHOTOS
 
     file_id = update.message.photo[-1].file_id
@@ -270,18 +280,18 @@ async def finish_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def show_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prop = context.user_data["property"]
-    type_labels = {"land": "أرض سكنية", "resthouse": "استراحة", "farm": "مزرعة"}
+    type_labels = {"land": "🏡 أرض سكنية", "resthouse": "🏠 استراحة", "farm": "🚜 مزرعة"}
 
     features_str = "\n".join([f"• {k}: {v}" for k, v in prop.get("features", {}).items()]) or "لا يوجد"
 
     text = (
-        "📋 *معاينة العرض قبل النشر:*\n\n"
+        "📋 *الخطوة 8: معاينة العرض قبل النشر:*\n\n"
         f"🏡 *النوع:* {type_labels.get(prop.get('type'), prop.get('type'))}\n"
         f"📐 *المساحة:* {format_number(prop.get('area'))} م²\n"
         f"📍 *المنطقة:* {prop.get('location')}\n"
         f"🛣️ *عدد الشوارع:* {prop.get('streets')}\n"
         f"💰 *السعر:* {format_number(prop.get('price'))} ريال\n\n"
-        f"✨ *المميزات:*\n{features_str}\n"
+        f"✨ *المميزات:*\n{features_str}\n\n"
         f"📸 *عدد الصور:* {len(prop.get('photos', []))}"
     )
 
@@ -294,16 +304,18 @@ async def show_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # If sending photo preview media group
     photos = prop.get("photos", [])
-    if photos:
-        media = [InputMediaPhoto(media=pid) for pid in photos[:5]]
+    if photos and update.message:
         try:
+            media = [InputMediaPhoto(media=pid) for pid in photos[:5]]
             await update.message.reply_media_group(media=media)
         except Exception:
             pass
 
-    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    if update.message:
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     return PREVIEW
 
 async def handle_preview_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -318,28 +330,38 @@ async def handle_preview_action(update: Update, context: ContextTypes.DEFAULT_TY
     status = "active" if action == "publish" else "draft"
     properties = load_properties()
 
-    new_id = f"PROP-{(len(properties) + 1):03d}"
+    new_id = f"PROP-{len(properties) + 1:010d}"
     prop = context.user_data["property"]
     prop["id"] = new_id
     prop["status"] = status
-    prop["created_at"] = datetime.now().strftime("%Y-%m-%d")
+    prop["video_url"] = None
+    prop["is_vip"] = False
+    prop["created_at"] = datetime.now().isoformat()
     prop["archived_at"] = None
+    prop["property_link"] = generate_property_link(new_id)
 
     properties.append(prop)
     save_properties(properties)
 
     msg = "🎉 *تم نشر العرض بنجاح!*" if action == "publish" else "💾 *تم حفظ العرض كمسودة.*"
-    await query.edit_message_text(f"{msg}\n\n🆔 رقم العرض: `{new_id}`", parse_mode="Markdown")
+    link_text = f"\n🔗 [عرض العقار في الموقع]({prop['property_link']})" if action == "publish" else ""
+    await query.edit_message_text(
+        f"{msg}\n\n🆔 رقم العرض: `{new_id}`{link_text}",
+        parse_mode="Markdown"
+    )
     return ConversationHandler.END
 
 async def cancel_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("❌ تم إلغاء العملية.")
+    if update.message:
+        await update.message.reply_text("❌ تم إلغاء العملية.")
+    elif update.callback_query:
+        await update.callback_query.edit_message_text("❌ تم إلغاء العملية.")
     return ConversationHandler.END
 
 def get_add_property_handler():
     return ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(start_add_property, pattern="^add_property$"),
+            CallbackQueryHandler(start_add_property, pattern="^(add_prop|add_property)$"),
             CommandHandler("add_property", start_add_property)
         ],
         states={
@@ -355,7 +377,10 @@ def get_add_property_handler():
             ],
             PREVIEW: [CallbackQueryHandler(handle_preview_action, pattern="^action_")]
         },
-        fallbacks=[CommandHandler("cancel", cancel_add_property)],
+        fallbacks=[
+            CommandHandler("cancel", cancel_add_property),
+            CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+        ],
         per_message=False,
         per_chat=True,
         per_user=True

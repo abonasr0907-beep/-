@@ -1,19 +1,40 @@
 import os
+import sys
 import logging
 from contextlib import asynccontextmanager
 from typing import Optional
-from pydantic import BaseModel
+
+# Ensure root directory is on sys.path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT, PHOTOS_DIR
-from bot.database import init_db, load_properties, save_properties
+from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT
+from bot.database import init_db, load_properties
+
 from bot.modules.add_property import get_add_property_handler
-from utils.helpers import format_number
+from bot.modules.list_properties import get_list_properties_handler, handle_list_navigation
+from bot.modules.edit_property import get_edit_property_handler
+from bot.modules.delete_property import get_delete_property_handler
+from bot.modules.visitors import get_visitors_handler, update_visitor_status
+from bot.modules.archive import get_archive_handler, handle_archive_action
+from bot.modules.stats import get_stats_handler
+from bot.modules.compass import get_compass_handler, refresh_compass_callback
+from bot.modules.tour import get_tour_handler
+from bot.modules.admins import get_admins_handler
+from bot.modules.assistant import get_assistant_handler
+from bot.modules.marketing import get_marketing_handler
+from bot.modules.notifications import get_notifications_handler
+from bot.modules.follow_up import get_follow_up_handler
+from bot.modules.pricing import get_pricing_handler
+from bot.modules.reports import get_reports_handler
+from bot.modules.security import get_security_handler
+from bot.modules.backup import get_backup_handler
+from bot.modules.site_sync import get_site_sync_handler
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -21,29 +42,54 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ============ Global Telegram Application ============
-telegram_app = None
+telegram_app: Optional[Application] = None
 
 async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error("Exception while handling an update:", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
         try:
-            await update.effective_message.reply_text(
-                "⚠️ حدث خطأ غير متوقع أثناء معالجة الطلب."
-            )
+            await update.effective_message.reply_text("⚠️ حدث خطأ غير متوقع أثناء معالجة الطلب.")
         except Exception:
             pass
 
-# ============ Bot Commands & Menu ============
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """عرض القائمة الرئيسية"""
     keyboard = [
-        [InlineKeyboardButton("➕ إضافة عرض جديد", callback_data="add_property")],
-        [InlineKeyboardButton("📋 قائمة العروض", callback_data="list_properties")],
+        [
+            InlineKeyboardButton("📋 قائمة العروض", callback_data='list_props'),
+            InlineKeyboardButton("➕ إضافة عرض جديد", callback_data='add_prop')
+        ],
+        [
+            InlineKeyboardButton("✏️ تعديل عرض", callback_data='edit_prop'),
+            InlineKeyboardButton("🗑️ حذف عرض", callback_data='delete_prop')
+        ],
+        [
+            InlineKeyboardButton("📨 طلبات الزوار", callback_data='visitors'),
+            InlineKeyboardButton("📦 الأرشيف", callback_data='archive')
+        ],
+        [
+            InlineKeyboardButton("📊 إحصائيات", callback_data='stats'),
+            InlineKeyboardButton("🧭 تحديث البوصلة", callback_data='compass')
+        ],
+        [
+            InlineKeyboardButton("👥 إدارة المدراء", callback_data='admins'),
+            InlineKeyboardButton("🤖 المساعد الذكي", callback_data='assistant')
+        ],
+        [
+            InlineKeyboardButton("🎬 استوديو التسويق", callback_data='marketing'),
+            InlineKeyboardButton("📈 التقرير الأسبوعي", callback_data='reports')
+        ],
+        [
+            InlineKeyboardButton("⚙️ الإعدادات", callback_data='security'),
+            InlineKeyboardButton("🔄 إلغاء / بدء جديد", callback_data='cancel')
+        ]
     ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = (
         "🏡 *نظام إدارة العقارات - آفاق الإنجاز*\n\n"
-        "مرحباً بك في لوحة تحكم البوت (خاص بالمدراء)."
+        "مرحباً بك في لوحة تحكم المدراء.\n"
+        "اختر من القائمة أدناه:"
     )
     if update.message:
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
@@ -51,46 +97,66 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
-async def list_properties_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+    data = query.data
 
-    properties = load_properties()
-    if not properties:
-        keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data="back_to_menu")]]
-        await query.edit_message_text(
-            "📭 لا توجد عروض حالياً.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-        return
+    if data in ['cancel', 'back_to_main']:
+        await start(update, context)
 
-    text = "📋 *قائمة العروض:*\n\n"
-    for p in properties[-10:]:
-        text += f"• `{p.get('id', 'N/A')}` - {p.get('location', 'غير محدد')} ({format_number(p.get('area', 0))}م²) - {format_number(p.get('price', 0))} ريال [{p.get('status', 'active')}]\n"
+def build_telegram_app() -> Application:
+    init_db()
+    if not BOT_TOKEN:
+        logger.warning("BOT_TOKEN is not set.")
+        app = Application.builder().token("000000000:AAFFFFFF_DummyTokenForInit_ABCDEFG").build()
+    else:
+        app = Application.builder().token(BOT_TOKEN).build()
 
-    keyboard = [[InlineKeyboardButton("🔙 رجوع", callback_data="back_to_menu")]]
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="Markdown"
-    )
+    app.add_error_handler(global_error_handler)
 
-# ============ FastAPI Lifecycle & Webhook ============
+    # Register command and feature handlers
+    app.add_handler(CommandHandler("start", start))
+
+    # Modules handlers
+    app.add_handler(get_add_property_handler())
+    app.add_handler(get_edit_property_handler())
+    app.add_handler(get_delete_property_handler())
+    app.add_handler(get_list_properties_handler())
+    app.add_handler(get_visitors_handler())
+    app.add_handler(get_archive_handler())
+    app.add_handler(get_stats_handler())
+    app.add_handler(get_compass_handler())
+    app.add_handler(get_tour_handler())
+    app.add_handler(get_admins_handler())
+    app.add_handler(get_assistant_handler())
+    app.add_handler(get_marketing_handler())
+    app.add_handler(get_notifications_handler())
+    app.add_handler(get_follow_up_handler())
+    app.add_handler(get_pricing_handler())
+    app.add_handler(get_reports_handler())
+    app.add_handler(get_security_handler())
+    app.add_handler(get_backup_handler())
+    app.add_handler(get_site_sync_handler())
+
+    # Dynamic callbacks
+    app.add_handler(CallbackQueryHandler(handle_list_navigation, pattern="^(listpage_|filter_|archprop_)"))
+    app.add_handler(CallbackQueryHandler(update_visitor_status, pattern="^vis_"))
+    app.add_handler(CallbackQueryHandler(handle_archive_action, pattern="^(restore_arch_|perm_del_)"))
+    app.add_handler(CallbackQueryHandler(refresh_compass_callback, pattern="^refresh_compass$"))
+
+    # Global callback fallback
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    return app
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global telegram_app
     init_db()
 
     if BOT_TOKEN:
-        telegram_app = Application.builder().token(BOT_TOKEN).build()
-        telegram_app.add_error_handler(global_error_handler)
-
-        # Register modules
-        telegram_app.add_handler(get_add_property_handler())
-        telegram_app.add_handler(CommandHandler("start", start))
-        telegram_app.add_handler(CallbackQueryHandler(list_properties_handler, pattern="^list_properties$"))
-        telegram_app.add_handler(CallbackQueryHandler(start, pattern="^back_to_menu$"))
-
+        telegram_app = build_telegram_app()
         await telegram_app.initialize()
         await telegram_app.start()
 
@@ -119,12 +185,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class PropertyMapRequest(BaseModel):
-    area: Optional[str] = "all"
-    type: Optional[str] = "all"
-    min_price: Optional[int] = None
-    max_price: Optional[int] = None
-
 @app.post("/bot/{token}")
 async def webhook(token: str, request: Request):
     if token != BOT_TOKEN:
@@ -147,6 +207,26 @@ async def root():
 async def get_properties():
     return load_properties()
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+def main():
+    """تشغيل البوت"""
+    init_db()
+    if not BOT_TOKEN:
+        logger.error("BOT_TOKEN environment variable is missing!")
+        return
+
+    logger.info("Starting bot...")
+
+    if WEBHOOK_URL:
+        bot_app = build_telegram_app()
+        bot_app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=BOT_TOKEN,
+            webhook_url=f"{WEBHOOK_URL.rstrip('/')}/{BOT_TOKEN}"
+        )
+    else:
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=PORT)
+
+if __name__ == '__main__':
+    main()
