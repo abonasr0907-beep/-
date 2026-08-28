@@ -35,16 +35,12 @@ body {
     direction: rtl;
     line-height: 1.8;
     overflow-x: hidden;
-    background-image: url('../images/hero-bg.webp');
-    background-attachment: fixed;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
     position: relative;
     min-height: 100vh;
+    min-height: 100svh;
 }
 
-/* طبقة التعتيم الثابتة (Dark Overlay rgba(0,0,0,0.5)) فوق الصورة في كل الأقسام */
+/* طبقة الخلفية والتعتيم الثابتة المتوافقة مع جميع الأجهزة والأنظمة (Safari / iOS) */
 body::before {
     content: '';
     position: fixed;
@@ -52,7 +48,7 @@ body::before {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: linear-gradient(rgba(20, 32, 43, 0.5), rgba(20, 32, 43, 0.5)), url('../images/hero-bg.jpg?v=2') center / cover no-repeat;
     z-index: -1;
     pointer-events: none;
 }
@@ -873,6 +869,7 @@ body::before {
     font-weight: 700;
     font-size: 12.5px;
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 2;
 }
 
@@ -888,6 +885,7 @@ body::before {
     font-weight: 700;
     font-size: 12.5px;
     backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 2;
 }
 
@@ -1222,6 +1220,7 @@ body::before {
     gap: 15px;
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 14px 20px;
@@ -1311,6 +1310,7 @@ body::before {
     max-width: calc(100vw - 40px);
     background: rgba(20, 20, 20, 0.95);
     backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.6);
@@ -1515,6 +1515,7 @@ body::before {
 .footer {
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     padding: 50px 20px 20px;
     margin-top: 60px;
@@ -1651,6 +1652,7 @@ body::before {
         left: 0;
         background: rgba(0, 0, 0, 0.95);
         backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         flex-direction: column;
         padding: 15px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.15);
