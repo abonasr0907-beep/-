@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram.ext import ConversationHandler, CallbackQueryHandler, CommandHandler, MessageHandler, filters, ContextTypes
 from bot.database import get_property, delete_property
 
 CONFIRM_DELETE = range(1)
