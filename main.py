@@ -18,6 +18,10 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 
 from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT
 from bot.database import init_db, load_properties
+from bot.modules.add_property import get_add_property_handler
+from bot.modules.list_properties import get_list_properties_handler
+from bot.modules.edit_property import get_edit_property_handler
+from bot.modules.delete_property import get_delete_property_handler
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -34,6 +38,10 @@ async def lifespan(app: FastAPI):
     init_db()
     telegram_app = Application.builder().token(BOT_TOKEN).build()
     telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(get_add_property_handler())
+    telegram_app.add_handler(get_list_properties_handler())
+    telegram_app.add_handler(get_edit_property_handler())
+    telegram_app.add_handler(get_delete_property_handler())
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
     logger.info("✅ Handlers registered")
 
@@ -97,10 +105,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
     responses = {
-        'list_props': "📋 قائمة العروض - قريباً",
-        'add_prop': "➕ إضافة عرض جديد - قريباً",
-        'edit_prop': "✏️ تعديل - قريباً",
-        'delete_prop': "🗑️ حذف - قريباً",
         'visitors': "📨 الزوار - قريباً",
         'archive': "📦 الأرشيف - قريباً",
         'stats': "📊 الإحصائيات - قريباً",
