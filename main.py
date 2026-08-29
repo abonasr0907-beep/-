@@ -110,11 +110,49 @@ async def create_visitor_request_api(request: Request):
     save_json(VISITORS_FILE, visitors, root_key="visitors")
     return {"status": "ok", "id": req_id, "message": "Request saved successfully"}
 
+def normalize(text):
+    import re
+    t = re.sub(r'[^\w\u0600-\u06FF\s]', '', text or '')
+    t = re.sub(r'[إأآ]', 'ا', t)
+    return re.sub(r'\s+', ' ', t).strip()
+
+from bot.modules.add_property import start_add_property
+from bot.modules.list_properties import start_list_properties
+from bot.modules.edit_property import start_edit_property
+from bot.modules.delete_property import start_delete_property
+from bot.modules.compass import compass_handler
+from bot.database import save_properties
+
+async def reset_offers_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("⚠️ نعم احذف الكل", callback_data="confirm_reset_all_yes"),
+            InlineKeyboardButton("❌ إلغاء", callback_data="confirm_reset_all_no")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    msg = "⚠️ *تأكيد إعادة تهيئة العروض*\n\nهل أنت تأكد من مسح جميع العروض من النظام وقت التشغيل؟"
+    if update.callback_query:
+        await update.callback_query.edit_message_text(msg, reply_markup=reply_markup, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode="Markdown")
+
+ROUTES = {
+  "اضافة عرض جديد": start_add_property,
+  "قائمة العروض": start_list_properties,
+  "تعديل عرض": start_edit_property,
+  "حذف عرض": start_delete_property,
+  "الارشيف": start_list_properties,
+  "البوصلة": compass_handler,
+  "اعادة تهيئة العروض": reset_offers_prompt,
+}
+
 def get_main_reply_keyboard():
     keyboard = [
         ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
         ["✏️ تعديل عرض", "🗑️ حذف عرض"],
-        ["📦 الأرشيف", "🧭 البوصلة"]
+        ["📦 الأرشيف", "🧭 البوصلة"],
+        ["🧹 إعادة تهيئة العروض"]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -146,22 +184,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_persistent_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip() if update.message and update.message.text else ""
-    if text == "➕ إضافة عرض جديد":
-        from bot.modules.add_property import start_add_property
-        return await start_add_property(update, context)
-    elif text == "📋 قائمة العروض":
-        return await start_list_properties(update, context)
-    elif text == "✏️ تعديل عرض":
-        from bot.modules.edit_property import start_edit_property
-        return await start_edit_property(update, context)
-    elif text == "🗑️ حذف عرض":
-        from bot.modules.delete_property import start_delete_property
-        return await start_delete_property(update, context)
-    elif text == "📦 الأرشيف":
-        context.user_data["list_filter_type"] = "archived"
-        return await start_list_properties(update, context)
-    elif text == "🧭 البوصلة":
-        await update.message.reply_text("🧭 مؤشرات السوق مفيّلة بالموقع الرسمي.", reply_markup=get_main_reply_keyboard())
+    norm = normalize(text)
+    if norm in ROUTES:
+        if norm == "الارشيف":
+            context.user_data["list_filter_type"] = "archived"
+        handler = ROUTES[norm]
+        return await handler(update, context)
     else:
         await update.message.reply_text("🏡 مرحباً بك! اختر من القائمة أسفل الشاشة للتحكم بعروض آفاق الإنجاز.", reply_markup=get_main_reply_keyboard())
 
@@ -172,11 +200,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "back_to_main":
         await query.edit_message_text("🏡 أهلاً بك في القائمة الرئيسية.")
         return
+    elif data == "compass":
+        return await compass_handler(update, context)
+    elif data == "confirm_reset_all_yes":
+        save_properties([])
+        await query.edit_message_text("🧹 تم إعادة تهيئة قائمة العروض وقت التشغيل بنجاح.")
+        return
+    elif data == "confirm_reset_all_no":
+        await query.edit_message_text("❌ تم إلغاء عملية إعادة التهيئة.")
+        return
     responses = {
         'visitors': "📨 قسم طلبات الزوار يدار عبر الموقع.",
         'archive': "📦 الأرشيف متوفر في فلاتر قائمة العروض.",
         'stats': "📊 الإحصائيات معروضة في الموقع.",
-        'compass': "🧭 مؤشرات البوصلة منشورة على الموقع.",
         'admins': "👥 إدارة المدراء مفعلة بحسابات النظام.",
         'assistant': "🤖 المساعد الذكي قيد التكيف.",
         'marketing': "🎬 قسم التسويق والمشاركات مفعل لكل عرض.",

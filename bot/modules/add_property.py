@@ -167,9 +167,9 @@ async def select_streets(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def get_feature_steps(prop_type, features):
     if prop_type == "land":
         steps = [
-            ("land_kind", "نوع الأرض", [("فضاء", "فضاء"), ("مصورة", "مصورة")]),
+            ("land_kind", "نوع الأرض", [("فضاء", "فضاء"), ("أرض مسورة أو فضاء", "مسورة")]),
         ]
-        if features.get("land_kind") == "مصورة":
+        if features.get("land_kind") in ["مسورة", "مصورة", "أرض مسورة أو فضاء"]:
             steps.extend([
                 ("facade", "الواجهة", [("شرقية", "شرقية"), ("شمالية", "شمالية"), ("جنوبية", "جنوبية"), ("غربية", "غربية")]),
                 ("electricity", "عداد كهرباء", [("نعم ✅", "نعم"), ("لا ❌", "لا")]),
@@ -269,26 +269,41 @@ async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     return UPLOADING_PHOTOS
 
-async def handle_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_photo_upload_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
     reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
 
-    if len(photos) >= 5:
-        await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done أو أرسل كلمة تم للمتابعة.", reply_markup=reply_markup)
+    if update.message and update.message.photo:
+        if len(photos) >= 5:
+            await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done أو أرسل كلمة تم للمتابعة.", reply_markup=reply_markup)
+            return UPLOADING_PHOTOS
+        file_id = update.message.photo[-1].file_id
+        photos.append(file_id)
+        context.user_data["property"]["photos"] = photos
+        await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو أرسل تم / done للإنهاء.", reply_markup=reply_markup)
         return UPLOADING_PHOTOS
 
-    file_id = update.message.photo[-1].file_id
-    photos.append(file_id)
-    context.user_data["property"]["photos"] = photos
+    if update.message and update.message.text:
+        raw_text = update.message.text.strip().lstrip("/")
+        norm_txt = raw_text.lower()
+        if norm_txt in {"done", "تم", "انتهاء", "انتهى", "انتهى"}:
+            return await finish_photo_upload(update, context)
+        elif norm_txt in {"إلغاء", "الظاء", "cancel"}:
+            return await cancel_add_property(update, context)
+        else:
+            await update.message.reply_text("📸 الرجاء رفع صور العقار أو إرسال كلمة *تم* / */done* لإتمام الإضافة.", reply_markup=reply_markup, parse_mode="Markdown")
+            return UPLOADING_PHOTOS
 
-    await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو أرسل تم / done للإنهاء.", reply_markup=reply_markup)
     return UPLOADING_PHOTOS
 
 async def finish_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
     if not photos:
         reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
-        await update.message.reply_text("⚠️ يجب إضافة صورة واحدة على الأقل. قم برفع صورة:", reply_markup=reply_markup)
+        if update.message:
+            await update.message.reply_text("⚠️ يجب إضافة صورة واحدة على الأقل. قم برفع صورة:", reply_markup=reply_markup)
+        elif update.callback_query:
+            await update.callback_query.edit_message_text("⚠️ يجب إضافة صورة واحدة على الأقل. قم برفع صورة:", reply_markup=reply_markup)
         return UPLOADING_PHOTOS
 
     return await show_preview(update, context)
@@ -394,7 +409,7 @@ def get_add_property_handler():
         entry_points=[
             CallbackQueryHandler(start_add_property, pattern="^(add_prop|add_property)$"),
             CommandHandler("add_property", start_add_property),
-            MessageHandler(filters.Regex("^➕ إضافة عرض جديد$"), start_add_property)
+            MessageHandler(filters.Regex("إضافة عرض جديد") | filters.Regex("اضافة عرض جديد"), start_add_property)
         ],
         states={
             SELECTING_TYPE: [
@@ -423,10 +438,7 @@ def get_add_property_handler():
                 CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
             ],
             UPLOADING_PHOTOS: [
-                MessageHandler(filters.PHOTO, handle_photo_upload),
-                CommandHandler("done", finish_photo_upload),
-                MessageHandler(filters.Regex("^(done|/done|تم|انتهاء)$"), finish_photo_upload),
-                MessageHandler(filters.Regex("^(إلغاء|❌ إلغاء)$"), cancel_add_property),
+                MessageHandler(filters.PHOTO | filters.TEXT | filters.COMMAND, handle_photo_upload_step),
                 CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
             ],
             PREVIEW: [

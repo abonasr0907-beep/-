@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ConversationHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes, CommandHandler
 )
-from bot.database import get_property, update_property
+from bot.database import load_properties, get_property, update_property
 from utils.helpers import format_number, generate_property_link
 from utils.validators import validate_price, validate_area
 
@@ -17,12 +17,31 @@ async def start_edit_property(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         prop_id = ""
 
-    if not prop_id or prop_id == "edit_prop":
-        msg = "✏️ *تعديل عرض*\n\nيرجى اختيار عرض من قائمة العروض لتعديله."
+    if not prop_id or prop_id in ["edit_prop", "editprop"]:
+        properties = [p for p in load_properties() if p.get("status") != "archived"]
+        if not properties:
+            msg = "📭 *لا توجد عروض متاحة للتعديل حالياً.*"
+            if query:
+                await query.edit_message_text(msg, parse_mode="Markdown")
+            else:
+                await update.message.reply_text(msg, parse_mode="Markdown")
+            return ConversationHandler.END
+
+        keyboard = []
+        type_labels = {"land": "أرض", "resthouse": "استراحة", "farm": "مزرعة"}
+        for p in properties:
+            pid = p.get("id")
+            ptype = type_labels.get(p.get("type"), p.get("type"))
+            ploc = p.get("location", "")
+            keyboard.append([InlineKeyboardButton(f"✏️ {pid} - {ptype} | {ploc}", callback_data=f"editprop_{pid}")])
+        keyboard.append([InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data="back_to_main")])
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        msg = "✏️ *اختر العرض المراد تعديله:*"
         if query:
-            await query.edit_message_text(msg, parse_mode="Markdown")
+            await query.edit_message_text(msg, reply_markup=reply_markup, parse_mode="Markdown")
         else:
-            await update.message.reply_text(msg, parse_mode="Markdown")
+            await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode="Markdown")
         return ConversationHandler.END
 
     prop = get_property(prop_id)
@@ -123,7 +142,7 @@ def get_edit_property_handler():
         entry_points=[
             CallbackQueryHandler(start_edit_property, pattern="^(editprop_|edit_prop)"),
             CommandHandler("edit_property", start_edit_property),
-            MessageHandler(filters.Regex("^✏️ تعديل عرض$"), start_edit_property)
+            MessageHandler(filters.Regex("تعديل عرض"), start_edit_property)
         ],
         states={
             SELECTING_FIELD: [CallbackQueryHandler(select_edit_field, pattern="^editfield_")],

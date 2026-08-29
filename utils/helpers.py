@@ -14,7 +14,7 @@ def generate_property_link(property_id):
             return f"{base_url}/?p={short_id}"
         except ValueError:
             pass
-    return f"{base_url}/?property={property_id}"
+    return f"{base_url}/?p={property_id}"
 
 def format_currency(amount):
     """تنسيق العملة"""

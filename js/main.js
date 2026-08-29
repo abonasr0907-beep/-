@@ -179,6 +179,7 @@ async function handlePropertyQueryParam() {
             const res = await fetch(`${API_BASE_URL}/api/properties/${targetId}`);
             if (res.ok) {
                 const p = await res.json();
+                console.log('Fetched single property API response for', targetId, p);
                 const typeVal = (p.type === 'مزرعة' || p.type === 'farm' || p.type === 'farms') ? 'farm' : ((p.type === 'استراحة' || p.type === 'resthouse' || p.type === 'resthouses') ? 'resthouse' : 'land');
                 const catVal = typeVal === 'farm' ? 'مزرعة' : (typeVal === 'resthouse' ? 'استراحة' : 'أرض سكنية');
                 const photoUrl = (p.photo_urls && p.photo_urls.length > 0) ? p.photo_urls[0] : (typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg'));
