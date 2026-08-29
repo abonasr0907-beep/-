@@ -2,10 +2,8 @@
    مكتب آفاق الإنجاز العقاري - ملف JavaScript الرئيسي
    ============================================ */
 
-// ===== البيانات المركزية للمكتب والمناطق =====
 let OFFICE_DATA = null;
 
-// تحميل بيانات المكتب من مصدر واحد: offers-data/office-data.json
 async function loadOfficeData() {
     try {
         const response = await fetch('offers-data/office-data.json', { cache: 'no-store' });
@@ -26,7 +24,7 @@ async function loadOfficeData() {
 }
 
 function getWhatsappNumber() {
-    const number = OFFICE_DATA?.phones?.whatsapp_calls || '';
+    const number = OFFICE_DATA?.phones?.whatsapp_calls || '0545888931';
     return number.replace(/^0/, '966').replace(/\D/g, '');
 }
 
@@ -46,16 +44,24 @@ function getBouslaPrice(area, type) {
     return prices.land_avg_price_sqm ? `${prices.land_avg_price_sqm} ريال/م²` : 'غير متوفر';
 }
 
-// ===== العروض =====
 let OFFERS = [];
+let CURRENT_SORT = 'newest';
 const API_BASE_URL = 'https://worker-production-7713.up.railway.app';
 
-// تحميل العروض من المصدر الحي API أو مصادر الاحتياط
+function getShortUrl(offerId) {
+    if (!offerId) return 'https://abonasr0907-beep.github.io/';
+    const str = String(offerId);
+    if (str.startsWith('PROP-')) {
+        const num = parseInt(str.replace('PROP-', ''), 10);
+        return `https://abonasr0907-beep.github.io/?p=${num}`;
+    }
+    return `https://abonasr0907-beep.github.io/?p=${str}`;
+}
+
 async function loadOffers(defaultFilter = 'all') {
     let rawProperties = [];
     let loadFailed = false;
 
-    // محاولة الجلب من API الحي أولاً
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -72,7 +78,6 @@ async function loadOffers(defaultFilter = 'all') {
         }
     } catch (apiError) {
         console.warn('تعذر الجلب من API الحي، محاولة الجلب المحلي:', apiError);
-        // احتياطي 1: offers-data/offers.json
         try {
             const res1 = await fetch('offers-data/offers.json', { cache: 'no-store' });
             if (res1.ok) {
@@ -80,11 +85,8 @@ async function loadOffers(defaultFilter = 'all') {
                 const offersArr = Array.isArray(data1.offers) ? data1.offers : [];
                 rawProperties.push(...offersArr);
             }
-        } catch (e1) {
-            console.error('فشل الجلب المحلي 1:', e1);
-        }
+        } catch (e1) {}
 
-        // احتياطي 2: data/properties.json
         try {
             const res2 = await fetch('data/properties.json', { cache: 'no-store' });
             if (res2.ok) {
@@ -92,13 +94,9 @@ async function loadOffers(defaultFilter = 'all') {
                 const propsArr = Array.isArray(data2.properties) ? data2.properties : (Array.isArray(data2) ? data2 : []);
                 rawProperties.push(...propsArr);
             }
-        } catch (e2) {
-            console.error('فشل الجلب المحلي 2:', e2);
-        }
+        } catch (e2) {}
 
-        if (rawProperties.length === 0) {
-            loadFailed = true;
-        }
+        if (rawProperties.length === 0) loadFailed = true;
     }
 
     if (loadFailed) {
@@ -119,11 +117,17 @@ async function loadOffers(defaultFilter = 'all') {
     OFFERS = rawProperties.map(p => {
         const typeVal = (p.type === 'مزرعة' || p.type === 'farm' || p.type === 'farms') ? 'farm' : ((p.type === 'استراحة' || p.type === 'resthouse' || p.type === 'resthouses') ? 'resthouse' : 'land');
         const catVal = typeVal === 'farm' ? 'مزرعة' : (typeVal === 'resthouse' ? 'استراحة' : 'أرض سكنية');
-        const img = (p.photos && p.photos.length > 0)
-            ? p.photos[0]
-            : ((p.images && p.images.length > 0 && p.images[0] && !p.images[0].startsWith('AgAC'))
-                ? p.images[0]
-                : (typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg')));
+
+        let photoUrl = null;
+        if (p.photo_urls && p.photo_urls.length > 0) {
+            photoUrl = p.photo_urls[0];
+        } else if (p.photos && p.photos.length > 0 && p.photos[0].startsWith('http')) {
+            photoUrl = p.photos[0];
+        } else if (p.images && p.images.length > 0 && p.images[0].startsWith('http')) {
+            photoUrl = p.images[0];
+        } else {
+            photoUrl = typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg');
+        }
 
         let feats = [];
         if (Array.isArray(p.features)) {
@@ -138,14 +142,14 @@ async function loadOffers(defaultFilter = 'all') {
             category: catVal,
             title: p.title || `${catVal} في ${p.location || p.area || 'الخرج'}`,
             area: p.location || p.area || 'الخرج',
-            size_sqm: p.size_sqm || p.size || p.area || 0,
-            price: p.price,
+            size_sqm: Number(p.size_sqm || p.size || p.area || 0),
+            price: Number(p.price || 0),
             price_text: p.price ? `${Number(p.price).toLocaleString('ar-SA')} ريال` : (p.price_text || 'عند الاتصال'),
             description: p.description || '',
             features: feats,
-            images: [img],
+            images: [photoUrl],
             map_link: p.map_link,
-            date_added: p.date || p.date_added || p.created_at,
+            date_added: p.date || p.date_added || p.created_at || '',
             featured: p.is_vip || p.featured || false
         };
     }).filter(o => {
@@ -158,26 +162,26 @@ async function loadOffers(defaultFilter = 'all') {
     updateStats();
 }
 
-// ===== عرض بطاقة عرض محدد من الرابط =====
 async function handlePropertyQueryParam() {
     const urlParams = new URLSearchParams(window.location.search);
-    const propId = urlParams.get('property');
-    if (!propId) return;
+    let propParam = urlParams.get('p') || urlParams.get('property');
+    if (!propParam) return;
 
-    let targetOffer = OFFERS.find(o => o.id === propId);
+    let targetId = propParam;
+    if (!isNaN(propParam) && !propParam.startsWith('PROP-')) {
+        targetId = `PROP-${String(propParam).padStart(10, '0')}`;
+    }
+
+    let targetOffer = OFFERS.find(o => o.id === targetId || o.id === propParam);
 
     if (!targetOffer) {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/properties/${propId}`);
+            const res = await fetch(`${API_BASE_URL}/api/properties/${targetId}`);
             if (res.ok) {
                 const p = await res.json();
                 const typeVal = (p.type === 'مزرعة' || p.type === 'farm' || p.type === 'farms') ? 'farm' : ((p.type === 'استراحة' || p.type === 'resthouse' || p.type === 'resthouses') ? 'resthouse' : 'land');
                 const catVal = typeVal === 'farm' ? 'مزرعة' : (typeVal === 'resthouse' ? 'استراحة' : 'أرض سكنية');
-                const img = (p.photos && p.photos.length > 0)
-                    ? p.photos[0]
-                    : ((p.images && p.images.length > 0 && p.images[0] && !p.images[0].startsWith('AgAC'))
-                        ? p.images[0]
-                        : (typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg')));
+                const photoUrl = (p.photo_urls && p.photo_urls.length > 0) ? p.photo_urls[0] : (typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg'));
 
                 let feats = [];
                 if (Array.isArray(p.features)) {
@@ -192,18 +196,17 @@ async function handlePropertyQueryParam() {
                     category: catVal,
                     title: p.title || `${catVal} في ${p.location || p.area || 'الخرج'}`,
                     area: p.location || p.area || 'الخرج',
-                    size_sqm: p.size_sqm || p.size || p.area || 0,
-                    price: p.price,
+                    size_sqm: Number(p.size_sqm || p.size || p.area || 0),
+                    price: Number(p.price || 0),
                     price_text: p.price ? `${Number(p.price).toLocaleString('ar-SA')} ريال` : (p.price_text || 'عند الاتصال'),
                     description: p.description || '',
                     features: feats,
-                    images: [img],
-                    map_link: p.map_link
+                    images: [photoUrl],
+                    map_link: p.map_link,
+                    featured: p.is_vip || false
                 };
             }
-        } catch (e) {
-            console.error('فشل جلب تفاصيل العرض من الرابط:', e);
-        }
+        } catch (e) {}
     }
 
     const grid = document.getElementById('offers-grid');
@@ -214,15 +217,18 @@ async function handlePropertyQueryParam() {
         const featuresHtml = (targetOffer.features || []).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
         const img = targetOffer.images && targetOffer.images[0] ? targetOffer.images[0] : 'images/farms-bg.jpg';
         const mapLink = targetOffer.map_link || getDefaultMap();
+        const shortUrl = getShortUrl(targetOffer.id);
+        const waText = encodeURIComponent(`أرغب بالاستفسار عن: ${targetOffer.title} ${shortUrl}`);
 
         grid.innerHTML = `
             <div class="offer-card single-property-view" style="grid-column: 1/-1; max-width: 800px; margin: 0 auto;">
                 <div class="offer-card-img-wrapper" style="height: 350px;">
-                    <img src="${img}" alt="${targetOffer.title}">
+                    <img src="${img}" alt="${targetOffer.title}" style="width:100%; height:350px; object-fit:cover;">
                     <span class="offer-badge">${targetOffer.category}</span>
+                    ${targetOffer.featured ? '<span class="offer-badge-featured">⭐ عرض مميز</span>' : ''}
                 </div>
                 <div class="offer-card-body" style="padding: 24px;">
-                    <div style="display:flex; justify-between; align-items:center;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
                         <h2>${targetOffer.title}</h2>
                         <span style="background:#C4A956; color:#fff; padding:4px 12px; border-radius:12px; font-weight:bold;">${targetOffer.id}</span>
                     </div>
@@ -234,7 +240,7 @@ async function handlePropertyQueryParam() {
                         <span><i class="fas fa-tag"></i> ${targetOffer.category}</span>
                     </div>
                     <div class="offer-price" style="font-size: 1.5rem;">${targetOffer.price_text}</div>
-                    ${targetOffer.description ? `<p style="margin: 15px 0; line-height: 1.6; color: #444;">${targetOffer.description}</p>` : ''}
+                    ${targetOffer.description ? `<p style="margin: 15px 0; line-height: 1.6; color: rgba(255,255,255,0.9);">${targetOffer.description}</p>` : ''}
                     <div class="offer-features" style="margin: 15px 0;">${featuresHtml}</div>
                     <div class="offer-bousla">
                         <div class="offer-bousla-title">
@@ -249,17 +255,16 @@ async function handlePropertyQueryParam() {
                         <a href="${mapLink}" target="_blank" class="offer-btn offer-btn-map">
                             <i class="fas fa-map-marked-alt"></i> الخريطة
                         </a>
-                        <a href="https://wa.me/${getWhatsappNumber()}?text=استفسار عن العرض رقم ${targetOffer.id} - ${encodeURIComponent(targetOffer.title)}" target="_blank" class="offer-btn offer-btn-contact">
-                            <i class="fas fa-comments"></i> استفسار عبر الواتساب
+                        <a href="https://wa.me/${getWhatsappNumber()}?text=${waText}" target="_blank" class="offer-btn offer-btn-contact">
+                            <i class="fab fa-whatsapp"></i> تواصل عبر الواتساب
                         </a>
-                        <a href="index.html" class="offer-btn" style="background:#2A5050; color:#fff;">
-                            <i class="fas fa-th"></i> عرض جميع العقارات
-                        </a>
+                        <button onclick="shareOffer('${targetOffer.title}', '${shortUrl}')" class="offer-btn offer-btn-share">
+                            <i class="fas fa-share-alt"></i> 📤 مشاركةالعرض
+                        </button>
                     </div>
                 </div>
             </div>
         `;
-        // Scroll to property section smooth
         const offersSection = document.getElementById('offers');
         if (offersSection) {
             offersSection.scrollIntoView({ behavior: 'smooth' });
@@ -267,7 +272,31 @@ async function handlePropertyQueryParam() {
     }
 }
 
-// ===== عرض العروض =====
+function shareOffer(title, url) {
+    if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('تم نسخ رابط العرض بنجاح! 📋');
+        }).catch(() => {
+            showToast('الرابط: ' + url);
+        });
+    }
+}
+
+function setSort(sortType) {
+    CURRENT_SORT = sortType;
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.sort-btn[data-sort="${sortType}"]`);
+    if (btn) btn.classList.add('active');
+
+    const activeType = document.querySelector('.filter-btn.active');
+    const typeFilter = activeType ? activeType.dataset.filter : 'all';
+    const activeArea = document.querySelector('.area-filter-btn.active');
+    const areaFilter = activeArea ? activeArea.dataset.area : 'all';
+    renderOffers(typeFilter, areaFilter);
+}
+
 function renderOffers(filter = 'all', areaFilter = 'all') {
     const grid = document.getElementById('offers-grid');
     if (!grid) return;
@@ -279,6 +308,23 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
     if (areaFilter !== 'all') {
         filtered = filtered.filter(o => o.area === areaFilter);
     }
+
+    // Sort VIP first always
+    filtered = [...filtered].sort((a, b) => {
+        if (a.featured !== b.featured) {
+            return a.featured ? -1 : 1;
+        }
+        if (CURRENT_SORT === 'price_asc') {
+            return a.price - b.price;
+        } else if (CURRENT_SORT === 'price_desc') {
+            return b.price - a.price;
+        } else if (CURRENT_SORT === 'area_asc') {
+            return a.size_sqm - b.size_sqm;
+        } else if (CURRENT_SORT === 'area_desc') {
+            return b.size_sqm - a.size_sqm;
+        }
+        return (b.id || '').localeCompare(a.id || '');
+    });
 
     if (filtered.length === 0) {
         grid.innerHTML = `
@@ -294,15 +340,17 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
     grid.innerHTML = filtered.map(offer => {
         const bouslaPrice = getBouslaPrice(offer.area, offer.type);
         const featuresHtml = (offer.features || []).slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
-        const featuredBadge = offer.featured ? '<span class="offer-badge-featured">مميز ⭐</span>' : '';
+        const featuredBadge = offer.featured ? '<span class="offer-badge-featured">⭐ عرض مميز</span>' : '';
         const categoryBadge = `<span class="offer-badge">${offer.category}</span>`;
         const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
         const mapLink = offer.map_link || getDefaultMap();
+        const shortUrl = getShortUrl(offer.id);
+        const waText = encodeURIComponent(`أرغب بالاستفسار عن: ${offer.title} ${shortUrl}`);
 
         return `
             <div class="offer-card">
                 <div class="offer-card-img-wrapper">
-                    <img src="${img}" alt="${offer.title}" loading="lazy">
+                    <img src="${img}" alt="${offer.title}" loading="lazy" style="width:100%; height:220px; object-fit:cover;">
                     ${categoryBadge}
                     ${featuredBadge}
                 </div>
@@ -330,16 +378,18 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
                         <a href="${mapLink}" target="_blank" class="offer-btn offer-btn-map">
                             <i class="fas fa-map-marked-alt"></i> الخريطة
                         </a>
-                        <a href="https://wa.me/${getWhatsappNumber()}?text=استفسار عن ${encodeURIComponent(offer.title)}" target="_blank" class="offer-btn offer-btn-contact">
-                            <i class="fas fa-comments"></i> استفسار
+                        <a href="https://wa.me/${getWhatsappNumber()}?text=${waText}" target="_blank" class="offer-btn offer-btn-contact">
+                            <i class="fab fa-whatsapp"></i> واتساب
                         </a>
+                        <button onclick="shareOffer('${offer.title}', '${shortUrl}')" class="offer-btn offer-btn-share">
+                            <i class="fas fa-share-alt"></i> 📤 مشاركة
+                        </button>
                     </div>
                 </div>
             </div>
         `;
     }).join('');
 
-    // إضافة تحريك بطاقات العروض بعد الإنشاء لتجنب تضارب IntersectionObserver
     setTimeout(() => {
         const cards = grid.querySelectorAll('.offer-card');
         cards.forEach((el, i) => {
@@ -354,7 +404,6 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
     }, 100);
 }
 
-// ===== الفلاتر =====
 function filterOffers(type) {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     const btn = document.querySelector(`.filter-btn[data-filter="${type}"]`);
@@ -376,7 +425,6 @@ function filterByArea(area) {
     renderOffers(typeFilter, area);
 }
 
-// ===== تحديث الإحصائيات =====
 function updateStats() {
     const farms = OFFERS.filter(o => o.type === 'farm').length;
     const resthouses = OFFERS.filter(o => o.type === 'resthouse').length;
@@ -393,7 +441,6 @@ function updateStats() {
     if (totalEl) totalEl.textContent = OFFERS.length;
 }
 
-// ===== عرض البوصلة العقارية =====
 async function renderBousla() {
     const grid = document.getElementById('bousla-grid');
     if (!grid) return;
@@ -404,9 +451,7 @@ async function renderBousla() {
         if (response.ok) {
             compassData = await response.json();
         }
-    } catch (e) {
-        console.warn('تعذر جلب البوصلة من API، استخدام البيانات المحلية:', e);
-    }
+    } catch (e) {}
 
     if (compassData && Object.keys(compassData).length > 0) {
         grid.innerHTML = Object.entries(compassData).map(([area, info]) => {
@@ -432,12 +477,10 @@ async function renderBousla() {
     }
 }
 
-// ===== النشرة الأخبارية (من الهيئة العامة للعقار) =====
 async function loadNews() {
     const grid = document.getElementById('news-grid');
     if (!grid) return;
 
-    // أخبار افتراضية (يتم تحديثها من بوت التلجرام أو من scraping)
     const defaultNews = [
         { date: "2025-08-05", title: "الهيئة العامة للعقار تستعرض التجربة السعودية في منتدى قطر العقاري 2025", desc: "شاركت الهيئة العامة للعقار في منتدى قطر العقاري 2025 لاستعراض التجربة السعودية المتميزة في تطوير القطاع العقاري.", link: "https://rega.gov.sa", source: "الهيئة العامة للعقار" },
         { date: "2025-08-04", title: "تحديث مؤشرات الأسعار العقارية في مناطق المملكة", desc: "أعلنت الهيئة العامة للعقار عن تحديث المؤشرات العقارية لشهر أغسطس، مع تباين في الأسعار بين المناطق.", link: "https://rei.rega.gov.sa", source: "منصة المؤشرات العقارية" },
@@ -446,15 +489,10 @@ async function loadNews() {
         { date: "2025-08-01", title: "بوابة العقار الجيومكانية: خدمة جديدة لعرض البيانات العقارية", desc: "أطلقت الهيئة العامة للعقار بوابة العقار الجيومكانية لعرض البيانات العقارية المكانية عبر خرائط دقيقة.", link: "https://rega.gov.sa", source: "الهيئة العامة للعقار" }
     ];
 
-    // محاولة تحميل الأخبار من localStorage (محدثة من البوت)
     const storedNews = localStorage.getItem('afaq_news');
     let news = defaultNews;
     if (storedNews) {
-        try {
-            news = JSON.parse(storedNews);
-        } catch(e) {
-            news = defaultNews;
-        }
+        try { news = JSON.parse(storedNews); } catch(e) { news = defaultNews; }
     }
 
     grid.innerHTML = news.map(item => `
@@ -468,32 +506,19 @@ async function loadNews() {
     `).join('');
 }
 
-// ===== المساعد الذكي =====
 const AI_KNOWLEDGE = {
     greeting: "أهلاً وسهلاً بك في مكتب آفاق الإنجاز العقاري! 👋 أنا مساعدك الذكي. لدي 20 سنة خبرة في السوق العقاري بالخرج والرياض. كيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي عن المزارع، الاستراحات، الأراضي السكنية، أو خدماتنا.",
-
     farms: "🌿 لدينا مجموعة مميزة من المزارع في مخطط الرحمانية والهياثم والدلم والضبيعة والعفجة. أسعار المزارع تبدأ من 90 ريال/م² في الدلم وتصل إلى 150 ريال/م² في الهياثم. هل تريد تصفح عروض المزارع؟ <a href='farms.html'>اضغط هنا لعرض المزارع</a>",
-
     resthouses: "🏡 لدينا استراحات فاخرة في مختلف مناطق الخرج. الأسعار تتراوح بين 250,000 و1,500,000 ريال حسب الموقع والمساحة. <a href='resthouses.html'>اضغط هنا لعرض الاستراحات</a>",
-
     lands: "📍 لدينا أراضٍ سكنية في مخطط الرحمانية والهياثم والدلم والعفجة. متوسط السعر يتراوح بين 600 و1,100 ريال/م². <a href='lands.html'>اضغط هنا لعرض الأراضي السكنية</a>",
-
     services: "🔧 نقدم خدمات ما بعد البيع الشاملة: استخراج رخص البناء، المقاولات، التشطيب، إدارة الأملاك، حفر الآبار وتحديد مواقعها وتصويرها. <a href='services.html'>اضغط هنا لعرض الخدمات</a>",
-
     sell: "📈 هل تريد عرض عقارك في موقعنا؟ رائع! يمكنك تعبئة استبيان العرض عبر <a href='list-property.html'>هذه الصفحة</a> وسنتواصل معك في أقرب وقت.",
-
     inquiry: "🔍 لم تجد ما تبحث عنه؟ لا بأس! يمكنك تقديم طلب استفسار عبر <a href='inquiry.html'>هذه الصفحة</a> وسنقوم بمراجعته والتواصل معك.",
-
     contact: "📞 يمكنك التواصل معنا عبر:\n• واتساب: 0545888931\n• مكالمات: 0544699933\n• واتساب ومكالمات: 0561610748\n• البريد: afaqalqary@gmail.com",
-
     areas: "🗺️ نغطي بشكل رئيسي مخطط الرحمانية والمناطق المحيطة: الهياثم، الدلم، الضبيعة، العفجة. 90% من عروضنا في هذه المناطق.",
-
     bousla: "🧭 نعرض أسعار البوصلة العقارية (منصة المؤشرات العقارية للهيئة العامة للعقار) تحت كل عرض حسب موقعه الجغرافي. يمكنك أيضاً رؤية الأسعار في <a href='index.html#bousla'>قسم البوصلة العقارية</a>.",
-
     experience: "⭐ لمكتب آفاق الإنجاز العقاري 20 سنة خبرة في المجال العقاري بالخرج والرياض، ونحن نوفر لك أفضل العروض والخدمات.",
-
     maps: "🗺️ كل عرض لدينا مرتبط بخريطة Google Maps. يمكنك الضغط على زر 'الموقع على الخريطة' تحت أي عرض لرؤية الموقع بدقة.",
-
     default: "أنا هنا لمساعدتك في كل ما يخص العقار في الخرج والرياض. يمكنك سؤالي عن:\n• المزارع 🌿\n• الاستراحات 🏡\n• الأراضي السكنية 📍\n• خدمات ما بعد البيع 🔧\n• كيفية عرض عقارك 📈\n• التواصل معنا 📞\n\nماذا تريد أن تعرف؟"
 };
 
@@ -583,31 +608,18 @@ function sendAIMessage() {
 
 function getAIResponse(text) {
     const lower = text.toLowerCase();
-
-    if (lower.includes('مزرعة') || lower.includes('مزارع') || lower.includes('زراعية') || lower.includes('زراع'))
-        return AI_KNOWLEDGE.farms;
-    if (lower.includes('استراحة') || lower.includes('استراحات') || lower.includes('استراح'))
-        return AI_KNOWLEDGE.resthouses;
-    if (lower.includes('أرض') || lower.includes('ارض') || lower.includes('اراضي') || lower.includes('أراضي'))
-        return AI_KNOWLEDGE.lands;
-    if (lower.includes('خدمة') || lower.includes('خدمات') || lower.includes('رخصة') || lower.includes('مقاولات') || lower.includes('تشطيب') || lower.includes('إدارة') || lower.includes('آبار') || lower.includes('حفر'))
-        return AI_KNOWLEDGE.services;
-    if (lower.includes('عرض') || lower.includes('بيع') || lower.includes('عقاري'))
-        return AI_KNOWLEDGE.sell;
-    if (lower.includes('استفسار') || lower.includes('طلب') || lower.includes('بحث') || lower.includes('وجدت'))
-        return AI_KNOWLEDGE.inquiry;
-    if (lower.includes('تواصل') || lower.includes('واتساب') || lower.includes('جوال') || lower.includes('هاتف') || lower.includes('رقم') || lower.includes('ايميل') || lower.includes('بريد'))
-        return AI_KNOWLEDGE.contact;
-    if (lower.includes('منطقة') || lower.includes('مناطق') || lower.includes('مكان') || lower.includes('الرحمانية') || lower.includes('الهياثم') || lower.includes('الدلم') || lower.includes('الضبيعة') || lower.includes('العفجة'))
-        return AI_KNOWLEDGE.areas;
-    if (lower.includes('بوصلة') || lower.includes('اسعار') || lower.includes('أسعار') || lower.includes('مؤشر'))
-        return AI_KNOWLEDGE.bousla;
-    if (lower.includes('خبرة') || lower.includes('سنة') || lower.includes('تاريخ'))
-        return AI_KNOWLEDGE.experience;
-    if (lower.includes('خريطة') || lower.includes('موقع') || lower.includes('maps'))
-        return AI_KNOWLEDGE.maps;
-    if (lower.includes('سلام') || lower.includes('مرحبا') || lower.includes('اهلا') || lower.includes('هاي'))
-        return AI_KNOWLEDGE.greeting;
+    if (lower.includes('مزرعة') || lower.includes('مزارع') || lower.includes('زراعية')) return AI_KNOWLEDGE.farms;
+    if (lower.includes('استراحة') || lower.includes('استراحات')) return AI_KNOWLEDGE.resthouses;
+    if (lower.includes('أرض') || lower.includes('ارض') || lower.includes('اراضي')) return AI_KNOWLEDGE.lands;
+    if (lower.includes('خدمة') || lower.includes('خدمات') || lower.includes('رخصة')) return AI_KNOWLEDGE.services;
+    if (lower.includes('عرض') || lower.includes('بيع') || lower.includes('عقاري')) return AI_KNOWLEDGE.sell;
+    if (lower.includes('استفسار') || lower.includes('طلب')) return AI_KNOWLEDGE.inquiry;
+    if (lower.includes('تواصل') || lower.includes('واتساب') || lower.includes('جوال')) return AI_KNOWLEDGE.contact;
+    if (lower.includes('منطقة') || lower.includes('مناطق') || lower.includes('الرحمانية')) return AI_KNOWLEDGE.areas;
+    if (lower.includes('بوصلة') || lower.includes('اسعار')) return AI_KNOWLEDGE.bousla;
+    if (lower.includes('خبرة') || lower.includes('سنة')) return AI_KNOWLEDGE.experience;
+    if (lower.includes('خريطة') || lower.includes('موقع')) return AI_KNOWLEDGE.maps;
+    if (lower.includes('سلام') || lower.includes('مرحبا') || lower.includes('اهلا')) return AI_KNOWLEDGE.greeting;
 
     return AI_KNOWLEDGE.default;
 }
@@ -627,27 +639,19 @@ function hideTyping() {
     if (typing) typing.remove();
 }
 
-// ===== نماذج العرض والاستفسار =====
 async function submitPropertyForm(event) {
     event.preventDefault();
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData);
 
-    // إرسال الطلب لـ API /api/visitors
     try {
         await fetch(`${API_BASE_URL}/api/visitors`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'property_submission',
-                ...data
-            })
+            body: JSON.stringify({ type: 'property_submission', ...data })
         });
-    } catch (e) {
-        console.warn('تعذر حفظ الطلب في API:', e);
-    }
+    } catch (e) {}
 
-    // حفظ الطلب في localStorage (احتياطي)
     const requests = JSON.parse(localStorage.getItem('afaq_property_requests') || '[]');
     data.id = 'REQ-' + Date.now();
     data.date = new Date().toISOString();
@@ -655,7 +659,6 @@ async function submitPropertyForm(event) {
     requests.push(data);
     localStorage.setItem('afaq_property_requests', JSON.stringify(requests));
 
-    // إرسال إشعار للواتساب
     const msg = `*طلب عرض عقار جديد* 📈\n\n` +
         `*الاسم:* ${data.name}\n` +
         `*نوع العقار:* ${data.propertyType || data.property_type || 'غير محدد'}\n` +
@@ -663,15 +666,13 @@ async function submitPropertyForm(event) {
         `*المساحة:* ${data.area || data.size || 'غير محدد'} م²\n` +
         `*السعر التقريبي:* ${data.price || 'غير محدد'} ريال\n` +
         `*رقم الجوال:* ${data.phone}\n` +
-        (data.description ? `*الوصف:* ${data.description}\n` : (data.notes ? `*ملاحظات:* ${data.notes}\n` : ''));
+        (data.description ? `*الوصف:* ${data.description}\n` : '');
 
     window.open(`https://wa.me/${getWhatsappNumber()}?text=${encodeURIComponent(msg)}`, '_blank');
 
-    // عرض رسالة نجاح
     const fs = document.getElementById('form-success');
     if (fs) fs.classList.add('show');
     event.target.reset();
-
     showToast('تم إرسال طلبك بنجاح! سنتواصل معك قريباً', 'success');
 
     setTimeout(() => {
@@ -687,19 +688,13 @@ async function submitInquiryForm(event) {
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData);
 
-    // إرسال الاستفسار لـ API /api/visitors
     try {
         await fetch(`${API_BASE_URL}/api/visitors`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'inquiry',
-                ...data
-            })
+            body: JSON.stringify({ type: 'inquiry', ...data })
         });
-    } catch (e) {
-        console.warn('تعذر حفظ الاستفسار في API:', e);
-    }
+    } catch (e) {}
 
     const inquiries = JSON.parse(localStorage.getItem('afaq_inquiries') || '[]');
     data.id = 'INQ-' + Date.now();
@@ -736,7 +731,6 @@ function showInquiryForm() {
     window.location.href = 'inquiry.html';
 }
 
-// ===== رسائل التوست =====
 function showToast(message, type = '') {
     const toast = document.createElement('div');
     toast.className = 'toast ' + type;
@@ -749,57 +743,54 @@ function showToast(message, type = '') {
     }, 4000);
 }
 
-// ===== القائمة المتنقلة =====
 function toggleMenu() {
     document.getElementById('nav-menu').classList.toggle('show');
 }
 
-/* ============================================
-دوال الصفحة الرئيسية الجديدة
-============================================ */
 function initStatsCounter() {
-const statNumbers = document.querySelectorAll('.stat-num[data-target]');
-if (!statNumbers.length) return;
-const observer = new IntersectionObserver((entries) => {
-entries.forEach(entry => {
-if (entry.isIntersecting) {
-const el = entry.target;
-const target = parseInt(el.dataset.target);
-const duration = 2000;
-const start = performance.now();
-const prefix = el.textContent.includes('+') ? '+' : '';
-function update(currentTime) {
-const elapsed = currentTime - start;
-const progress = Math.min(elapsed / duration, 1);
-const easeOut = 1 - Math.pow(1 - progress, 3);
-const current = Math.floor(easeOut * target);
-el.textContent = prefix + current.toLocaleString('ar-SA');
-if (progress < 1) requestAnimationFrame(update);
-else el.textContent = prefix + target.toLocaleString('ar-SA');
+    const statNumbers = document.querySelectorAll('.stat-num[data-target]');
+    if (!statNumbers.length) return;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const el = entry.target;
+                const target = parseInt(el.dataset.target);
+                const duration = 2000;
+                const start = performance.now();
+                const prefix = el.textContent.includes('+') ? '+' : '';
+                function update(currentTime) {
+                    const elapsed = currentTime - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easeOut = 1 - Math.pow(1 - progress, 3);
+                    const current = Math.floor(easeOut * target);
+                    el.textContent = prefix + current.toLocaleString('ar-SA');
+                    if (progress < 1) requestAnimationFrame(update);
+                    else el.textContent = prefix + target.toLocaleString('ar-SA');
+                }
+                requestAnimationFrame(update);
+                observer.unobserve(el);
+            }
+        });
+    }, { threshold: 0.5 });
+    statNumbers.forEach(el => observer.observe(el));
 }
-requestAnimationFrame(update);
-observer.unobserve(el);
-}
-});
-}, { threshold: 0.5 });
-statNumbers.forEach(el => observer.observe(el));
-}
+
 function applyHeroFilters() {
-const type = document.getElementById('filter-type')?.value || 'all';
-const location = document.getElementById('filter-location')?.value || 'all';
-const category = document.getElementById('filter-category')?.value || 'all';
-const params = new URLSearchParams();
-if (type !== 'all') params.set('type', type);
-if (location !== 'all') params.set('area', location);
-if (category !== 'all') params.set('category', category);
-const url = 'offers.html' + (params.toString() ? '?' + params.toString() : '');
-window.location.href = url;
+    const type = document.getElementById('filter-type')?.value || 'all';
+    const location = document.getElementById('filter-location')?.value || 'all';
+    const category = document.getElementById('filter-category')?.value || 'all';
+    const params = new URLSearchParams();
+    if (type !== 'all') params.set('type', type);
+    if (location !== 'all') params.set('area', location);
+    if (category !== 'all') params.set('category', category);
+    const url = 'offers.html' + (params.toString() ? '?' + params.toString() : '');
+    window.location.href = url;
 }
+
 function initScrollAnimations() {
     if (window._scrollObserver) {
         window._scrollObserver.disconnect();
     }
-    // عدم تتبع .offer-card هنا لتجنب الحلقة المفرغة عند التحديث الديناميكي
     const animatedElements = document.querySelectorAll('.feature-item, .cat-card, .why-item, .service-card, .why-card');
     window._scrollObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -818,26 +809,25 @@ function initScrollAnimations() {
         window._scrollObserver.observe(el);
     });
 }
+
 function initHeaderScroll() {
-const header = document.querySelector('.main-header');
-if (!header) return;
-window.addEventListener('scroll', () => {
-const currentScroll = window.pageYOffset;
-if (currentScroll > 80) {
-header.classList.add('scrolled');
-} else {
-header.classList.remove('scrolled');
-}
-}, { passive: true });
+    const header = document.querySelector('.main-header');
+    if (!header) return;
+    window.addEventListener('scroll', () => {
+        const currentScroll = window.pageYOffset;
+        if (currentScroll > 80) {
+            header.classList.add('scrolled');
+        } else {
+            header.classList.remove('scrolled');
+        }
+    }, { passive: true });
 }
 
-// ===== تهيئة الصفحة =====
 document.addEventListener('DOMContentLoaded', async function() {
     initStatsCounter();
     initScrollAnimations();
     initHeaderScroll();
 
-    // اكتشاف نوع الصفحة لتحديد الفلتر الافتراضي
     const pagePath = window.location.pathname.toLowerCase();
     let defaultFilter = 'all';
     if (pagePath.includes('farms')) defaultFilter = 'farm';
@@ -850,20 +840,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderBousla();
     loadNews();
 
-    // الترحيب
     if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/')) {
         setTimeout(() => {
             showToast('مرحباً بك في مكتب آفاق الإنجاز العقاري! 👋');
         }, 1500);
     }
 
-    // إدخال المساعد بالـ Enter
     const aiInput = document.getElementById('ai-input');
     if (aiInput) {
         aiInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendAIMessage();
-            }
+            if (e.key === 'Enter') sendAIMessage();
         });
     }
 });

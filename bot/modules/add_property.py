@@ -21,6 +21,8 @@ from utils.validators import validate_price
     PREVIEW
 ) = range(8)
 
+CANCEL_BUTTON = [InlineKeyboardButton("❌ إلغاء", callback_data="action_cancel")]
+
 def get_area_ranges(prop_type):
     if prop_type == "land":
         res = list(range(200, 10000, 100))
@@ -66,6 +68,7 @@ def build_area_keyboard(prop_type, page=0):
         nav_row.append(InlineKeyboardButton("التالي ▶️", callback_data=f"area_page_{page + 1}"))
 
     keyboard.append(nav_row)
+    keyboard.append(CANCEL_BUTTON)
     return InlineKeyboardMarkup(keyboard)
 
 async def start_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,6 +80,7 @@ async def start_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE)
         [InlineKeyboardButton("🏡 أرض سكنية", callback_data="type_land")],
         [InlineKeyboardButton("🏠 استراحة", callback_data="type_resthouse")],
         [InlineKeyboardButton("🚜 مزرعة", callback_data="type_farm")],
+        CANCEL_BUTTON
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     text = "📍 *الخطوة 1: اختر نوع العقار*"
@@ -127,6 +131,7 @@ async def handle_area_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         if row:
             keyboard.append(row)
 
+        keyboard.append(CANCEL_BUTTON)
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("📍 *الخطوة 3: اختر المنطقة*", reply_markup=reply_markup, parse_mode="Markdown")
         return SELECTING_LOCATION
@@ -142,7 +147,8 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("شارع واحد", callback_data="streets_1")],
         [InlineKeyboardButton("شارعين", callback_data="streets_2")],
-        [InlineKeyboardButton("أكثر من شارعين", callback_data="streets_3+")]
+        [InlineKeyboardButton("أكثر من شارعين", callback_data="streets_3+")],
+        CANCEL_BUTTON
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text("🛣️ *الخطوة 4: اختر عدد الشوارع*", reply_markup=reply_markup, parse_mode="Markdown")
@@ -210,8 +216,10 @@ async def render_feature_step(query, context):
     steps = get_feature_steps(prop_type, features)
 
     if step >= len(steps):
+        reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
         await query.edit_message_text(
             "💰 *الخطوة 6: أدخل السعر بالريال*\n\n(مثال: 425000)",
+            reply_markup=reply_markup,
             parse_mode="Markdown"
         )
         return ENTERING_PRICE
@@ -227,6 +235,7 @@ async def render_feature_step(query, context):
     if row:
         keyboard.append(row)
 
+    keyboard.append(CANCEL_BUTTON)
     reply_markup = InlineKeyboardMarkup(keyboard)
     await query.edit_message_text(f"✨ *الخطوة 5: المميزات - {title}*", reply_markup=reply_markup, parse_mode="Markdown")
     return SELECTING_FEATURES
@@ -247,33 +256,39 @@ async def handle_feature_callback(update: Update, context: ContextTypes.DEFAULT_
 async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     price = validate_price(update.message.text)
     if not price:
-        await update.message.reply_text("❌ سعر غير صحيح. الرجاء إدخال رقم موجب (مثال: 425000):")
+        reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
+        await update.message.reply_text("❌ سعر غير صحيح. الرجاء إدخال رقم موجب (مثال: 425000):", reply_markup=reply_markup)
         return ENTERING_PRICE
 
     context.user_data["property"]["price"] = price
+    reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
     await update.message.reply_text(
-        "📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم اكتب /done عند الانتهاء.",
+        "📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم أرسل كلمة *تم* أو *انتهاء* أو اكتب /done عند الانتهاء.",
+        reply_markup=reply_markup,
         parse_mode="Markdown"
     )
     return UPLOADING_PHOTOS
 
 async def handle_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
+    reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
+
     if len(photos) >= 5:
-        await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done للمتابعة.")
+        await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done أو أرسل كلمة تم للمتابعة.", reply_markup=reply_markup)
         return UPLOADING_PHOTOS
 
     file_id = update.message.photo[-1].file_id
     photos.append(file_id)
     context.user_data["property"]["photos"] = photos
 
-    await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو اكتب /done للإنهاء.")
+    await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو أرسل تم / done للإنهاء.", reply_markup=reply_markup)
     return UPLOADING_PHOTOS
 
 async def finish_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
     if not photos:
-        await update.message.reply_text("⚠️ يجب إضافة صورة واحدة على الأقل. قم برفع صورة:")
+        reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
+        await update.message.reply_text("⚠️ يجب إضافة صورة واحدة على الأقل. قم برفع صورة:", reply_markup=reply_markup)
         return UPLOADING_PHOTOS
 
     return await show_preview(update, context)
@@ -332,10 +347,26 @@ async def handle_preview_action(update: Update, context: ContextTypes.DEFAULT_TY
 
     new_id = f"PROP-{len(properties) + 1:010d}"
     prop = context.user_data["property"]
+
+    # Extract telegram photo URLs if possible
+    photo_urls = []
+    bot_token = os.environ.get("BOT_TOKEN")
+    for file_id in prop.get("photos", []):
+        try:
+            tg_file = await context.bot.get_file(file_id)
+            if tg_file and tg_file.file_path:
+                if tg_file.file_path.startswith("http"):
+                    photo_urls.append(tg_file.file_path)
+                elif bot_token:
+                    photo_urls.append(f"https://api.telegram.org/file/bot{bot_token}/{tg_file.file_path}")
+        except Exception:
+            pass
+
     prop["id"] = new_id
     prop["status"] = status
     prop["video_url"] = None
     prop["is_vip"] = False
+    prop["photo_urls"] = photo_urls
     prop["created_at"] = datetime.now().isoformat()
     prop["archived_at"] = None
     prop["property_link"] = generate_property_link(new_id)
@@ -366,20 +397,46 @@ def get_add_property_handler():
             MessageHandler(filters.Regex("^➕ إضافة عرض جديد$"), start_add_property)
         ],
         states={
-            SELECTING_TYPE: [CallbackQueryHandler(select_type, pattern="^type_")],
-            SELECTING_AREA: [CallbackQueryHandler(handle_area_callback, pattern="^area_")],
-            SELECTING_LOCATION: [CallbackQueryHandler(select_location, pattern="^loc_")],
-            SELECTING_STREETS: [CallbackQueryHandler(select_streets, pattern="^streets_")],
-            SELECTING_FEATURES: [CallbackQueryHandler(handle_feature_callback, pattern="^featval_")],
-            ENTERING_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price_input)],
+            SELECTING_TYPE: [
+                CallbackQueryHandler(select_type, pattern="^type_"),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ],
+            SELECTING_AREA: [
+                CallbackQueryHandler(handle_area_callback, pattern="^area_"),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ],
+            SELECTING_LOCATION: [
+                CallbackQueryHandler(select_location, pattern="^loc_"),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ],
+            SELECTING_STREETS: [
+                CallbackQueryHandler(select_streets, pattern="^streets_"),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ],
+            SELECTING_FEATURES: [
+                CallbackQueryHandler(handle_feature_callback, pattern="^featval_"),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ],
+            ENTERING_PRICE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^(إلغاء|❌ إلغاء)$"), handle_price_input),
+                MessageHandler(filters.Regex("^(إلغاء|❌ إلغاء)$"), cancel_add_property),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ],
             UPLOADING_PHOTOS: [
                 MessageHandler(filters.PHOTO, handle_photo_upload),
-                CommandHandler("done", finish_photo_upload)
+                CommandHandler("done", finish_photo_upload),
+                MessageHandler(filters.Regex("^(done|/done|تم|انتهاء)$"), finish_photo_upload),
+                MessageHandler(filters.Regex("^(إلغاء|❌ إلغاء)$"), cancel_add_property),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
             ],
-            PREVIEW: [CallbackQueryHandler(handle_preview_action, pattern="^action_")]
+            PREVIEW: [
+                CallbackQueryHandler(handle_preview_action, pattern="^action_"),
+                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            ]
         },
         fallbacks=[
             CommandHandler("cancel", cancel_add_property),
+            MessageHandler(filters.Regex("^(إلغاء|❌ إلغاء)$"), cancel_add_property),
             CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
         ],
         per_message=False,

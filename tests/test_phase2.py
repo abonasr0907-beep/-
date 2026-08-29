@@ -60,7 +60,7 @@ class TestPhase2AddProperty(unittest.TestCase):
         self.assertEqual(added['id'], "PROP-0000000001")
         self.assertEqual(added['status'], "active")
         self.assertEqual(added['price'], 425000)
-        self.assertEqual(added['property_link'], "https://abonasr0907-beep.github.io/?property=PROP-0000000001")
+        self.assertEqual(added['property_link'], "https://abonasr0907-beep.github.io/?p=1")
 
         props = load_properties()
         self.assertEqual(len(props), 1)

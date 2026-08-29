@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جاري التحويل... | أفاق الإنجاز</title>
+    <script>
+        (function() {
+            var path = window.location.pathname;
+            var match = path.match(/\/properties\/PROP-0*(\d+)/i) || path.match(/\/properties\/(\d+)/i) || path.match(/PROP-0*(\d+)/i);
+            if (match && match[1]) {
+                window.location.replace('/?p=' + match[1]);
+            } else {
+                window.location.replace('/');
+            }
+        })();
+    </script>
+</head>
+<body>
+    <p>جاري إعادة التوجيه إلى العرض...</p>
+</body>
+</html>
