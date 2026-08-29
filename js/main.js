@@ -266,6 +266,39 @@ async function handlePropertyQueryParam() {
                 </div>
             </div>
         `;
+        // Inject RealEstateListing JSON-LD Schema
+        try {
+            const existingSchema = document.getElementById('real-estate-listing-schema');
+            if (existingSchema) existingSchema.remove();
+
+            const schemaScript = document.createElement('script');
+            schemaScript.id = 'real-estate-listing-schema';
+            schemaScript.type = 'application/ld+json';
+            schemaScript.text = JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "RealEstateListing",
+                "name": targetOffer.title,
+                "description": targetOffer.description || targetOffer.title,
+                "url": window.location.href,
+                "image": targetOffer.images && targetOffer.images[0] ? targetOffer.images[0] : "",
+                "offers": {
+                    "@type": "Offer",
+                    "price": targetOffer.price || 0,
+                    "priceCurrency": "SAR"
+                },
+                "floorSize": {
+                    "@type": "QuantitativeValue",
+                    "value": targetOffer.size_sqm || 0,
+                    "unitCode": "MTK"
+                },
+                "containedInPlace": {
+                    "@type": "Place",
+                    "name": `${targetOffer.area} - الخرج`
+                }
+            });
+            document.head.appendChild(schemaScript);
+        } catch (e) {}
+
         const offersSection = document.getElementById('offers');
         if (offersSection) {
             offersSection.scrollIntoView({ behavior: 'smooth' });
