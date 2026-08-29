@@ -7,10 +7,22 @@ from bot.modules.compass import calculate_compass_data
 from bot.modules.backup import create_backup
 from bot.modules.site_sync import sync_site_data
 
+from bot.config import PROPERTIES_FILE
+
 class TestAllPhasesComprehensive(unittest.TestCase):
 
     def setUp(self):
+        self.orig_props = load_json(PROPERTIES_FILE, default=[])
+        self.orig_compass = load_json(COMPASS_FILE, default={})
+        self.orig_visitors = load_json(VISITORS_FILE, default=[])
+        self.orig_admins = load_json(ADMINS_FILE, default=[])
         save_properties([])
+
+    def tearDown(self):
+        save_json(PROPERTIES_FILE, self.orig_props)
+        save_json(COMPASS_FILE, self.orig_compass)
+        save_json(VISITORS_FILE, self.orig_visitors, root_key="visitors")
+        save_json(ADMINS_FILE, self.orig_admins, root_key="admins")
 
     def test_compass_calculation(self):
         add_property({"type": "land", "location": "الرحمانية", "price": 500000, "area": 500, "status": "active"})

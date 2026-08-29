@@ -11,7 +11,7 @@ class TestNewFeatures(unittest.TestCase):
         self.assertEqual(link2, "https://abonasr0907-beep.github.io/?p=105")
 
         link3 = generate_property_link("custom_id")
-        self.assertEqual(link3, "https://abonasr0907-beep.github.io/?property=custom_id")
+        self.assertEqual(link3, "https://abonasr0907-beep.github.io/?p=custom_id")
 
 if __name__ == '__main__':
     unittest.main()

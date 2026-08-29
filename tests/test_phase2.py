@@ -3,7 +3,16 @@ from bot.database import load_properties, save_properties, add_property
 from utils.helpers import generate_property_link
 from bot.modules.add_property import get_area_ranges, build_area_keyboard, get_feature_steps
 
+from bot.config import PROPERTIES_FILE
+from bot.database import load_json, save_json
+
 class TestPhase2AddProperty(unittest.TestCase):
+
+    def setUp(self):
+        self.orig_props = load_json(PROPERTIES_FILE, default=[])
+
+    def tearDown(self):
+        save_json(PROPERTIES_FILE, self.orig_props)
 
     def test_area_ranges(self):
         land_areas = get_area_ranges("land")
