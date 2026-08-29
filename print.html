@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تفاصيل العرض العقاري للطباعة | أفاق الإنجاز</title>
+    <style>
+        body {
+            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #fff;
+            color: #1e293b;
+            margin: 0;
+            padding: 20px;
+        }
+        .print-container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #e2e8f0;
+            padding: 25px;
+            border-radius: 12px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #14202b;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .logo-title h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #14202b;
+        }
+        .logo-title p {
+            margin: 4px 0 0 0;
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+        .prop-detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .prop-detail-table th, .prop-detail-table td {
+            border: 1px solid #cbd5e1;
+            padding: 10px 14px;
+            text-align: right;
+        }
+        .prop-detail-table th {
+            background: #f1f5f9;
+            width: 30%;
+        }
+        .btn-print {
+            background: #14202b;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        @media print {
+            .btn-print { display: none; }
+            .print-container { border: none; }
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <button class="btn-print" onclick="window.print()">🖨️ طباعة العرض</button>
+    </div>
+
+    <div class="print-container">
+        <div class="header">
+            <div class="logo-title">
+                <h1>أفاق الإنجاز للخدمات العقارية</h1>
+                <p>محافظة الخرج - ترخيص فال رقم 1100004208</p>
+            </div>
+            <div>
+                <strong id="print-prop-id" style="font-size: 1.1rem; color: #14202b;">PROP-XXXX</strong>
+            </div>
+        </div>
+
+        <h2 id="print-prop-title" style="color: #0f172a;">جاري تحميل تفاصيل العقار...</h2>
+
+        <table class="prop-detail-table">
+            <tr>
+                <th>نوع العقار:</th>
+                <td id="print-prop-type">-</td>
+            </tr>
+            <tr>
+                <th>المساحة:</th>
+                <td id="print-prop-area">-</td>
+            </tr>
+            <tr>
+                <th>السعر:</th>
+                <td id="print-prop-price">-</td>
+            </tr>
+            <tr>
+                <th>الموقع / الحي:</th>
+                <td id="print-prop-location">-</td>
+            </tr>
+            <tr>
+                <th>تاريخ العرض:</th>
+                <td id="print-prop-date">-</td>
+            </tr>
+        </table>
+
+        <h3>وصف العقار التفصيلي:</h3>
+        <p id="print-prop-desc" style="line-height: 1.8; color: #334155;">-</p>
+
+        <div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; display: flex; justify-content: space-between; font-size: 0.85rem; color: #64748b;">
+            <span>للتواصل والاستفسار: 0500000000</span>
+            <span>مكتب أفاق الإنجاز العقاري بالخرج</span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const propIdParam = urlParams.get('id') || urlParams.get('p') || 'PROP-0000000001';
+            const propId = propIdParam.startsWith('PROP-') ? propIdParam : `PROP-${propIdParam.padStart(10, '0')}`;
+
+            fetch(`/api/properties/${propId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('print-prop-title').textContent = 'العقار غير موجود أو تم إزالته';
+                        return;
+                    }
+                    document.getElementById('print-prop-id').textContent = data.id || propId;
+                    document.getElementById('print-prop-title').textContent = data.title || `${data.type} في ${data.location || 'الخرج'}`;
+                    document.getElementById('print-prop-type').textContent = data.type || '-';
+                    document.getElementById('print-prop-area').textContent = data.area || '-';
+                    document.getElementById('print-prop-price').textContent = data.price || '-';
+                    document.getElementById('print-prop-location').textContent = data.location || '-';
+                    document.getElementById('print-prop-date').textContent = data.date || '-';
+                    document.getElementById('print-prop-desc').textContent = data.description || 'بدون وصف تفصيلي';
+                })
+                .catch(err => {
+                    document.getElementById('print-prop-title').textContent = 'عقار أفاق الإنجاز العقاري';
+                });
+        });
+    </script>
+</body>
+</html>

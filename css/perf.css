@@ -1,0 +1,156 @@
+/* Performance, Speed, Critical Inline Fallbacks & PWA Notification UI */
+
+/* Font display swap to prevent FOIT (Flash of Unstyled Text) */
+@font-face {
+  font-family: 'Cairo';
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  font-display: swap;
+}
+
+/* Optimize images to eliminate CLS (Cumulative Layout Shift = 0) */
+img {
+  content-visibility: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+/* PWA Install Notification Prompt */
+.pwa-install-prompt {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  left: auto;
+  z-index: 1200;
+  background: rgba(20, 32, 43, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(199, 217, 181, 0.3);
+  border-radius: 20px;
+  padding: 16px 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  max-width: 380px;
+  width: calc(100% - 40px);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: pwaSlideUp 0.4s ease-out forwards;
+}
+
+@media (max-width: 640px) {
+  .pwa-install-prompt {
+    right: 20px;
+    left: 20px;
+    bottom: 20px;
+    max-width: none;
+  }
+}
+
+@keyframes pwaSlideUp {
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pwa-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-prompt-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.pwa-prompt-text h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #c7d9b5;
+  font-family: 'Cairo', sans-serif;
+}
+
+.pwa-prompt-text p {
+  margin: 3px 0 0 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  font-family: 'Tajawal', sans-serif;
+}
+
+.pwa-prompt-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-pwa-install {
+  background: #c7d9b5;
+  color: #14202b;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-pwa-dismiss {
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* Cookie Consent Banner */
+.cookie-consent-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1150;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 15px 25px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.cookie-consent-text {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.cookie-consent-text a {
+  color: #c7d9b5;
+  text-decoration: underline;
+}
+
+.btn-cookie-accept {
+  background: #c7d9b5;
+  color: #14202b;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
