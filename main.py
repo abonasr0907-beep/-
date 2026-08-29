@@ -19,7 +19,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT, VISITORS_FILE, COMPASS_FILE
 from bot.database import init_db, load_properties, get_property, load_json, save_json
 from bot.modules.add_property import get_add_property_handler
-from bot.modules.list_properties import get_list_properties_handler
+from bot.modules.list_properties import get_list_properties_handler, start_list_properties
 from bot.modules.edit_property import get_edit_property_handler
 from bot.modules.delete_property import get_delete_property_handler
 
@@ -150,8 +150,7 @@ async def handle_persistent_menu(update: Update, context: ContextTypes.DEFAULT_T
         from bot.modules.add_property import start_add_property
         return await start_add_property(update, context)
     elif text == "📋 قائمة العروض":
-        from bot.modules.list_properties import list_properties_callback
-        return await list_properties_callback(update, context)
+        return await start_list_properties(update, context)
     elif text == "✏️ تعديل عرض":
         from bot.modules.edit_property import start_edit_property
         return await start_edit_property(update, context)
@@ -159,29 +158,33 @@ async def handle_persistent_menu(update: Update, context: ContextTypes.DEFAULT_T
         from bot.modules.delete_property import start_delete_property
         return await start_delete_property(update, context)
     elif text == "📦 الأرشيف":
-        await update.message.reply_text("📦 الأرشيف - قريباً", reply_markup=get_main_reply_keyboard())
+        context.user_data["list_filter_type"] = "archived"
+        return await start_list_properties(update, context)
     elif text == "🧭 البوصلة":
-        await update.message.reply_text("🧭 البوصلة - قريباً", reply_markup=get_main_reply_keyboard())
+        await update.message.reply_text("🧭 مؤشرات السوق مفيّلة بالموقع الرسمي.", reply_markup=get_main_reply_keyboard())
     else:
-        await update.message.reply_text("🏡 يمكنك استخدام القائمة الدائمة أسفل الشاشة للتحكم.", reply_markup=get_main_reply_keyboard())
+        await update.message.reply_text("🏡 مرحباً بك! اختر من القائمة أسفل الشاشة للتحكم بعروض آفاق الإنجاز.", reply_markup=get_main_reply_keyboard())
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+    if data == "back_to_main":
+        await query.edit_message_text("🏡 أهلاً بك في القائمة الرئيسية.")
+        return
     responses = {
-        'visitors': "📨 الزوار - قريباً",
-        'archive': "📦 الأرشيف - قريباً",
-        'stats': "📊 الإحصائيات - قريباً",
-        'compass': "🧭 البوصلة - قريباً",
-        'admins': "👥 المدراء - قريباً",
-        'assistant': "🤖 المساعد - قريباً",
-        'marketing': "🎬 التسويق - قريباً",
-        'reports': "📈 التقارير - قريباً",
-        'settings': "⚙️ الإعدادات - قريباً",
-        'cancel': "🔄 تم الإلغاء. اكتب /start للبدء من جديد."
+        'visitors': "📨 قسم طلبات الزوار يدار عبر الموقع.",
+        'archive': "📦 الأرشيف متوفر في فلاتر قائمة العروض.",
+        'stats': "📊 الإحصائيات معروضة في الموقع.",
+        'compass': "🧭 مؤشرات البوصلة منشورة على الموقع.",
+        'admins': "👥 إدارة المدراء مفعلة بحسابات النظام.",
+        'assistant': "🤖 المساعد الذكي قيد التكيف.",
+        'marketing': "🎬 قسم التسويق والمشاركات مفعل لكل عرض.",
+        'reports': "📈 التقارير التجميعية في اللوحة.",
+        'settings': "⚙️ النظام يعمل بالإعدادات القياسية.",
+        'cancel': "🔄 تم الإلغاء."
     }
-    await query.edit_message_text(responses.get(data, "⚠️ أمر غير معروف"))
+    await query.edit_message_text(responses.get(data, "🏡 أهلاً بك في القائمة الرئيسية."))
 
 def main():
     import uvicorn
