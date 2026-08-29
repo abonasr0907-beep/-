@@ -4,6 +4,7 @@ import os
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")
 PORT = int(os.environ.get("PORT", "8080"))
+ADMIN_IDS = [544699933, 545888931]
 
 # Database
 DATA_DIR = "data"

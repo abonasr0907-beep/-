@@ -76,6 +76,9 @@ async def start_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if query:
         await query.answer()
 
+    context.user_data.clear()
+    context.user_data["property"] = {"features": {}, "photos": []}
+
     keyboard = [
         [InlineKeyboardButton("🏡 أرض سكنية", callback_data="type_land")],
         [InlineKeyboardButton("🏠 استراحة", callback_data="type_resthouse")],
@@ -90,7 +93,6 @@ async def start_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
-    context.user_data["property"] = {"features": {}, "photos": []}
     return SELECTING_TYPE
 
 async def select_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -271,28 +273,35 @@ async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_photo_upload_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
-    reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
+    finish_kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ تم الانتهاء", callback_data="photos_done")],
+        CANCEL_BUTTON
+    ])
 
     if update.message and update.message.photo:
         if len(photos) >= 5:
-            await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done أو أرسل كلمة تم للمتابعة.", reply_markup=reply_markup)
+            await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اضغط [✅ تم الانتهاء] للمتابعة.", reply_markup=finish_kb)
             return UPLOADING_PHOTOS
         file_id = update.message.photo[-1].file_id
         photos.append(file_id)
         context.user_data["property"]["photos"] = photos
-        await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو أرسل تم / done للإنهاء.", reply_markup=reply_markup)
+        await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو اضغط [✅ تم الانتهاء].", reply_markup=finish_kb)
         return UPLOADING_PHOTOS
 
     if update.message and update.message.text:
         raw_text = update.message.text.strip().lstrip("/")
         norm_txt = raw_text.lower()
-        if norm_txt in {"done", "تم", "انتهاء", "انتهى", "انتهى"}:
+        if norm_txt in {"done", "تم", "انتهاء", "انتهى"}:
             return await finish_photo_upload(update, context)
-        elif norm_txt in {"إلغاء", "الظاء", "cancel"}:
+        elif norm_txt in {"إلغاء", "cancel"}:
             return await cancel_add_property(update, context)
         else:
-            await update.message.reply_text("📸 الرجاء رفع صور العقار أو إرسال كلمة *تم* / */done* لإتمام الإضافة.", reply_markup=reply_markup, parse_mode="Markdown")
+            await update.message.reply_text("📸 الرجاء رفع صور العقار أو إرسال كلمة *تم* / */done* لإتمام الإضافة.", reply_markup=finish_kb, parse_mode="Markdown")
             return UPLOADING_PHOTOS
+
+    if update.callback_query and update.callback_query.data == "photos_done":
+        await update.callback_query.answer()
+        return await finish_photo_upload(update, context)
 
     return UPLOADING_PHOTOS
 
@@ -312,16 +321,12 @@ async def show_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     prop = context.user_data["property"]
     type_labels = {"land": "🏡 أرض سكنية", "resthouse": "🏠 استراحة", "farm": "🚜 مزرعة"}
 
-    features_str = "\n".join([f"• {k}: {v}" for k, v in prop.get("features", {}).items()]) or "لا يوجد"
-
     text = (
-        "📋 *الخطوة 8: معاينة العرض قبل النشر:*\n\n"
+        "🏠 *معاينة العرض:*\n\n"
         f"🏡 *النوع:* {type_labels.get(prop.get('type'), prop.get('type'))}\n"
         f"📐 *المساحة:* {format_number(prop.get('area'))} م²\n"
         f"📍 *المنطقة:* {prop.get('location')}\n"
-        f"🛣️ *عدد الشوارع:* {prop.get('streets')}\n"
-        f"💰 *السعر:* {format_number(prop.get('price'))} ريال\n\n"
-        f"✨ *المميزات:*\n{features_str}\n\n"
+        f"💰 *السعر:* {format_number(prop.get('price'))} ريال\n"
         f"📸 *عدد الصور:* {len(prop.get('photos', []))}"
     )
 
@@ -333,14 +338,6 @@ async def show_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
-    photos = prop.get("photos", [])
-    if photos and update.message:
-        try:
-            media = [InputMediaPhoto(media=pid) for pid in photos[:5]]
-            await update.message.reply_media_group(media=media)
-        except Exception:
-            pass
 
     if update.message:
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
@@ -398,14 +395,24 @@ async def handle_preview_action(update: Update, context: ContextTypes.DEFAULT_TY
     return ConversationHandler.END
 
 async def cancel_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    msg_text = "🔄 تم الإلغاء"
     if update.message:
-        await update.message.reply_text("❌ تم إلغاء العملية.")
+        await update.message.reply_text(msg_text)
     elif update.callback_query:
-        await update.callback_query.edit_message_text("❌ تم إلغاء العملية.")
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(msg_text)
     return ConversationHandler.END
 
 def get_add_property_handler():
+    common_handlers = [
+        MessageHandler(filters.Regex("إلغاء") | filters.Regex("❌ إلغاء"), cancel_add_property),
+        CallbackQueryHandler(cancel_add_property, pattern="^(cancel|action_cancel)$"),
+        MessageHandler(filters.Regex("إضافة عرض جديد") | filters.Regex("اضافة عرض جديد"), start_add_property)
+    ]
+
     return ConversationHandler(
+        conversation_timeout=900,
         entry_points=[
             CallbackQueryHandler(start_add_property, pattern="^(add_prop|add_property)$"),
             CommandHandler("add_property", start_add_property),
@@ -414,42 +421,42 @@ def get_add_property_handler():
         states={
             SELECTING_TYPE: [
                 CallbackQueryHandler(select_type, pattern="^type_"),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers
             ],
             SELECTING_AREA: [
                 CallbackQueryHandler(handle_area_callback, pattern="^area_"),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers
             ],
             SELECTING_LOCATION: [
                 CallbackQueryHandler(select_location, pattern="^loc_"),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers
             ],
             SELECTING_STREETS: [
                 CallbackQueryHandler(select_streets, pattern="^streets_"),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers
             ],
             SELECTING_FEATURES: [
                 CallbackQueryHandler(handle_feature_callback, pattern="^featval_"),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers
             ],
             ENTERING_PRICE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^(إلغاء|❌ إلغاء)$"), handle_price_input),
-                MessageHandler(filters.Regex("^(إلغاء|❌ إلغاء)$"), cancel_add_property),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers,
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price_input)
             ],
             UPLOADING_PHOTOS: [
-                MessageHandler(filters.PHOTO | filters.TEXT | filters.COMMAND, handle_photo_upload_step),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers,
+                CallbackQueryHandler(handle_photo_upload_step, pattern="^photos_done$"),
+                MessageHandler(filters.PHOTO | filters.TEXT | filters.COMMAND, handle_photo_upload_step)
             ],
             PREVIEW: [
                 CallbackQueryHandler(handle_preview_action, pattern="^action_"),
-                CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+                *common_handlers
             ]
         },
         fallbacks=[
             CommandHandler("cancel", cancel_add_property),
-            MessageHandler(filters.Regex("^(إلغاء|❌ إلغاء)$"), cancel_add_property),
-            CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
+            MessageHandler(filters.Regex("إلغاء") | filters.Regex("❌ إلغاء"), cancel_add_property),
+            CallbackQueryHandler(cancel_add_property, pattern="^(cancel|action_cancel)$")
         ],
         per_message=False,
         per_chat=True,
