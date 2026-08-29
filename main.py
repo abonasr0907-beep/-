@@ -23,6 +23,9 @@ from bot.modules.list_properties import get_list_properties_handler, start_list_
 from bot.modules.edit_property import get_edit_property_handler
 from bot.modules.delete_property import get_delete_property_handler
 from bot.modules.customers import get_customers_handler
+from bot.modules.visitors import get_visitors_handler, visitors_handler, update_visitor_status
+from bot.modules.reports import get_reports_handler, morning_report_command, export_csv_command
+from bot.modules.follow_up import get_follow_up_handler
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -67,11 +70,17 @@ async def lifespan(app: FastAPI):
     init_db()
     telegram_app = Application.builder().token(BOT_TOKEN).build()
     telegram_app.add_handler(CommandHandler("start", start))
+    telegram_app.add_handler(CommandHandler("morning_report", morning_report_command))
+    telegram_app.add_handler(CommandHandler("export_csv", export_csv_command))
     telegram_app.add_handler(get_add_property_handler())
     telegram_app.add_handler(get_list_properties_handler())
     telegram_app.add_handler(get_edit_property_handler())
     telegram_app.add_handler(get_delete_property_handler())
     telegram_app.add_handler(get_customers_handler())
+    telegram_app.add_handler(get_visitors_handler())
+    telegram_app.add_handler(get_reports_handler())
+    telegram_app.add_handler(get_follow_up_handler())
+    telegram_app.add_handler(CallbackQueryHandler(update_visitor_status, pattern="^vis_"))
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
     telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_persistent_menu))
     logger.info("✅ Handlers registered")
@@ -310,6 +319,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     elif data == "compass":
         return await compass_handler(update, context)
+    elif data == "visitors":
+        return await visitors_handler(update, context)
+    elif data == "reports":
+        from bot.modules.reports import reports_handler
+        return await reports_handler(update, context)
+    elif data == "report_morning":
+        return await morning_report_command(update, context)
+    elif data == "report_export_csv":
+        return await export_csv_command(update, context)
     elif data == "confirm_reset_all_yes":
         save_properties([])
         await query.edit_message_text("🧹 تم إعادة تهيئة قائمة العروض وقت التشغيل بنجاح.")
@@ -318,13 +336,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ تم إلغاء عملية إعادة التهيئة.")
         return
     responses = {
-        'visitors': "📨 قسم طلبات الزوار يدار عبر الموقع.",
         'archive': "📦 الأرشيف متوفر في فلاتر قائمة العروض.",
         'stats': "📊 الإحصائيات معروضة في الموقع.",
         'admins': "👥 إدارة المدراء مفعلة بحسابات النظام.",
         'assistant': "🤖 المساعد الذكي قيد التكيف.",
         'marketing': "🎬 قسم التسويق والمشاركات مفعل لكل عرض.",
-        'reports': "📈 التقارير التجميعية في اللوحة.",
         'settings': "⚙️ النظام يعمل بالإعدادات القياسية.",
         'cancel': "🔄 تم الإلغاء."
     }
