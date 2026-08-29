@@ -73,4 +73,58 @@
     <priority>0.9</priority>
   </url>
 
+  <!-- الأرشيف (غير مربوط بقوائم الموقع - مرئي لجوجل فقط) -->
+  <url>
+    <loc>https://abonasr0907-beep.github.io/archive.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- صفحات SEO الهبوط المحلية -->
+  <url>
+    <loc>https://abonasr0907-beep.github.io/seo/رحمانية-اراضي.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/seo/الخرج-مزارع.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/seo/الخرج-استراحات.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- مدونة العقارات -->
+  <url>
+    <loc>https://abonasr0907-beep.github.io/blog/</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/blog/dilemma-buying-land-in-alkharj.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/blog/real-estate-investment-alkharj-2026.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://abonasr0907-beep.github.io/blog/farms-and-resthouses-investment-guide.html</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
 </urlset>

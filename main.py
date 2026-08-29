@@ -22,12 +22,41 @@ from bot.modules.add_property import get_add_property_handler
 from bot.modules.list_properties import get_list_properties_handler, start_list_properties
 from bot.modules.edit_property import get_edit_property_handler
 from bot.modules.delete_property import get_delete_property_handler
+from bot.modules.customers import get_customers_handler
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+import time
+from collections import defaultdict
+
 app = FastAPI(title="Afaq Al-Injaz Bot")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# In-memory CRM events storage & simple rate limiting
+CRM_EVENTS = []
+RATE_LIMIT_STORE = defaultdict(list)
+RATE_LIMIT_MAX = 60  # max 60 requests per minute per IP
+
+@app.middleware("http")
+async def security_and_rate_limiting_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    now = time.time()
+
+    if request.url.path.startswith("/api/"):
+        # Clean timestamps older than 60 seconds
+        timestamps = [t for t in RATE_LIMIT_STORE[client_ip] if now - t < 60]
+        if len(timestamps) >= RATE_LIMIT_MAX:
+            return JSONResponse(status_code=429, content={"error": "Rate limit exceeded. Please try again in a minute."})
+        timestamps.append(now)
+        RATE_LIMIT_STORE[client_ip] = timestamps
+
+    response = await call_next(request)
+    # Add Security Headers including CSP
+    response.headers["Content-Security-Policy"] = "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    return response
 
 telegram_app = None
 
@@ -42,6 +71,7 @@ async def lifespan(app: FastAPI):
     telegram_app.add_handler(get_list_properties_handler())
     telegram_app.add_handler(get_edit_property_handler())
     telegram_app.add_handler(get_delete_property_handler())
+    telegram_app.add_handler(get_customers_handler())
     telegram_app.add_handler(CallbackQueryHandler(button_handler))
     telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_persistent_menu))
     logger.info("✅ Handlers registered")
@@ -75,9 +105,41 @@ async def webhook(request: Request):
 async def root():
     return {"status": "running", "system": "Afaq Al-Injaz Bot", "properties": len(load_properties())}
 
+def is_property_archived(prop):
+    status = str(prop.get("status", "")).lower()
+    if status in ["sold", "مباع", "archived", "مؤرشف"]:
+        return True
+
+    date_str = prop.get("date")
+    if date_str:
+        try:
+            prop_date = datetime.fromisoformat(date_str)
+            age_days = (datetime.now() - prop_date).days
+            if age_days > 120:
+                return True
+        except Exception:
+            pass
+    return False
+
 @app.get("/api/properties")
 async def get_properties_api():
-    return load_properties()
+    all_props = load_properties()
+    # Filter active only
+    active_props = [p for p in all_props if not is_property_archived(p)]
+    return active_props
+
+@app.get("/api/properties/all")
+async def get_all_properties_api():
+    all_props = load_properties()
+    for p in all_props:
+        p["is_archived"] = is_property_archived(p)
+    return all_props
+
+@app.get("/api/properties/archived")
+async def get_archived_properties_api():
+    all_props = load_properties()
+    archived_props = [p for p in all_props if is_property_archived(p)]
+    return archived_props
 
 @app.get("/api/properties/{id}")
 async def get_single_property_api(id: str):
@@ -90,6 +152,28 @@ async def get_single_property_api(id: str):
 async def get_compass_api():
     compass_data = load_json(COMPASS_FILE, default={})
     return compass_data
+
+@app.post("/api/events")
+async def create_crm_event_api(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    event_type = body.get("type", "unknown")
+    event_entry = {
+        "id": f"EVT-{int(time.time() * 1000)}",
+        "type": event_type,
+        "details": body.get("details", {}),
+        "url": body.get("url", ""),
+        "timestamp": body.get("timestamp", datetime.now().isoformat())
+    }
+    CRM_EVENTS.append(event_entry)
+    return {"status": "ok", "event_id": event_entry["id"]}
+
+@app.get("/api/events")
+async def get_crm_events_api():
+    return {"total": len(CRM_EVENTS), "events": CRM_EVENTS}
 
 @app.post("/api/visitors")
 async def create_visitor_request_api(request: Request):

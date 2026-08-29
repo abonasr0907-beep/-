@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أرشيف العروض العقارية السابقة | أفاق الإنجاز للخدمات العقارية</title>
+    <meta name="description" content="أرشيف العروض العقارية والأراضي والمزارع المباعة والمؤرشفة في مدينة الخرج ومحافظاتها لغرض الفهرسة ومراجعة السجلات التاريخية.">
+    <link rel="canonical" href="https://abonasr0907-beep.github.io/archive.html">
+    <meta name="robots" content="index, follow">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/perf.css">
+</head>
+<body>
+    <div class="top-bar"><span>أفاق الإنجاز للخدمات العقارية - سجلات الأرشيف العقاري</span></div>
+
+    <main class="container" style="padding: 40px 20px; color: #fff;">
+        <h1 style="text-align: center; margin-bottom: 20px;">📦 أرشيف العروض العقارية بالخرج</h1>
+        <p style="text-align: center; color: #cbd5e1; max-width: 700px; margin: 0 auto 30px auto;">
+            تتضمن هذه الصفحة نصاً مختصراً للعقارات والأراضي والمزارع التي تم بيعها أو تجاوزت مدة عرضها 120 يوماً. هذه الصفحة مخصصة للفهرسة والسجلات التاريخية.
+        </p>
+
+        <div id="archived-properties-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            <!-- Rendered dynamically via JS or server fallback -->
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/seo.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/pwa.js"></script>
+    <script src="js/crm.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/properties/all')
+                .then(res => res.json())
+                .then(data => {
+                    const grid = document.getElementById('archived-properties-grid');
+                    const archived = data.filter(p => p.is_archived || p.status === 'sold' || p.status === 'مباع' || p.status === 'archived');
+                    if (!archived || archived.length === 0) {
+                        grid.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: #94a3b8;">لا توجد عروض مؤرشفة حالياً في السجل.</p>';
+                        return;
+                    }
+                    grid.innerHTML = archived.map(p => `
+                        <div style="background: rgba(255,255,255,0.06); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.12);">
+                            <span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold;">[مؤرشف / مباع]</span>
+                            <h3 style="margin: 12px 0 8px 0; color: #c7d9b5; font-size: 1.1rem;">${p.title || p.type + ' في ' + (p.location || 'الخرج')}</h3>
+                            <p style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5;">${(p.description || '').substring(0, 120)}...</p>
+                            <p style="margin-top: 10px; font-weight: bold; color: #fff;">السعر: ${p.price || 'غير محدد'}</p>
+                            <a href="/print.html?id=${p.id}" style="display: inline-block; margin-top: 10px; color: #c7d9b5; font-size: 0.85rem; text-decoration: underline;">عرض نسخة الطباعة (${p.id})</a>
+                        </div>
+                    `).join('');
+                })
+                .catch(err => {
+                    document.getElementById('archived-properties-grid').innerHTML = '<p style="text-align: center; color: #94a3b8;">جاري تحميل الأرشيف...</p>';
+                });
+        });
+    </script>
+</body>
+</html>
