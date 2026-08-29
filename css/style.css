@@ -49,8 +49,17 @@ body::before {
     right: 0;
     bottom: 0;
     background: linear-gradient(rgba(20, 32, 43, 0.5), rgba(20, 32, 43, 0.5)), url('../images/hero-bg.jpg?v=2') center / cover no-repeat;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
+}
+
+header, section, footer, main, .drawer-overlay, .ai-assistant {
+    position: relative;
+    z-index: 1;
+}
+
+section {
+    background: transparent !important;
 }
 
 /* ===== 3. شريط التمرير (Scrollbar) ===== */
@@ -2170,17 +2179,109 @@ body::before {
     }
 }
 
+@media (max-width: 640px) {
+    body {
+        background-color: #14202b;
+    }
+
+    section {
+        background: transparent !important;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .glass-card,
+    .cat-card,
+    .stat-card,
+    .why-card,
+    .service-card,
+    .bousla-card,
+    .news-card,
+    .about-glass-card,
+    .hero-features-card,
+    .hero-search-card,
+    .offer-card,
+    .why-item,
+    .well-content,
+    .wizard-container {
+        background: rgba(15, 23, 42, 0.35) !important;
+        backdrop-filter: blur(6px) !important;
+        -webkit-backdrop-filter: blur(6px) !important;
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+
+    /* شبكة بعمودين للبطاقات الصغيرة في الجوال */
+    .about-grid,
+    .stats-grid,
+    .hero-features-card,
+    .why-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    /* ضبط الخطوط ألا تقل عن 13px لضمان القراءة */
+    .about-line-item {
+        font-size: 13px;
+        padding: 10px 12px;
+    }
+
+    .feature-item p {
+        font-size: 13px;
+    }
+
+    .feature-item h4 {
+        font-size: 13.5px;
+    }
+
+    .stat-label {
+        font-size: 13px;
+    }
+
+    .stat-num {
+        font-size: 28px;
+    }
+
+    .why-card p {
+        font-size: 13px;
+    }
+
+    .why-card h3 {
+        font-size: 15px;
+    }
+
+    .offers-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-search-card {
+        padding: 20px 12px;
+    }
+
+    .about-glass-card {
+        padding: 20px 12px;
+    }
+}
+
 @media (max-width: 480px) {
     .offers-grid {
         grid-template-columns: 1fr;
     }
-    .hero-features-card {
-        grid-template-columns: 1fr;
+
+    .about-grid,
+    .stats-grid,
+    .hero-features-card,
+    .why-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
     }
+
     .hero-search-card {
-        padding: 25px 18px;
+        padding: 20px 12px;
     }
     .about-glass-card {
-        padding: 20px 15px;
+        padding: 20px 12px;
     }
 }
