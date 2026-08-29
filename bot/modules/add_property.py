@@ -261,7 +261,8 @@ async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ENTERING_PRICE
 
     context.user_data["property"]["price"] = price
-    reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
+    finish_btn = [InlineKeyboardButton("✅ تم الانتهاء", callback_data="action_finish_photos")]
+    reply_markup = InlineKeyboardMarkup([finish_btn, CANCEL_BUTTON])
     await update.message.reply_text(
         "📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم أرسل كلمة *تم* أو *انتهاء* أو اكتب /done عند الانتهاء.",
         reply_markup=reply_markup,
@@ -271,22 +272,23 @@ async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_photo_upload_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photos = context.user_data["property"].get("photos", [])
-    reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
+    finish_btn = [InlineKeyboardButton("✅ تم الانتهاء", callback_data="action_finish_photos")]
+    reply_markup = InlineKeyboardMarkup([finish_btn, CANCEL_BUTTON])
 
     if update.message and update.message.photo:
         if len(photos) >= 5:
-            await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اكتب /done أو أرسل كلمة تم للمتابعة.", reply_markup=reply_markup)
+            await update.message.reply_text("⚠️ وصلت للحد الأقصى للصور (5 صور). اضغط زر الانتهاء أو اكتب /done للمتابعة.", reply_markup=reply_markup)
             return UPLOADING_PHOTOS
         file_id = update.message.photo[-1].file_id
         photos.append(file_id)
         context.user_data["property"]["photos"] = photos
-        await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5). أرسل المزيد أو أرسل تم / done للإنهاء.", reply_markup=reply_markup)
+        await update.message.reply_text(f"✅ تم استلام الصورة ({len(photos)}/5)", reply_markup=reply_markup)
         return UPLOADING_PHOTOS
 
     if update.message and update.message.text:
         raw_text = update.message.text.strip().lstrip("/")
         norm_txt = raw_text.lower()
-        if norm_txt in {"done", "تم", "انتهاء", "انتهى", "انتهى"}:
+        if norm_txt in {"done", "تم", "انتهاء", "انتهى", "انتهت"}:
             return await finish_photo_upload(update, context)
         elif norm_txt in {"إلغاء", "الظاء", "cancel"}:
             return await cancel_add_property(update, context)
@@ -297,9 +299,12 @@ async def handle_photo_upload_step(update: Update, context: ContextTypes.DEFAULT
     return UPLOADING_PHOTOS
 
 async def finish_photo_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        await update.callback_query.answer()
     photos = context.user_data["property"].get("photos", [])
+    finish_btn = [InlineKeyboardButton("✅ تم الانتهاء", callback_data="action_finish_photos")]
+    reply_markup = InlineKeyboardMarkup([finish_btn, CANCEL_BUTTON])
     if not photos:
-        reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
         if update.message:
             await update.message.reply_text("⚠️ يجب إضافة صورة واحدة على الأقل. قم برفع صورة:", reply_markup=reply_markup)
         elif update.callback_query:
@@ -315,14 +320,14 @@ async def show_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
     features_str = "\n".join([f"• {k}: {v}" for k, v in prop.get("features", {}).items()]) or "لا يوجد"
 
     text = (
-        "📋 *الخطوة 8: معاينة العرض قبل النشر:*\n\n"
+        "🏠 *معاينة العرض:*\n\n"
         f"🏡 *النوع:* {type_labels.get(prop.get('type'), prop.get('type'))}\n"
         f"📐 *المساحة:* {format_number(prop.get('area'))} م²\n"
         f"📍 *المنطقة:* {prop.get('location')}\n"
         f"🛣️ *عدد الشوارع:* {prop.get('streets')}\n"
         f"💰 *السعر:* {format_number(prop.get('price'))} ريال\n\n"
         f"✨ *المميزات:*\n{features_str}\n\n"
-        f"📸 *عدد الصور:* {len(prop.get('photos', []))}"
+        f"📸 *الصور المستلمة:* {len(prop.get('photos', []))}"
     )
 
     keyboard = [
@@ -333,14 +338,6 @@ async def show_preview(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-
-    photos = prop.get("photos", [])
-    if photos and update.message:
-        try:
-            media = [InputMediaPhoto(media=pid) for pid in photos[:5]]
-            await update.message.reply_media_group(media=media)
-        except Exception:
-            pass
 
     if update.message:
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
@@ -439,6 +436,7 @@ def get_add_property_handler():
             ],
             UPLOADING_PHOTOS: [
                 MessageHandler(filters.PHOTO | filters.TEXT | filters.COMMAND, handle_photo_upload_step),
+                CallbackQueryHandler(finish_photo_upload, pattern="^action_finish_photos$"),
                 CallbackQueryHandler(cancel_add_property, pattern="^action_cancel$")
             ],
             PREVIEW: [
