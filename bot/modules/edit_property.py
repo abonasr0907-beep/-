@@ -131,26 +131,42 @@ async def save_edited_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def cancel_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
+    msg_text = "🔄 تم الإلغاء"
     if update.message:
-        await update.message.reply_text("❌ تم إلغاء التعديل.")
+        await update.message.reply_text(msg_text)
     elif update.callback_query:
-        await update.callback_query.edit_message_text("❌ تم إلغاء التعديل.")
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(msg_text)
     return ConversationHandler.END
 
 def get_edit_property_handler():
+    common_handlers = [
+        MessageHandler(filters.Regex("إلغاء") | filters.Regex("❌ إلغاء"), cancel_edit),
+        CallbackQueryHandler(cancel_edit, pattern="^(cancel|editfield_cancel)$")
+    ]
+
     return ConversationHandler(
+        conversation_timeout=900,
         entry_points=[
             CallbackQueryHandler(start_edit_property, pattern="^(editprop_|edit_prop)"),
             CommandHandler("edit_property", start_edit_property),
             MessageHandler(filters.Regex("تعديل عرض"), start_edit_property)
         ],
         states={
-            SELECTING_FIELD: [CallbackQueryHandler(select_edit_field, pattern="^editfield_")],
-            EDITING_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_value)]
+            SELECTING_FIELD: [
+                CallbackQueryHandler(select_edit_field, pattern="^editfield_"),
+                *common_handlers
+            ],
+            EDITING_VALUE: [
+                *common_handlers,
+                MessageHandler(filters.TEXT & ~filters.COMMAND, save_edited_value)
+            ]
         },
         fallbacks=[
             CommandHandler("cancel", cancel_edit),
-            CallbackQueryHandler(cancel_edit, pattern="^editfield_cancel$")
+            MessageHandler(filters.Regex("إلغاء") | filters.Regex("❌ إلغاء"), cancel_edit),
+            CallbackQueryHandler(cancel_edit, pattern="^(cancel|editfield_cancel)$")
         ],
         per_message=False,
         per_chat=True,

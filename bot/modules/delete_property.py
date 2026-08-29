@@ -78,23 +78,38 @@ async def handle_delete_confirmation(update: Update, context: ContextTypes.DEFAU
     return ConversationHandler.END
 
 async def cancel_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.callback_query:
-        await update.callback_query.edit_message_text("❌ تم إلغاء عملية الحذف.")
+    context.user_data.clear()
+    msg_text = "🔄 تم الإلغاء"
+    if update.message:
+        await update.message.reply_text(msg_text)
+    elif update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(msg_text)
     return ConversationHandler.END
 
 def get_delete_property_handler():
+    common_handlers = [
+        MessageHandler(filters.Regex("إلغاء") | filters.Regex("❌ إلغاء"), cancel_delete),
+        CallbackQueryHandler(cancel_delete, pattern="^(cancel|confirm_delete_no)$")
+    ]
+
     return ConversationHandler(
+        conversation_timeout=900,
         entry_points=[
             CallbackQueryHandler(start_delete_property, pattern="^(delprop_|delete_prop)"),
             CommandHandler("delete_property", start_delete_property),
             MessageHandler(filters.Regex("حذف عرض"), start_delete_property)
         ],
         states={
-            CONFIRM_DELETE: [CallbackQueryHandler(handle_delete_confirmation, pattern="^confirm_delete_")]
+            CONFIRM_DELETE: [
+                CallbackQueryHandler(handle_delete_confirmation, pattern="^confirm_delete_"),
+                *common_handlers
+            ]
         },
         fallbacks=[
             CommandHandler("cancel", cancel_delete),
-            CallbackQueryHandler(cancel_delete, pattern="^confirm_delete_no$")
+            MessageHandler(filters.Regex("إلغاء") | filters.Regex("❌ إلغاء"), cancel_delete),
+            CallbackQueryHandler(cancel_delete, pattern="^(cancel|confirm_delete_no)$")
         ],
         per_message=False,
         per_chat=True,

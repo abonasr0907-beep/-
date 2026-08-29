@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT, VISITORS_FILE, COMPASS_FILE
+from bot.config import BOT_TOKEN, WEBHOOK_URL, PORT, VISITORS_FILE, COMPASS_FILE, ADMIN_IDS
 from bot.database import init_db, load_properties, get_property, load_json, save_json
 from bot.modules.add_property import get_add_property_handler
 from bot.modules.list_properties import get_list_properties_handler, start_list_properties
@@ -108,6 +108,30 @@ async def create_visitor_request_api(request: Request):
     }
     visitors.append(visitor_entry)
     save_json(VISITORS_FILE, visitors, root_key="visitors")
+
+    if telegram_app and telegram_app.bot:
+        try:
+            req_type = body.get("type", "طلب موقع")
+            name = body.get("name", "غير محدد")
+            phone = body.get("phone", body.get("mobile", "غير محدد"))
+            details = body.get("details", body.get("notes", "بدون تفاصيل"))
+            msg_text = (
+                f"🔔 *طلب جديد من الموقع*\n\n"
+                f"🏷️ *النوع:* {req_type}\n"
+                f"👤 *الاسم:* {name}\n"
+                f"📱 *الجوال:* {phone}\n"
+                f"📝 *التفاصيل:* {details}"
+            )
+            for admin_id in ADMIN_IDS:
+                await telegram_app.bot.send_message(
+                    chat_id=admin_id,
+                    text=msg_text,
+                    parse_mode="Markdown",
+                    disable_notification=True
+                )
+        except Exception as e:
+            logger.error(f"Admin notification failed: {e}")
+
     return {"status": "ok", "id": req_id, "message": "Request saved successfully"}
 
 def normalize(text):
