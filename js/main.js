@@ -373,7 +373,29 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
 
     grid.innerHTML = filtered.map(offer => {
         const bouslaPrice = getBouslaPrice(offer.area, offer.type);
-        const featuresHtml = (offer.features || []).slice(0, 4).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
+        const translateKeyMap = {
+            'trees_count': 'عدد الأشجار',
+            'greenhouses_count': 'عدد البيوت المحمية',
+            'fenced': 'مسوّر',
+            'facade': 'الواجهة',
+            'land_kind': 'نوع الأرض',
+            'electricity': 'الكهرباء',
+            'well': 'بئر',
+            'pool': 'مسبح'
+        };
+        const featuresHtml = (offer.features || []).slice(0, 4).map(f => {
+            let label = f;
+            if (f.includes(':')) {
+                const parts = f.split(':');
+                const k = parts[0].trim().toLowerCase();
+                const v = parts.slice(1).join(':').trim();
+                const translatedK = translateKeyMap[k] || parts[0].trim();
+                label = `${translatedK}: ${v}`;
+            } else {
+                label = translateKeyMap[f.trim().toLowerCase()] || f;
+            }
+            return `<span class="offer-feature-tag">${label}</span>`;
+        }).join('');
         const featuredBadge = offer.featured ? '<span class="offer-badge-featured">⭐ عرض مميز</span>' : '';
         const categoryBadge = `<span class="offer-badge">${offer.category}</span>`;
         const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
