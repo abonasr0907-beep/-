@@ -23,8 +23,8 @@ async function loadOfficeData() {
     }
 }
 
-function getWhatsappNumber() {
-    const number = OFFICE_DATA?.phones?.whatsapp_calls || '0545888931';
+function getWhatsappNumber(numKey = 'whatsapp1') {
+    const number = (typeof CONTACTS !== 'undefined' && CONTACTS[numKey]) || OFFICE_DATA?.phones?.whatsapp_calls || '0545888931';
     return number.replace(/^0/, '966').replace(/\D/g, '');
 }
 
@@ -515,7 +515,10 @@ const AI_KNOWLEDGE = {
     services: "🔧 نقدم خدمات ما بعد البيع الشاملة: استخراج رخص البناء، المقاولات، التشطيب، إدارة الأملاك، حفر الآبار وتحديد مواقعها وتصويرها. <a href='services.html'>اضغط هنا لعرض الخدمات</a>",
     sell: "📈 هل تريد عرض عقارك في موقعنا؟ رائع! يمكنك تعبئة استبيان العرض عبر <a href='list-property.html'>هذه الصفحة</a> وسنتواصل معك في أقرب وقت.",
     inquiry: "🔍 لم تجد ما تبحث عنه؟ لا بأس! يمكنك تقديم طلب استفسار عبر <a href='inquiry.html'>هذه الصفحة</a> وسنقوم بمراجعته والتواصل معك.",
-    contact: "📞 يمكنك التواصل معنا عبر:\n• واتساب: 0545888931\n• مكالمات: 0544699933\n• واتساب ومكالمات: 0561610748\n• البريد: afaqalqary@gmail.com",
+    get contact() {
+        const c = typeof CONTACTS !== 'undefined' ? CONTACTS : { whatsapp1: '0545888931', call1: '0544699933', whatsapp2: '0561610748', email: 'afaqalqary@gmail.com' };
+        return `📞 يمكنك التواصل معنا عبر:\n• واتساب: ${c.whatsapp1}\n• مكالمات: ${c.call1}\n• واتساب ومكالمات: ${c.whatsapp2}\n• البريد: ${c.email}`;
+    },
     areas: "🗺️ نغطي بشكل رئيسي مخطط الرحمانية والمناطق المحيطة: الهياثم، الدلم، الضبيعة، العفجة. 90% من عروضنا في هذه المناطق.",
     bousla: "🧭 نعرض أسعار البوصلة العقارية (منصة المؤشرات العقارية للهيئة العامة للعقار) تحت كل عرض حسب موقعه الجغرافي. يمكنك أيضاً رؤية الأسعار في <a href='index.html#bousla'>قسم البوصلة العقارية</a>.",
     experience: "⭐ لمكتب آفاق الإنجاز العقاري 20 سنة خبرة في المجال العقاري بالخرج والرياض، ونحن نوفر لك أفضل العروض والخدمات.",
@@ -745,7 +748,24 @@ function showToast(message, type = '') {
 }
 
 function toggleMenu() {
-    document.getElementById('nav-menu').classList.toggle('show');
+    const menu = document.getElementById('nav-menu');
+    if (!menu) return;
+    let overlay = document.getElementById('drawer-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'drawer-overlay';
+        overlay.className = 'drawer-overlay';
+        overlay.onclick = toggleMenu;
+        document.body.appendChild(overlay);
+    }
+    const isShowing = menu.classList.contains('show');
+    if (isShowing) {
+        menu.classList.remove('show');
+        overlay.classList.remove('show');
+    } else {
+        menu.classList.add('show');
+        overlay.classList.add('show');
+    }
 }
 
 function initStatsCounter() {
