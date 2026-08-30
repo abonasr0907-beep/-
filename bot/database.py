@@ -41,19 +41,28 @@ def save_json(filepath, data, root_key=None):
             json.dump(data, f, ensure_ascii=False, indent=2)
 
 def load_properties():
-    """تحميل جميع العروض"""
-    return load_json(PROPERTIES_FILE, default=[])
+    """تحميل جميع العروض وضمان وجود الحقول الجديدة"""
+    props = load_json(PROPERTIES_FILE, default=[])
+    for prop in props:
+        if isinstance(prop, dict):
+            if 'features' not in prop or prop['features'] is None:
+                prop['features'] = {}
+            if 'sidebar_active' not in prop or prop['sidebar_active'] is None:
+                prop['sidebar_active'] = True
+    return props
 
 def save_properties(properties):
     """حفظ جميع العروض"""
     save_json(PROPERTIES_FILE, properties, root_key="properties")
 
 def add_property(property_data):
-    """إضافة عرض جديد"""
+    """إضافة عرض جديد مع تجميع الحقول الجديدة"""
     properties = load_properties()
     property_data['id'] = f"PROP-{len(properties) + 1:010d}"
     property_data['status'] = property_data.get('status', 'active')
     property_data['created_at'] = property_data.get('created_at', datetime.now().isoformat())
+    property_data['features'] = property_data.get('features', {})
+    property_data['sidebar_active'] = property_data.get('sidebar_active', True)
     properties.append(property_data)
     save_properties(properties)
     return property_data

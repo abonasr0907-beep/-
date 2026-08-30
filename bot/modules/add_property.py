@@ -44,7 +44,7 @@ def get_area_ranges(prop_type):
 
 def build_area_keyboard(prop_type, page=0):
     areas = get_area_ranges(prop_type)
-    per_page = 10
+    per_page = 6
     total_pages = (len(areas) + per_page - 1) // per_page
     page = max(0, min(page, total_pages - 1))
 
@@ -55,7 +55,7 @@ def build_area_keyboard(prop_type, page=0):
     row = []
     for area in page_areas:
         row.append(InlineKeyboardButton(f"{format_number(area)} م²", callback_data=f"area_val_{area}"))
-        if len(row) == 2:
+        if len(row) == 3:
             keyboard.append(row)
             row = []
     if row:
@@ -81,9 +81,11 @@ async def start_add_property(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data["property"] = {"features": {}, "photos": []}
 
     keyboard = [
-        [InlineKeyboardButton("🏡 أرض سكنية", callback_data="type_land")],
-        [InlineKeyboardButton("🏠 استراحة", callback_data="type_resthouse")],
-        [InlineKeyboardButton("🚜 مزرعة", callback_data="type_farm")],
+        [
+            InlineKeyboardButton("🏡 أرض سكنية", callback_data="type_land"),
+            InlineKeyboardButton("🏠 استراحة", callback_data="type_resthouse"),
+            InlineKeyboardButton("🚜 مزرعة", callback_data="type_farm")
+        ],
         CANCEL_BUTTON
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -128,7 +130,7 @@ async def handle_area_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         row = []
         for loc in LOCATIONS:
             row.append(InlineKeyboardButton(loc, callback_data=f"loc_{loc}"))
-            if len(row) == 2:
+            if len(row) == 3:
                 keyboard.append(row)
                 row = []
         if row:
@@ -148,9 +150,11 @@ async def select_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["property"]["location"] = location
 
     keyboard = [
-        [InlineKeyboardButton("شارع واحد", callback_data="streets_1")],
-        [InlineKeyboardButton("شارعين", callback_data="streets_2")],
-        [InlineKeyboardButton("أكثر من شارعين", callback_data="streets_3+")],
+        [
+            InlineKeyboardButton("شارع واحد", callback_data="streets_1"),
+            InlineKeyboardButton("شارعين", callback_data="streets_2"),
+            InlineKeyboardButton("أكثر من شارعين", callback_data="streets_3+")
+        ],
         CANCEL_BUTTON
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)

@@ -850,9 +850,9 @@ function showToast(message, type = '') {
 }
 
 function toggleMenu() {
-    const menu = document.getElementById('nav-menu');
+    const menu = document.querySelector('#nav-menu, .nav-menu, .sidebar, .side-nav, .navigation-menu, .nav-links');
     if (!menu) return;
-    let overlay = document.getElementById('drawer-overlay');
+    let overlay = document.querySelector('#drawer-overlay, .drawer-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'drawer-overlay';
@@ -860,15 +860,37 @@ function toggleMenu() {
         overlay.onclick = toggleMenu;
         document.body.appendChild(overlay);
     }
-    const isShowing = menu.classList.contains('show');
+    const isShowing = menu.classList.contains('show') || menu.classList.contains('active') || menu.classList.contains('open');
     if (isShowing) {
-        menu.classList.remove('show');
-        overlay.classList.remove('show');
+        menu.classList.remove('show', 'active', 'open');
+        overlay.classList.remove('show', 'active', 'open');
     } else {
-        menu.classList.add('show');
-        overlay.classList.add('show');
+        menu.classList.add('show', 'active', 'open');
+        overlay.classList.add('show', 'active', 'open');
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.querySelector('.sidebar-toggle, .menu-toggle, .nav-toggler, .btn-menu-toggle');
+    const sidebar = document.querySelector('.sidebar, .side-nav, .navigation-menu, .nav-links, #nav-menu, .nav-menu');
+    let overlay = document.querySelector('#drawer-overlay, .drawer-overlay');
+
+    if (toggleBtn && sidebar) {
+        toggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleMenu();
+        });
+        document.addEventListener('click', function(e) {
+            const currentOverlay = document.querySelector('#drawer-overlay, .drawer-overlay');
+            if (sidebar && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+                sidebar.classList.remove('active', 'open', 'show');
+                if (currentOverlay) {
+                    currentOverlay.classList.remove('active', 'open', 'show');
+                }
+            }
+        });
+    }
+});
 
 function initStatsCounter() {
     const statNumbers = document.querySelectorAll('.stat-num[data-target]');
