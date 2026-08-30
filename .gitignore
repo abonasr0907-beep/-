@@ -45,7 +45,7 @@ bot/data/outage_operations.json
 # Phase 3 backup/patch files (not needed in repo)
 bot/bot.py.bak_*
 patch_*.py
-migrate_*.py
+!utils/migrate_data.py
 todo_phase3.md
 
 # Phase 6.2 SEO runtime artifacts (regenerated on each audit)
@@ -66,3 +66,7 @@ WEEKLY_SEO_REPORT.md
 venv/
 __pycache__/
 venv/
+
+# Legacy duplicated bot directory
+telegram-bot/
+offers-data/

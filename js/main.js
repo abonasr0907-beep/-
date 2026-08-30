@@ -2,25 +2,66 @@
    مكتب آفاق الإنجاز العقاري - ملف JavaScript الرئيسي
    ============================================ */
 
+const PROPERTY_TYPE_MAP = {
+    'مزرعة': 'farm', 'farm': 'farm', 'farms': 'farm', 'زراعي': 'farm',
+    'استراحة': 'resthouse', 'resthouse': 'resthouse', 'resthouses': 'resthouse',
+    'أرض سكنية': 'land', 'land': 'land', 'lands': 'land', 'سكني': 'land'
+};
+
+const DEFAULT_IMAGES = {
+    'farm': 'images/cat-farms.jpg',
+    'resthouse': 'images/cat-rest.jpg',
+    'land': 'images/cat-lands.jpg'
+};
+
+const TYPE_LABELS_AR = {
+    'farm': 'مزرعة',
+    'resthouse': 'استراحة',
+    'land': 'أرض سكنية'
+};
+
+function normalizePropertyType(type) {
+    const t = String(type || '').toLowerCase().trim();
+    return PROPERTY_TYPE_MAP[t] || 'land';
+}
+
+function getDefaultImage(type) {
+    return DEFAULT_IMAGES[normalizePropertyType(type)] || 'images/farms-bg.jpg';
+}
+
+function getPropertyCategory(type) {
+    return TYPE_LABELS_AR[normalizePropertyType(type)] || 'عقار';
+}
+
+function formatPropertyPrice(price) {
+    const num = Number(price) || 0;
+    return num > 0 ? `${num.toLocaleString('en-US')} SAR` : 'Contact for Price';
+}
+
+function getPropertyImages(p) {
+    const photos = p.photo_urls || p.photos || p.images || [];
+    const validPhotos = photos.filter(url => url && (url.startsWith('http') || url.startsWith('images/')));
+    return validPhotos.length > 0 ? validPhotos : [getDefaultImage(p.type)];
+}
+
+function normalizeFeatures(features) {
+    if (Array.isArray(features)) return features;
+    if (typeof features === 'object' && features !== null) {
+        return Object.entries(features).map(([k, v]) => `${k}: ${v}`);
+    }
+    return [];
+}
+
 let OFFICE_DATA = null;
 
 async function loadOfficeData() {
-    try {
-        const response = await fetch('offers-data/office-data.json', { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        OFFICE_DATA = { ...(data.office || {}), areas: data.areas || {} };
-        return OFFICE_DATA;
-    } catch (error) {
-        console.error('تعذر تحميل بيانات المكتب:', error);
-        OFFICE_DATA = {
-            name: 'مكتب آفاق الإنجاز العقاري',
-            phones: { whatsapp_calls: '0545888931' },
-            google_maps: '',
-            email: ''
-        };
-        return OFFICE_DATA;
-    }
+    OFFICE_DATA = {
+        name: 'مكتب آفاق الإنجاز العقاري',
+        phones: { whatsapp_calls: '0545888931' },
+        google_maps: '',
+        email: ''
+    };
+    return OFFICE_DATA;
 }
 
 function getWhatsappNumber(numKey = 'whatsapp1') {
@@ -79,22 +120,15 @@ async function loadOffers(defaultFilter = 'all') {
     } catch (apiError) {
         console.warn('تعذر الجلب من API الحي، محاولة الجلب المحلي:', apiError);
         try {
-            const res1 = await fetch('offers-data/offers.json', { cache: 'no-store' });
-            if (res1.ok) {
-                const data1 = await res1.json();
-                const offersArr = Array.isArray(data1.offers) ? data1.offers : [];
-                rawProperties.push(...offersArr);
-            }
-        } catch (e1) {}
-
-        try {
-            const res2 = await fetch('data/properties.json', { cache: 'no-store' });
-            if (res2.ok) {
-                const data2 = await res2.json();
-                const propsArr = Array.isArray(data2.properties) ? data2.properties : (Array.isArray(data2) ? data2 : []);
+            const res = await fetch('data/properties.json', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                const propsArr = Array.isArray(data.properties) ? data.properties : (Array.isArray(data) ? data : []);
                 rawProperties.push(...propsArr);
             }
-        } catch (e2) {}
+        } catch (e) {
+            console.warn('تعذر قراءة data/properties.json:', e);
+        }
 
         if (rawProperties.length === 0) loadFailed = true;
     }
@@ -115,26 +149,10 @@ async function loadOffers(defaultFilter = 'all') {
 
     const seen = new Set();
     OFFERS = rawProperties.map(p => {
-        const typeVal = (p.type === 'مزرعة' || p.type === 'farm' || p.type === 'farms') ? 'farm' : ((p.type === 'استراحة' || p.type === 'resthouse' || p.type === 'resthouses') ? 'resthouse' : 'land');
-        const catVal = typeVal === 'farm' ? 'مزرعة' : (typeVal === 'resthouse' ? 'استراحة' : 'أرض سكنية');
-
-        let photoUrl = null;
-        if (p.photo_urls && p.photo_urls.length > 0) {
-            photoUrl = p.photo_urls[0];
-        } else if (p.photos && p.photos.length > 0 && p.photos[0].startsWith('http')) {
-            photoUrl = p.photos[0];
-        } else if (p.images && p.images.length > 0 && p.images[0].startsWith('http')) {
-            photoUrl = p.images[0];
-        } else {
-            photoUrl = typeVal === 'farm' ? 'images/cat-farms.jpg' : (typeVal === 'resthouse' ? 'images/cat-rest.jpg' : 'images/cat-lands.jpg');
-        }
-
-        let feats = [];
-        if (Array.isArray(p.features)) {
-            feats = p.features;
-        } else if (typeof p.features === 'object' && p.features !== null) {
-            feats = Object.entries(p.features).map(([k, v]) => `${k}: ${v}`);
-        }
+        const typeVal = normalizePropertyType(p.type);
+        const catVal = getPropertyCategory(p.type);
+        const photoUrls = getPropertyImages(p);
+        const feats = normalizeFeatures(p.features);
 
         return {
             id: p.id || `PROP-${Math.random()}`,
@@ -144,10 +162,10 @@ async function loadOffers(defaultFilter = 'all') {
             area: p.location || p.area || 'الخرج',
             size_sqm: Number(p.size_sqm || p.size || p.area || 0),
             price: Number(p.price || 0),
-            price_text: p.price ? `${Number(p.price).toLocaleString('ar-SA')} ريال` : (p.price_text || 'عند الاتصال'),
+            price_text: formatPropertyPrice(p.price),
             description: p.description || '',
             features: feats,
-            images: [photoUrl],
+            images: photoUrls,
             map_link: p.map_link,
             date_added: p.date || p.date_added || p.created_at || '',
             featured: p.is_vip || p.featured || false
@@ -199,7 +217,7 @@ async function handlePropertyQueryParam() {
                     area: p.location || p.area || 'الخرج',
                     size_sqm: Number(p.size_sqm || p.size || p.area || 0),
                     price: Number(p.price || 0),
-                    price_text: p.price ? `${Number(p.price).toLocaleString('ar-SA')} ريال` : (p.price_text || 'عند الاتصال'),
+                    price_text: p.price ? `${Number(p.price).toLocaleString('en-US')} SAR` : (p.price_text || 'Contact for Price'),
                     description: p.description || '',
                     features: feats,
                     images: [photoUrl],
@@ -216,15 +234,13 @@ async function handlePropertyQueryParam() {
     if (targetOffer) {
         const bouslaPrice = getBouslaPrice(targetOffer.area, targetOffer.type);
         const featuresHtml = (targetOffer.features || []).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
-        const img = targetOffer.images && targetOffer.images[0] ? targetOffer.images[0] : 'images/farms-bg.jpg';
         const mapLink = targetOffer.map_link || getDefaultMap();
         const shortUrl = getShortUrl(targetOffer.id);
         const waText = encodeURIComponent(`أرغب بالاستفسار عن: ${targetOffer.title} ${shortUrl}`);
 
         grid.innerHTML = `
             <div class="offer-card single-property-view" style="grid-column: 1/-1; max-width: 800px; margin: 0 auto;">
-                <div class="offer-card-img-wrapper" style="height: 350px;">
-                    <img src="${img}" alt="${targetOffer.title}" style="width:100%; height:350px; object-fit:cover;">
+                <div class="offer-card-img-wrapper" id="single-gallery" style="height: 350px;">
                     <span class="offer-badge">${targetOffer.category}</span>
                     ${targetOffer.featured ? '<span class="offer-badge-featured">⭐ عرض مميز</span>' : ''}
                 </div>
@@ -298,6 +314,13 @@ async function handlePropertyQueryParam() {
             });
             document.head.appendChild(schemaScript);
         } catch (e) {}
+
+        setTimeout(() => {
+            const galleryContainer = document.getElementById('single-gallery');
+            if (galleryContainer && targetOffer) {
+                renderImageGallery(galleryContainer, targetOffer.images, targetOffer.title);
+            }
+        }, 100);
 
         const offersSection = document.getElementById('offers');
         if (offersSection) {
@@ -398,15 +421,13 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
         }).join('');
         const featuredBadge = offer.featured ? '<span class="offer-badge-featured">⭐ عرض مميز</span>' : '';
         const categoryBadge = `<span class="offer-badge">${offer.category}</span>`;
-        const img = offer.images && offer.images[0] ? offer.images[0] : 'images/farms-bg.jpg';
         const mapLink = offer.map_link || getDefaultMap();
         const shortUrl = getShortUrl(offer.id);
         const waText = encodeURIComponent(`أرغب بالاستفسار عن: ${offer.title} ${shortUrl}`);
 
         return `
             <div class="offer-card">
-                <div class="offer-card-img-wrapper">
-                    <img src="${img}" alt="${offer.title}" loading="lazy" style="width:100%; height:220px; object-fit:cover;">
+                <div class="offer-card-img-wrapper" id="gallery-${offer.id}">
                     ${categoryBadge}
                     ${featuredBadge}
                 </div>
@@ -447,6 +468,13 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
     }).join('');
 
     setTimeout(() => {
+        filtered.forEach(offer => {
+            const galleryContainer = document.getElementById(`gallery-${offer.id}`);
+            if (galleryContainer) {
+                renderImageGallery(galleryContainer, offer.images, offer.title);
+            }
+        });
+
         const cards = grid.querySelectorAll('.offer-card');
         cards.forEach((el, i) => {
             el.style.opacity = '0';
@@ -897,6 +925,214 @@ function initHeaderScroll() {
             header.classList.remove('scrolled');
         }
     }, { passive: true });
+}
+
+// ==========================================================================
+// معرض الصور المتعدد (Image Gallery)
+// ==========================================================================
+
+function renderImageGallery(container, images, title) {
+    if (!images || images.length === 0) {
+        images = ['images/farms-bg.jpg'];
+    }
+
+    let currentIndex = 0;
+
+    const galleryHtml = `
+        <div class="image-gallery" data-gallery-id="${Date.now()}">
+            <div class="gallery-main">
+                <img src="${images[0]}" alt="${title || ''}" class="gallery-main-img" loading="lazy">
+                ${images.length > 1 ? `
+                    <button class="gallery-nav gallery-prev" aria-label="السابق">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="gallery-nav gallery-next" aria-label="التالي">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="gallery-counter">
+                        <span class="gallery-current">1</span> / <span class="gallery-total">${images.length}</span>
+                    </div>
+                ` : ''}
+            </div>
+            ${images.length > 1 ? `
+                <div class="gallery-thumbs">
+                    ${images.map((img, i) => `
+                        <div class="gallery-thumb ${i === 0 ? 'active' : ''}" data-index="${i}">
+                            <img src="${img}" alt="${title || ''} - ${i + 1}" loading="lazy">
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="gallery-dots">
+                    ${images.map((_, i) => `
+                        <span class="gallery-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></span>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    container.innerHTML += galleryHtml;
+
+    if (images.length <= 1) {
+        const mainImgOnly = container.querySelector('.gallery-main-img');
+        if (mainImgOnly) {
+            mainImgOnly.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openLightbox(images, 0, title);
+            });
+        }
+        return;
+    }
+
+    // عناصر المعرض
+    const gallery = container.querySelector('.image-gallery');
+    const mainImg = gallery.querySelector('.gallery-main-img');
+    const prevBtn = gallery.querySelector('.gallery-prev');
+    const nextBtn = gallery.querySelector('.gallery-next');
+    const currentSpan = gallery.querySelector('.gallery-current');
+    const thumbs = gallery.querySelectorAll('.gallery-thumb');
+    const dots = gallery.querySelectorAll('.gallery-dot');
+
+    // دالة تحديث الصورة
+    function updateImage(index) {
+        currentIndex = index;
+        mainImg.src = images[index];
+        if (currentSpan) currentSpan.textContent = index + 1;
+
+        thumbs.forEach((t, i) => t.classList.toggle('active', i === index));
+        dots.forEach((d, i) => d.classList.toggle('active', i === index));
+    }
+
+    // أزرار التنقل
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;
+            updateImage(newIndex);
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const newIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1;
+            updateImage(newIndex);
+        });
+    }
+
+    // Thumbs
+    thumbs.forEach(thumb => {
+        thumb.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateImage(parseInt(thumb.dataset.index));
+        });
+    });
+
+    // Dots
+    dots.forEach(dot => {
+        dot.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateImage(parseInt(dot.dataset.index));
+        });
+    });
+
+    // Swipe على الموبايل
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    const mainDiv = gallery.querySelector('.gallery-main');
+    if (mainDiv) {
+        mainDiv.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        mainDiv.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, { passive: true });
+    }
+
+    function handleSwipe() {
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 50) {
+            if (diff > 0) {
+                const newIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1;
+                updateImage(newIndex);
+            } else {
+                const newIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;
+                updateImage(newIndex);
+            }
+        }
+    }
+
+    // Zoom on click
+    if (mainImg) {
+        mainImg.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openLightbox(images, currentIndex, title);
+        });
+    }
+}
+
+// Lightbox
+function openLightbox(images, startIndex, title) {
+    const lightbox = document.createElement('div');
+    lightbox.className = 'lightbox-overlay';
+    lightbox.innerHTML = `
+        <div class="lightbox-content">
+            <button class="lightbox-close" aria-label="إغلاق"><i class="fas fa-times"></i></button>
+            <button class="lightbox-nav lightbox-prev" aria-label="السابق"><i class="fas fa-chevron-right"></i></button>
+            <img src="${images[startIndex]}" alt="${title || ''}" class="lightbox-img">
+            <button class="lightbox-nav lightbox-next" aria-label="التالي"><i class="fas fa-chevron-left"></i></button>
+            <div class="lightbox-counter">${startIndex + 1} / ${images.length}</div>
+        </div>
+    `;
+
+    document.body.appendChild(lightbox);
+    document.body.style.overflow = 'hidden';
+
+    let currentIdx = startIndex;
+    const img = lightbox.querySelector('.lightbox-img');
+    const counter = lightbox.querySelector('.lightbox-counter');
+
+    function updateLightbox(idx) {
+        currentIdx = idx;
+        img.src = images[idx];
+        counter.textContent = `${idx + 1} / ${images.length}`;
+    }
+
+    lightbox.querySelector('.lightbox-prev').addEventListener('click', () => {
+        updateLightbox(currentIdx === 0 ? images.length - 1 : currentIdx - 1);
+    });
+
+    lightbox.querySelector('.lightbox-next').addEventListener('click', () => {
+        updateLightbox(currentIdx === images.length - 1 ? 0 : currentIdx + 1);
+    });
+
+    lightbox.querySelector('.lightbox-close').addEventListener('click', () => {
+        lightbox.remove();
+        document.body.style.overflow = '';
+    });
+
+    lightbox.addEventListener('click', (e) => {
+        if (e.target === lightbox) {
+            lightbox.remove();
+            document.body.style.overflow = '';
+        }
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', function handleKey(e) {
+        if (e.key === 'Escape') {
+            lightbox.remove();
+            document.body.style.overflow = '';
+            document.removeEventListener('keydown', handleKey);
+        } else if (e.key === 'ArrowRight') {
+            updateLightbox(currentIdx === 0 ? images.length - 1 : currentIdx - 1);
+        } else if (e.key === 'ArrowLeft') {
+            updateLightbox(currentIdx === images.length - 1 ? 0 : currentIdx + 1);
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
