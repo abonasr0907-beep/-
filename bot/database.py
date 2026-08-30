@@ -81,3 +81,46 @@ def get_property(property_id):
         if prop.get('id') == property_id:
             return prop
     return None
+
+def get_property_by_id(prop_id: str):
+    """الحصول على عقار بواسطة المعرف (أو إرجاع قاموس فارغ)"""
+    prop = get_property(prop_id)
+    return prop if prop else {}
+
+def delete_property_by_id(prop_id: str) -> bool:
+    """حذف عقار بواسطة المعرف وتأكيد عملية الحذف"""
+    properties = load_properties()
+    original_len = len(properties)
+    properties = [p for p in properties if p.get("id") != prop_id]
+    if len(properties) < original_len:
+        save_properties(properties)
+        return True
+    return False
+
+def archive_property(prop_id: str) -> bool:
+    """أرشفة عقار"""
+    res = update_property(prop_id, {"status": "archived"})
+    return bool(res)
+
+def unarchive_property(prop_id: str) -> bool:
+    """إلغاء أرشفة عقار"""
+    res = update_property(prop_id, {"status": "active"})
+    return bool(res)
+
+def toggle_property_status(prop_id: str) -> bool:
+    """تبديل حالة العقار بين نشط ومباع"""
+    prop = get_property(prop_id)
+    if not prop:
+        return False
+    new_status = "sold" if prop.get("status") == "active" else "active"
+    res = update_property(prop_id, {"status": new_status})
+    return bool(res)
+
+def toggle_vip_status(prop_id: str) -> bool:
+    """تبديل حالة VIP للعقار"""
+    prop = get_property(prop_id)
+    if not prop:
+        return False
+    new_vip = not prop.get("is_vip", False)
+    res = update_property(prop_id, {"is_vip": new_vip, "featured": new_vip})
+    return bool(res)
