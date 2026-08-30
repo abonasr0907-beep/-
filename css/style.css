@@ -2264,6 +2264,308 @@ section {
 }
 
 /* ==========================================================================
+   Interactive Visitor Tools & Chatbot Components Styles
+   ========================================================================== */
+
+/* FAQ Component */
+.faq-container {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.faq-item {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: var(--transition-fast);
+}
+
+.faq-question {
+    padding: 18px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--white);
+    user-select: none;
+}
+
+.faq-question i {
+    color: var(--primary-gold);
+    transition: transform 0.3s ease;
+}
+
+.faq-answer {
+    padding: 0 22px 18px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14.5px;
+    line-height: 1.8;
+    white-space: pre-line;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 14px;
+}
+
+/* Compare Bar & Comparison Modal */
+.compare-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--primary-gold);
+    border-radius: 20px;
+    padding: 12px 24px;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    max-width: 90vw;
+}
+
+.compare-bar-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    font-family: 'Cairo', sans-serif;
+}
+
+.compare-items {
+    display: flex;
+    gap: 10px;
+}
+
+.compare-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.compare-item img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.compare-item button {
+    background: none;
+    border: none;
+    color: #ff4d4d;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.comparison-modal .modal-content {
+    max-width: 900px;
+    width: 92vw;
+}
+
+.comparison-table-wrapper {
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    font-size: 14px;
+}
+
+.comparison-table th, .comparison-table td {
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.comparison-table th {
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--primary-gold);
+    font-family: 'Cairo', sans-serif;
+}
+
+.comparison-table th img {
+    width: 70px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.price-cell {
+    color: var(--primary-gold);
+    font-weight: bold;
+}
+
+/* Modals & Forms */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-content {
+    max-width: 550px;
+    width: 100%;
+    padding: 28px;
+    border-radius: 24px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+.form-group {
+    margin-bottom: 16px;
+    text-align: right;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--primary-gold);
+    font-family: 'Cairo', sans-serif;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--white);
+    font-family: 'Tajawal', sans-serif;
+    font-size: 14px;
+    outline: none;
+}
+
+.form-group select option {
+    background: #121d28;
+    color: #fff;
+}
+
+/* Mortgage Calculator */
+.mortgage-calculator {
+    padding: 30px;
+    max-width: 650px;
+    margin: 0 auto;
+}
+
+.mortgage-results {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 14px;
+}
+
+.result-row.highlight {
+    background: rgba(255, 215, 0, 0.15);
+    padding: 12px;
+    border-radius: 10px;
+    color: var(--primary-gold);
+    font-size: 16px;
+    margin: 10px 0;
+}
+
+.mortgage-note {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 12px;
+}
+
+/* Smart Property Recommendations */
+.recommendation-form {
+    padding: 30px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.recommendation-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.recommendation-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.recommendation-card img {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+}
+
+.rec-info {
+    padding: 14px;
+}
+
+.rec-info h5 {
+    font-family: 'Cairo', sans-serif;
+    font-size: 15px;
+    color: var(--white);
+    margin-bottom: 6px;
+}
+
+.rec-price {
+    color: var(--primary-gold);
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.rec-area {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 10px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 8px;
+}
+
+/* ==========================================================================
    معرض الصور المتعدد (Image Gallery)
    ========================================================================== */
 

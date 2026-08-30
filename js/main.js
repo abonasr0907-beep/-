@@ -178,6 +178,10 @@ async function loadOffers(defaultFilter = 'all') {
 
     renderOffers(defaultFilter);
     updateStats();
+
+    if (typeof propertyRecommender !== 'undefined') {
+        propertyRecommender.setProperties(OFFERS);
+    }
 }
 
 async function handlePropertyQueryParam() {
@@ -232,6 +236,10 @@ async function handlePropertyQueryParam() {
     if (!grid) return;
 
     if (targetOffer) {
+        if (typeof setChatContext === 'function') {
+            setChatContext(targetOffer);
+        }
+
         const bouslaPrice = getBouslaPrice(targetOffer.area, targetOffer.type);
         const featuresHtml = (targetOffer.features || []).map(f => `<span class="offer-feature-tag">${f}</span>`).join('');
         const mapLink = targetOffer.map_link || getDefaultMap();
@@ -275,8 +283,16 @@ async function handlePropertyQueryParam() {
                         <a href="https://wa.me/${getWhatsappNumber()}?text=${waText}" target="_blank" class="offer-btn offer-btn-contact">
                             <i class="fab fa-whatsapp"></i> تواصل عبر الواتساب
                         </a>
+                        <button onclick="if(typeof propertyComparison !== 'undefined') propertyComparison.addToCompare(OFFERS.find(o=>o.id==='${targetOffer.id}')||targetOffer)" class="offer-btn offer-btn-map">
+                            <i class="fas fa-balance-scale"></i> مقارنة
+                        </button>
                         <button onclick="shareOffer('${targetOffer.title}', '${shortUrl}')" class="offer-btn offer-btn-share">
-                            <i class="fas fa-share-alt"></i> 📤 مشاركةالعرض
+                            <i class="fas fa-share-alt"></i> 📤 مشاركة العرض
+                        </button>
+                    </div>
+                    <div style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn btn-sm btn-outline" onclick="if(typeof inquirySystem !== 'undefined') inquirySystem.showInquiryModal('${targetOffer.id}')">
+                            <i class="fas fa-question-circle"></i> طلب معلومات
                         </button>
                     </div>
                 </div>
@@ -458,6 +474,9 @@ function renderOffers(filter = 'all', areaFilter = 'all') {
                         <a href="https://wa.me/${getWhatsappNumber()}?text=${waText}" target="_blank" class="offer-btn offer-btn-contact">
                             <i class="fab fa-whatsapp"></i> واتساب
                         </a>
+                        <button onclick="if(typeof propertyComparison !== 'undefined') propertyComparison.addToCompare(OFFERS.find(o=>o.id==='${offer.id}'))" class="offer-btn offer-btn-map">
+                            <i class="fas fa-balance-scale"></i> مقارنة
+                        </button>
                         <button onclick="shareOffer('${offer.title}', '${shortUrl}')" class="offer-btn offer-btn-share">
                             <i class="fas fa-share-alt"></i> 📤 مشاركة
                         </button>
@@ -1151,6 +1170,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     await handlePropertyQueryParam();
     renderBousla();
     loadNews();
+
+    if (document.getElementById('faq-container') && typeof renderFAQ === 'function') {
+        renderFAQ();
+    }
+    if (document.getElementById('mortgage-calculator-container') && typeof mortgageCalculator !== 'undefined') {
+        mortgageCalculator.renderCalculator('mortgage-calculator-container');
+    }
+    if (document.getElementById('recommendations-container') && typeof propertyRecommender !== 'undefined') {
+        propertyRecommender.renderRecommendationForm('recommendations-container');
+    }
+    if (document.getElementById('booking-container') && typeof bookingSystem !== 'undefined') {
+        bookingSystem.renderBookingForm('booking-container');
+    }
 
     if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/')) {
         setTimeout(() => {
