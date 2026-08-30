@@ -1,0 +1,23 @@
+/* css/theme-toggle.css (جديد) */
+
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--glass-border);
+    color: var(--text-color);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-right: 10px;
+}
+
+.theme-toggle:hover {
+    background: var(--primary-gold);
+    color: #000;
+    transform: rotate(20deg);
+}
