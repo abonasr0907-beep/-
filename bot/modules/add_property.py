@@ -8,7 +8,7 @@ from bot.config import LOCATIONS
 from bot.database import load_properties, save_properties
 from utils.helpers import format_number, generate_property_link
 from utils.validators import validate_price
-from utils.price_utils import parse_price_input
+from utils.price_utils import parse_price_input, format_price_ar, format_price_en
 
 # Conversation States (8 steps)
 (
@@ -265,9 +265,15 @@ async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ENTERING_PRICE
 
     context.user_data["property"]["price"] = price
+    price_ar = format_price_ar(price)
+    price_en = format_price_en(price)
+
     reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
     await update.message.reply_text(
-        "📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم أرسل كلمة *تم* أو *انتهاء* أو اكتب /done عند الانتهاء.",
+        f"✅ تم تحديد السعر:\n"
+        f"• بالعربية: {price_ar}\n"
+        f"• بالإنجليزية: {price_en}\n\n"
+        f"📸 *الخطوة 7: قم برفع صور العقار (1 - 5 صور)*\n\nأرسل الصور واحدة تلو الأخرى، ثم أرسل كلمة *تم* أو *انتهاء* أو اكتب /done عند الانتهاء.",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
