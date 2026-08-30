@@ -1,0 +1,14 @@
+[
+  {
+    "id": "BOOK-1788122598610",
+    "createdAt": "2026-08-30T20:43:18.610386",
+    "status": "pending",
+    "name": "اختبار حجز",
+    "phone": "0500000000",
+    "email": "test@example.com",
+    "date": "2025-09-01",
+    "time": "10:00",
+    "notes": "معاينة المزرعة",
+    "propertyId": "PROP-0000000001"
+  }
+]
