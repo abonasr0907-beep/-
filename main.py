@@ -227,6 +227,96 @@ async def create_visitor_request_api(request: Request):
 
     return {"status": "ok", "id": req_id, "message": "Request saved successfully"}
 
+@app.post("/api/bookings")
+async def create_booking_api(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    bookings_file = os.path.join("data", "bookings.json")
+    bookings = load_json(bookings_file, default=[])
+    book_id = body.get("id") or f"BOOK-{int(datetime.now().timestamp() * 1000)}"
+    booking_entry = {
+        "id": book_id,
+        "createdAt": body.get("createdAt") or datetime.now().isoformat(),
+        "status": body.get("status") or "pending",
+        **body
+    }
+    bookings.append(booking_entry)
+    save_json(bookings_file, bookings)
+
+    if telegram_app and telegram_app.bot:
+        try:
+            name = body.get("name", "غير محدد")
+            phone = body.get("phone", "غير محدد")
+            date_val = body.get("date", "غير محدد")
+            time_val = body.get("time", "غير محدد")
+            prop_id = body.get("propertyId", "غير محدد")
+            msg_text = (
+                f"📅 *طلب حجز موعد جديد*\n\n"
+                f"👤 *الاسم:* {name}\n"
+                f"📱 *الجوال:* {phone}\n"
+                f"📆 *التاريخ:* {date_val}\n"
+                f"⏰ *الوقت:* {time_val}\n"
+                f"🏠 *العقار:* {prop_id}"
+            )
+            for admin_id in ADMIN_IDS:
+                await telegram_app.bot.send_message(
+                    chat_id=admin_id,
+                    text=msg_text,
+                    parse_mode="Markdown",
+                    disable_notification=True
+                )
+        except Exception as e:
+            logger.error(f"Admin booking notification failed: {e}")
+
+    return {"status": "ok", "id": book_id, "message": "Booking saved successfully"}
+
+@app.post("/api/inquiries")
+async def create_inquiry_api(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    inquiries_file = os.path.join("data", "inquiries.json")
+    inquiries = load_json(inquiries_file, default=[])
+    inq_id = body.get("id") or f"INQ-{int(datetime.now().timestamp() * 1000)}"
+    inquiry_entry = {
+        "id": inq_id,
+        "createdAt": body.get("createdAt") or datetime.now().isoformat(),
+        "status": body.get("status") or "new",
+        **body
+    }
+    inquiries.append(inquiry_entry)
+    save_json(inquiries_file, inquiries)
+
+    if telegram_app and telegram_app.bot:
+        try:
+            name = body.get("name", "غير محدد")
+            phone = body.get("phone", "غير محدد")
+            question = body.get("question", body.get("details", "بدون سؤال"))
+            prop_id = body.get("propertyId", "غير محدد")
+            msg_text = (
+                f"📩 *طلب استفسار جديد*\n\n"
+                f"👤 *الاسم:* {name}\n"
+                f"📱 *الجوال:* {phone}\n"
+                f"❓ *السؤال:* {question}\n"
+                f"🏠 *العقار:* {prop_id}"
+            )
+            for admin_id in ADMIN_IDS:
+                await telegram_app.bot.send_message(
+                    chat_id=admin_id,
+                    text=msg_text,
+                    parse_mode="Markdown",
+                    disable_notification=True
+                )
+        except Exception as e:
+            logger.error(f"Admin inquiry notification failed: {e}")
+
+    return {"status": "ok", "id": inq_id, "message": "Inquiry saved successfully"}
+
 def normalize(text):
     import re
     t = re.sub(r'[^\w\u0600-\u06FF\s]', '', text or '')
