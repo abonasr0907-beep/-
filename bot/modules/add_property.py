@@ -8,6 +8,7 @@ from bot.config import LOCATIONS
 from bot.database import load_properties, save_properties
 from utils.helpers import format_number, generate_property_link
 from utils.validators import validate_price
+from utils.price_utils import parse_price_input
 
 # Conversation States (8 steps)
 (
@@ -256,10 +257,11 @@ async def handle_feature_callback(update: Update, context: ContextTypes.DEFAULT_
     return await render_feature_step(query, context)
 
 async def handle_price_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    price = validate_price(update.message.text)
-    if not price:
+    raw_text = update.message.text or ""
+    price = parse_price_input(raw_text) or validate_price(raw_text)
+    if not price or price <= 0:
         reply_markup = InlineKeyboardMarkup([CANCEL_BUTTON])
-        await update.message.reply_text("❌ سعر غير صحيح. الرجاء إدخال رقم موجب (مثال: 425000):", reply_markup=reply_markup)
+        await update.message.reply_text("❌ سعر غير صحيح. الرجاء إدخال رقم موجب (مثال: 425000 أو ٤٢٥٠٠٠):", reply_markup=reply_markup)
         return ENTERING_PRICE
 
     context.user_data["property"]["price"] = price
