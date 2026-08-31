@@ -747,16 +747,44 @@ function hideTyping() {
 
 async function submitPropertyForm(event) {
     event.preventDefault();
+    const submitBtn = event.target.querySelector('[type="submit"]') || event.target.querySelector('button');
+    const originalText = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+    }
+
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData);
 
     try {
-        await fetch(`${API_BASE_URL}/api/visitors`, {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        await fetch(`${API_BASE_URL}/api/properties`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'property_submission', ...data })
+            body: JSON.stringify(data),
+            signal: controller.signal
         });
-    } catch (e) {}
+        clearTimeout(timeoutId);
+    } catch (e) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            await fetch(`${API_BASE_URL}/api/visitors`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'property_submission', ...data }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+        } catch (err) {}
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    }
 
     const requests = JSON.parse(localStorage.getItem('afaq_property_requests') || '[]');
     data.id = 'REQ-' + Date.now();
@@ -766,12 +794,12 @@ async function submitPropertyForm(event) {
     localStorage.setItem('afaq_property_requests', JSON.stringify(requests));
 
     const msg = `*طلب عرض عقار جديد* 📈\n\n` +
-        `*الاسم:* ${data.name}\n` +
+        `*الاسم:* ${data.name || ''}\n` +
         `*نوع العقار:* ${data.propertyType || data.property_type || 'غير محدد'}\n` +
         `*الموقع:* ${data.location || 'غير محدد'}\n` +
         `*المساحة:* ${data.area || data.size || 'غير محدد'} م²\n` +
         `*السعر التقريبي:* ${data.price || 'غير محدد'} ريال\n` +
-        `*رقم الجوال:* ${data.phone}\n` +
+        `*رقم الجوال:* ${data.phone || ''}\n` +
         (data.description ? `*الوصف:* ${data.description}\n` : '');
 
     window.open(`https://wa.me/${getWhatsappNumber()}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -779,7 +807,7 @@ async function submitPropertyForm(event) {
     const fs = document.getElementById('form-success');
     if (fs) fs.classList.add('show');
     event.target.reset();
-    showToast('تم إرسال طلبك بنجاح! سنتواصل معك قريباً', 'success');
+    showToast('✅ تم إرسال العقار بنجاح! سيتم مراجعته خلال 24 ساعة.', 'success');
 
     setTimeout(() => {
         const fsR = document.getElementById('form-success');
@@ -850,8 +878,11 @@ function showToast(message, type = '') {
 }
 
 function toggleMenu() {
-    const menu = document.querySelector('#nav-menu, .nav-menu, .sidebar, .side-nav, .navigation-menu, .nav-links');
-    if (!menu) return;
+    const navMenus = document.querySelectorAll('.nav-menu, .side-menu, .drawer, .mobile-menu, .sidebar, .side-nav, .navigation-menu, .nav-links');
+    const toggleButtons = document.querySelectorAll('.mobile-toggle, .hamburger, .menu-btn, .btn-menu-toggle, [data-toggle="menu"]');
+
+    if (!navMenus.length) return;
+
     let overlay = document.querySelector('#drawer-overlay, .drawer-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -860,37 +891,31 @@ function toggleMenu() {
         overlay.onclick = toggleMenu;
         document.body.appendChild(overlay);
     }
-    const isShowing = menu.classList.contains('show') || menu.classList.contains('active') || menu.classList.contains('open');
+
+    const isShowing = Array.from(navMenus).some(m => m.classList.contains('active') || m.classList.contains('show') || m.classList.contains('open'));
+
+    navMenus.forEach(menu => {
+        if (isShowing) {
+            menu.classList.remove('active', 'show', 'open');
+        } else {
+            menu.classList.add('active', 'show', 'open');
+        }
+    });
+
     if (isShowing) {
-        menu.classList.remove('show', 'active', 'open');
-        overlay.classList.remove('show', 'active', 'open');
+        overlay.classList.remove('active', 'show', 'open');
     } else {
-        menu.classList.add('show', 'active', 'open');
-        overlay.classList.add('show', 'active', 'open');
+        overlay.classList.add('active', 'show', 'open');
     }
+
+    toggleButtons.forEach(btn => {
+        btn.classList.toggle('active', !isShowing);
+        const icon = btn.querySelector('i, .icon');
+        if (icon) {
+            icon.className = !isShowing ? 'fas fa-times' : 'fas fa-bars';
+        }
+    });
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    const toggleBtn = document.querySelector('.sidebar-toggle, .menu-toggle, .nav-toggler, .btn-menu-toggle');
-    const sidebar = document.querySelector('.sidebar, .side-nav, .navigation-menu, .nav-links, #nav-menu, .nav-menu');
-    let overlay = document.querySelector('#drawer-overlay, .drawer-overlay');
-
-    if (toggleBtn && sidebar) {
-        toggleBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            toggleMenu();
-        });
-        document.addEventListener('click', function(e) {
-            const currentOverlay = document.querySelector('#drawer-overlay, .drawer-overlay');
-            if (sidebar && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-                sidebar.classList.remove('active', 'open', 'show');
-                if (currentOverlay) {
-                    currentOverlay.classList.remove('active', 'open', 'show');
-                }
-            }
-        });
-    }
-});
 
 function initStatsCounter() {
     const statNumbers = document.querySelectorAll('.stat-num[data-target]');
@@ -1218,4 +1243,3 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (e.key === 'Enter') sendAIMessage();
         });
     }
-});

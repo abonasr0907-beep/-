@@ -7,11 +7,11 @@
     --primary-gold: #FFD700;
     --accent-gold: #FFC107;
     --gold-hover: #e6c200;
-    --glass-bg: rgba(255, 255, 255, 0.08);
-    --glass-border: rgba(255, 255, 255, 0.15);
-    --glass-blur: 12px;
+    --glass-bg: rgba(255, 255, 255, 0.08) !important;
+    --glass-border: rgba(255, 255, 255, 0.15) !important;
+    --glass-blur: 6px !important;
     --glass-radius: 20px;
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --glass-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
     --dark-text-bg: rgba(0, 0, 0, 0.6);
     --white: #ffffff;
     --whatsapp-green: #25D366;
@@ -305,14 +305,28 @@ section {
 }
 
 /* ===== 6. نظام Glassmorphic Cards الموحد ===== */
-.property-card, .glass-card, .card, .listing-item {
-    background: rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: blur(22px) !important;
-    -webkit-backdrop-filter: blur(22px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+.glass-card,
+.offer-card,
+.property-card,
+.info-card,
+.contact-card,
+.card,
+.listing-item {
+    background: rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
 }
 
-.glass-card,
+.glass-card:hover,
+.offer-card:hover,
+.property-card:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+
 .cat-card,
 .stat-card,
 .why-card,
@@ -2120,8 +2134,19 @@ section {
         display: flex !important;
     }
 
-    .nav-menu.show {
-        transform: translateX(0);
+    .nav-menu.show,
+    .nav-menu.active,
+    .side-menu.active,
+    .drawer.active,
+    .mobile-menu.active {
+        display: flex !important;
+        transform: translateX(0) !important;
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     .nav-menu li {

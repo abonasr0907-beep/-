@@ -8,5 +8,15 @@
     "email": "inquiry@example.com",
     "question": "هل السعر قابل للتفاوض؟",
     "propertyId": "PROP-0000000002"
+  },
+  {
+    "id": "INQ-1788160229236",
+    "createdAt": "2026-08-31T07:10:29.236364",
+    "status": "new",
+    "name": "اختبار استفسار",
+    "phone": "0511111111",
+    "email": "inquiry@example.com",
+    "question": "هل السعر قابل للتفاوض؟",
+    "propertyId": "PROP-0000000002"
   }
 ]

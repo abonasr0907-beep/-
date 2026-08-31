@@ -10,5 +10,17 @@
     "time": "10:00",
     "notes": "معاينة المزرعة",
     "propertyId": "PROP-0000000001"
+  },
+  {
+    "id": "BOOK-1788160229229",
+    "createdAt": "2026-08-31T07:10:29.229010",
+    "status": "pending",
+    "name": "اختبار حجز",
+    "phone": "0500000000",
+    "email": "test@example.com",
+    "date": "2025-09-01",
+    "time": "10:00",
+    "notes": "معاينة المزرعة",
+    "propertyId": "PROP-0000000001"
   }
 ]
