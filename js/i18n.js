@@ -68,7 +68,7 @@
     const btn = document.createElement('button');
     btn.id = 'lang-switch-btn';
     btn.className = 'btn-lang-switcher';
-    btn.style.cssText = 'position: fixed; top: 15px; left: 20px; z-index: 1300; background: rgba(20, 32, 43, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(199, 217, 181, 0.4); color: #c7d9b5; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease;';
+    btn.style.cssText = 'position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: rgba(20, 32, 43, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(199, 217, 181, 0.4); color: #c7d9b5; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease;';
     btn.textContent = currentLang === 'ar' ? '🌐 English' : '🌐 العربية';
 
     btn.addEventListener('click', () => {

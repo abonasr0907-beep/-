@@ -105,7 +105,7 @@ async function loadOffers(defaultFilter = 'all') {
 
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         const response = await fetch(`${API_BASE_URL}/api/properties`, {
             cache: 'no-store',
             signal: controller.signal
@@ -609,7 +609,7 @@ async function loadNews() {
     `).join('');
 }
 
-const AI_KNOWLEDGE = {
+var AI_KNOWLEDGE = window.AI_KNOWLEDGE || {
     greeting: "أهلاً وسهلاً بك في مكتب آفاق الإنجاز العقاري! 👋 أنا مساعدك الذكي. لدي 20 سنة خبرة في السوق العقاري بالخرج والرياض. كيف يمكنني مساعدتك اليوم؟ يمكنك سؤالي عن المزارع، الاستراحات، الأراضي السكنية، أو خدماتنا.",
     farms: "🌿 لدينا مجموعة مميزة من المزارع في مخطط الرحمانية والهياثم والدلم والضبيعة والعفجة. أسعار المزارع تبدأ من 90 ريال/م² في الدلم وتصل إلى 150 ريال/م² في الهياثم. هل تريد تصفح عروض المزارع؟ <a href='farms.html'>اضغط هنا لعرض المزارع</a>",
     resthouses: "🏡 لدينا استراحات فاخرة في مختلف مناطق الخرج. الأسعار تتراوح بين 250,000 و1,500,000 ريال حسب الموقع والمساحة. <a href='resthouses.html'>اضغط هنا لعرض الاستراحات</a>",
@@ -877,7 +877,25 @@ function showToast(message, type = '') {
     }, 4000);
 }
 
+function closeMenu() {
+    const navMenus = document.querySelectorAll('.nav-menu, .side-menu, .drawer, .mobile-menu, .sidebar, .side-nav, .navigation-menu, .nav-links');
+    const toggleButtons = document.querySelectorAll('.mobile-toggle, .hamburger, .menu-btn, .btn-menu-toggle, [data-toggle="menu"]');
+    navMenus.forEach(menu => menu.classList.remove('active', 'show', 'open'));
+    toggleButtons.forEach(btn => {
+        btn.classList.remove('active');
+        const icon = btn.querySelector('i, .icon');
+        if (icon) icon.className = 'fas fa-bars';
+    });
+    const overlay = document.querySelector('#drawer-overlay, .drawer-overlay');
+    if (overlay) overlay.classList.remove('active', 'show', 'open');
+}
+
+let lastToggleTime = 0;
 function toggleMenu() {
+    const now = Date.now();
+    if (now - lastToggleTime < 300) return;
+    lastToggleTime = now;
+
     const navMenus = document.querySelectorAll('.nav-menu, .side-menu, .drawer, .mobile-menu, .sidebar, .side-nav, .navigation-menu, .nav-links');
     const toggleButtons = document.querySelectorAll('.mobile-toggle, .hamburger, .menu-btn, .btn-menu-toggle, [data-toggle="menu"]');
 
@@ -929,21 +947,24 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
 
+    const closeButtons = document.querySelectorAll('.btn-drawer-close');
+    closeButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeMenu();
+        });
+    });
+
     document.addEventListener('click', function(e) {
         const isToggleClick = Array.from(toggleButtons).some(btn => btn.contains(e.target));
         const isMenuClick = Array.from(navMenus).some(menu => menu.contains(e.target));
 
         if (!isToggleClick && !isMenuClick) {
-            navMenus.forEach(menu => menu.classList.remove('active', 'show', 'open'));
-            toggleButtons.forEach(btn => {
-                btn.classList.remove('active');
-                const icon = btn.querySelector('i, .icon');
-                if (icon) icon.className = 'fas fa-bars';
-            });
-            const overlay = document.querySelector('#drawer-overlay, .drawer-overlay');
-            if (overlay) overlay.classList.remove('active', 'show', 'open');
+            closeMenu();
         }
     });
+});
 
 function initStatsCounter() {
     const statNumbers = document.querySelectorAll('.stat-num[data-target]');
