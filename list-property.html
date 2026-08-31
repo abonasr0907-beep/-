@@ -369,30 +369,49 @@
             e.preventDefault();
 
             const submitBtn = document.getElementById('wiz-submit-btn');
+            const originalText = submitBtn.innerHTML;
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إرسال العرض...';
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
 
             const payload = {
-                type: "owner_lead",
+                type: document.getElementById('wiz-propertyType').value,
+                title: `${document.getElementById('wiz-propertyType').value} في ${document.getElementById('wiz-location').value}`,
                 name: document.getElementById('wiz-name').value.trim(),
                 phone: document.getElementById('wiz-phone').value.trim(),
                 propertyType: document.getElementById('wiz-propertyType').value,
                 location: document.getElementById('wiz-location').value,
-                area: document.getElementById('wiz-area').value,
-                price: document.getElementById('wiz-price').value,
+                area: document.getElementById('wiz-location').value,
+                size_sqm: Number(document.getElementById('wiz-area').value),
+                price: Number(document.getElementById('wiz-price').value),
                 description: document.getElementById('wiz-description').value.trim()
             };
 
-            let savedInApi = false;
             try {
-                const res = await fetch('https://worker-production-7713.up.railway.app/api/visitors', {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                await fetch('https://worker-production-7713.up.railway.app/api/properties', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
-                if (res.ok) savedInApi = true;
+                clearTimeout(timeoutId);
             } catch (err) {
                 console.warn('API submission notice:', err);
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+                    await fetch('https://worker-production-7713.up.railway.app/api/visitors', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'owner_lead', ...payload }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                } catch (e2) {}
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
 
             const waNum = (typeof CONTACTS !== 'undefined' && CONTACTS.whatsapp1) ? CONTACTS.whatsapp1.replace(/^0/, '966') : '966545888931';
@@ -401,17 +420,17 @@
                 `*الجوال:* ${payload.phone}\n` +
                 `*نوع العقار:* ${payload.propertyType}\n` +
                 `*الموقع:* ${payload.location}\n` +
-                `*المساحة:* ${Number(payload.area).toLocaleString('ar-SA')} م²\n` +
+                `*المساحة:* ${Number(payload.size_sqm).toLocaleString('ar-SA')} م²\n` +
                 `*السعر المطلوب:* ${Number(payload.price).toLocaleString('ar-SA')} ريال\n` +
                 (payload.description ? `*الوصف:* ${payload.description}\n` : '');
 
             window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`, '_blank');
 
-            showToast('تم إرسال عرض عقارك بنجاح وفتحت محادثة الواتساب المباشرة! 🌟', 'success');
+            showToast('✅ تم إرسال العقار بنجاح! سيتم مراجعته خلال 24 ساعة.', 'success');
 
             setTimeout(() => {
                 window.location.href = 'index.html';
-            }, 3000);
+            }, 2000);
         }
     </script>
 </body>

@@ -157,6 +157,38 @@ async def get_single_property_api(id: str):
         return JSONResponse(status_code=404, content={"error": "Property not found", "id": id})
     return prop
 
+@app.post("/api/properties")
+async def create_property_api(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    from bot.database import add_property
+    new_prop = add_property(body)
+
+    if telegram_app and telegram_app.bot:
+        try:
+            msg_text = (
+                f"🏡 *عرض عقار جديد من الموقع*\n\n"
+                f"🆔 *المعرف:* `{new_prop.get('id')}`\n"
+                f"🏷️ *النوع:* {new_prop.get('type', 'غير محدد')}\n"
+                f"📍 *الموقع:* {new_prop.get('location', new_prop.get('area', 'غير محدد'))}\n"
+                f"📐 *المساحة:* {new_prop.get('size_sqm', new_prop.get('area_sqm', new_prop.get('area', 'غير محدد')))} م²\n"
+                f"💰 *السعر:* {new_prop.get('price', 'غير محدد')} ريال"
+            )
+            for admin_id in ADMIN_IDS:
+                await telegram_app.bot.send_message(
+                    chat_id=admin_id,
+                    text=msg_text,
+                    parse_mode="Markdown",
+                    disable_notification=True
+                )
+        except Exception as e:
+            logger.error(f"Admin notification for property failed: {e}")
+
+    return {"status": "ok", "id": new_prop.get("id"), "property": new_prop}
+
 @app.get("/api/compass")
 async def get_compass_api():
     compass_data = load_json(COMPASS_FILE, default={})
@@ -344,49 +376,76 @@ async def reset_offers_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await update.message.reply_text(msg, reply_markup=reply_markup, parse_mode="Markdown")
 
+async def cancel_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🔄 تم الإلغاء ورجوع إلى القائمة الرئيسية.", reply_markup=get_main_reply_keyboard())
+
+async def stats_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    props = load_properties()
+    active = [p for p in props if not is_property_archived(p)]
+    archived = [p for p in props if is_property_archived(p)]
+    msg = (
+        f"📊 *إحصائيات النظام*\n\n"
+        f"🏠 *إجمالي العروض:* {len(props)}\n"
+        f"✅ *العروض النشطة:* {len(active)}\n"
+        f"📦 *المؤرشفة:* {len(archived)}"
+    )
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=get_main_reply_keyboard())
+
+async def assistant_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 المساعد الذكي لمكتب آفاق الإنجاز مفعل وجاهز للمساعدة.", reply_markup=get_main_reply_keyboard())
+
+async def marketing_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("📢 قسم التسويق والمشاركات مفعل لكل عرض على الموقع والبوت.", reply_markup=get_main_reply_keyboard())
+
+async def admins_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👥 إدارة المدراء مفعلة بحسابات النظام المعتمدة.", reply_markup=get_main_reply_keyboard())
+
+async def settings_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⚙️ النظام يعمل بالإعدادات القياسية للخدمة.", reply_markup=get_main_reply_keyboard())
+
+async def reports_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from bot.modules.reports import reports_handler
+    return await reports_handler(update, context)
+
 ROUTES = {
   "اضافة عرض جديد": start_add_property,
   "قائمة العروض": start_list_properties,
   "تعديل عرض": start_edit_property,
   "حذف عرض": start_delete_property,
   "الارشيف": start_list_properties,
+  "احصائيات": stats_action,
   "البوصلة": compass_handler,
+  "المساعد": assistant_action,
+  "التقارير": reports_action,
+  "التسويق": marketing_action,
+  "المدراء": admins_action,
+  "الاعدادات": settings_action,
+  "الغاء": cancel_action,
   "اعادة تهيئة العروض": reset_offers_prompt,
 }
 
 def get_main_reply_keyboard():
     keyboard = [
-        ["➕ إضافة عرض جديد", "📋 قائمة العروض"],
-        ["✏️ تعديل عرض", "🗑️ حذف عرض"],
-        ["📦 الأرشيف", "🧭 البوصلة"],
-        ["🧹 إعادة تهيئة العروض"]
+        [KeyboardButton("➕ إضافة عرض جديد"), KeyboardButton("📋 قائمة العروض")],
+        [KeyboardButton("✏️ تعديل عرض"), KeyboardButton("🗑️ حذف عرض")],
+        [KeyboardButton("📦 الأرشيف"), KeyboardButton("📊 إحصائيات")],
+        [KeyboardButton("🧭 البوصلة"), KeyboardButton("🤖 المساعد")],
+        [KeyboardButton("📑 التقارير"), KeyboardButton("📢 التسويق")],
+        [KeyboardButton("👥 المدراء"), KeyboardButton("⚙️ الإعدادات")],
+        [KeyboardButton("❌ إلغاء")]
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    inline_keyboard = [
-        [InlineKeyboardButton("📋 قائمة العروض", callback_data='list_props'),
-         InlineKeyboardButton("➕ إضافة عرض جديد", callback_data='add_prop')],
-        [InlineKeyboardButton("✏️ تعديل عرض", callback_data='edit_prop'),
-         InlineKeyboardButton("🗑️ حذف عرض", callback_data='delete_prop')],
-        [InlineKeyboardButton("📨 طلبات الزوار", callback_data='visitors'),
-         InlineKeyboardButton("📦 الأرشيف", callback_data='archive')],
-        [InlineKeyboardButton("📊 إحصائيات", callback_data='stats'),
-         InlineKeyboardButton("🧭 البوصلة", callback_data='compass')],
-        [InlineKeyboardButton("👥 المدراء", callback_data='admins'),
-         InlineKeyboardButton("🤖 المساعد", callback_data='assistant')],
-        [InlineKeyboardButton("🎬 التسويق", callback_data='marketing'),
-         InlineKeyboardButton("📈 التقارير", callback_data='reports')],
-        [InlineKeyboardButton("⚙️ الإعدادات", callback_data='settings'),
-         InlineKeyboardButton("🔄 إلغاء", callback_data='cancel')]
-    ]
-    await update.message.reply_text(
-        "🏡 نظام إدارة العقارات - آفاق الإنجاز\n\nمرحباً بك في لوحة تحكم المدراء.",
-        reply_markup=get_main_reply_keyboard()
+    """رسالة ترحيب واحدة مع لوحة تحكم واحدة"""
+    welcome_text = (
+        "🏡 نظام إدارة العقارات - آفاق الإنجاز\n\n"
+        "مرحباً بك في لوحة تحكم المدراء.\n\n"
+        "اختر من القائمة أدناه للبدء:"
     )
     await update.message.reply_text(
-        "اختر من القائمة أدناه أو من الأزرار التالية:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard)
+        welcome_text,
+        reply_markup=get_main_reply_keyboard()
     )
 
 async def handle_persistent_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
